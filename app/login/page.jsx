@@ -38,7 +38,11 @@ export default function LoginPage() {
     <div className="min-h-screen flex items-center justify-center bg-background px-4">
       <div className="w-full max-w-md">
         <div className="bg-card border border-border rounded-lg shadow-lg p-8">
-          <h1 className="text-2xl font-bold text-center mb-6 text-foreground">Iniciar Sesión</h1>
+          <h1 className="text-2xl font-bold text-center mb-2 text-foreground">TribunasClock</h1>
+
+          <div className="flex justify-center mb-6">
+            <img src="/assets/logo.png" alt="TribunasClock Logo" className="h-24 w-24" />
+          </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
