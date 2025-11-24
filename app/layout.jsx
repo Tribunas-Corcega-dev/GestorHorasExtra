@@ -7,9 +7,10 @@ const _geist = Geist({ subsets: ["latin"] })
 const _geistMono = Geist_Mono({ subsets: ["latin"] })
 
 export const metadata = {
-  title: "Sistema de Gestión de Empleados",
-  description: "Sistema de gestión de empleados con autenticación local",
-  generator: "v0.app",
+  title: "TribunasClock",
+  icons: {
+    icon: "/assets/logo.png",
+  },
 }
 
 export default function RootLayout({ children }) {

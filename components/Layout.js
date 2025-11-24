@@ -18,7 +18,10 @@ export function Layout({ children }) {
       {/* Header */}
       <header className="bg-primary text-primary-foreground shadow-md">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <h1 className="text-xl font-bold">Sistema de Gestión de Empleados</h1>
+          <div className="flex items-center gap-3">
+            <img src="/assets/logo.png" alt="TribunasClock Logo" className="h-8 w-8" />
+            <h1 className="text-xl font-bold">TribunasClock</h1>
+          </div>
 
           <div className="flex items-center gap-4">
             {/* User Info */}
