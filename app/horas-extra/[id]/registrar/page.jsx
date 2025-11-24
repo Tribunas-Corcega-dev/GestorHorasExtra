@@ -137,6 +137,7 @@ function RegistrarHorasExtraContent() {
                         <DailyScheduleSelector
                             value={jornada}
                             onChange={setJornada}
+                            date={fecha}
                         />
                     </div>
 

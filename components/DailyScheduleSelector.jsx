@@ -4,11 +4,11 @@ import { useState, useEffect } from "react"
 
 const DEFAULT_SCHEDULE = {
     enabled: true,
-    morning: { start: "07:45", end: "12:00", enabled: true },
+    morning: { start: "07:30", end: "12:00", enabled: true },
     afternoon: { start: "13:45", end: "17:00", enabled: true },
 }
 
-export function DailyScheduleSelector({ value, onChange }) {
+export function DailyScheduleSelector({ value, onChange, date }) {
     const [schedule, setSchedule] = useState(() => {
         if (value) {
             try {
@@ -25,8 +25,34 @@ export function DailyScheduleSelector({ value, onChange }) {
     })
 
     useEffect(() => {
+        if (date) {
+            const dayOfWeek = getDayOfWeek(date)
+            setSchedule(prev => ({ ...prev, dayOfWeek }))
+        }
+    }, [date])
+
+    useEffect(() => {
         onChange(schedule)
     }, [schedule])
+
+    function getDayOfWeek(dateString) {
+        if (!dateString) return ""
+        // Create date object and adjust for timezone offset to get correct local day
+        const date = new Date(dateString)
+        const day = date.getUTCDay()
+
+        const days = [
+            "Domingo",
+            "Lunes",
+            "Martes",
+            "Miércoles",
+            "Jueves",
+            "Viernes",
+            "Sábado"
+        ]
+
+        return days[day]
+    }
 
     const handleShiftToggle = (period) => {
         setSchedule((prev) => ({
