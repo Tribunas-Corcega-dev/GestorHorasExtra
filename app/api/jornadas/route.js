@@ -58,3 +58,37 @@ export async function POST(request) {
         return NextResponse.json({ message: "Error interno del servidor" }, { status: 500 })
     }
 }
+
+export async function GET(request) {
+    try {
+        const user = await getUserFromRequest(request)
+
+        if (!user || !canManageOvertime(user.rol)) {
+            return NextResponse.json({ message: "No autorizado" }, { status: 403 })
+        }
+
+        const { searchParams } = new URL(request.url)
+        const empleado_id = searchParams.get("empleado_id")
+
+        let query = supabase
+            .from("jornadas")
+            .select("*")
+            .order("fecha", { ascending: false })
+
+        if (empleado_id) {
+            query = query.eq("empleado_id", empleado_id)
+        }
+
+        const { data: jornadas, error } = await query
+
+        if (error) {
+            console.error("[v0] Error fetching jornadas:", error)
+            return NextResponse.json({ message: `Error al obtener jornadas: ${error.message}` }, { status: 500 })
+        }
+
+        return NextResponse.json(jornadas)
+    } catch (error) {
+        console.error("[v0] Error in GET jornadas:", error)
+        return NextResponse.json({ message: "Error interno del servidor" }, { status: 500 })
+    }
+}

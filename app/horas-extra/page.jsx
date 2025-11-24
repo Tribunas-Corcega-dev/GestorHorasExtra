@@ -84,12 +84,20 @@ function HorasExtraContent() {
                                 </p>
                             </div>
 
-                            <button
-                                onClick={() => handleRegistrarHoras(empleado)}
-                                className="mt-auto w-full bg-primary text-primary-foreground px-4 py-2 rounded-md text-sm font-medium hover:opacity-90 transition-opacity"
-                            >
-                                Registrar horas extra
-                            </button>
+                            <div className="mt-auto w-full space-y-2">
+                                <button
+                                    onClick={() => handleRegistrarHoras(empleado)}
+                                    className="w-full bg-primary text-primary-foreground px-4 py-2 rounded-md text-sm font-medium hover:opacity-90 transition-opacity"
+                                >
+                                    Registrar horas extra
+                                </button>
+                                <button
+                                    onClick={() => router.push(`/horas-extra/${empleado.id}/historial`)}
+                                    className="w-full bg-secondary text-secondary-foreground px-4 py-2 rounded-md text-sm font-medium hover:opacity-90 transition-opacity border border-border"
+                                >
+                                    Ver historial
+                                </button>
+                            </div>
                         </div>
                     ))}
                 </div>
