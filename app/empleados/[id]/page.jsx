@@ -108,6 +108,15 @@ function EditarEmpleadoContent() {
         delete updateData.password
       }
 
+      // Asegurarse de que jornada_fija_hhmm se envíe como objeto JSON, no como string
+      if (updateData.jornada_fija_hhmm && typeof updateData.jornada_fija_hhmm === 'string') {
+        try {
+          updateData.jornada_fija_hhmm = JSON.parse(updateData.jornada_fija_hhmm)
+        } catch (e) {
+          console.error("Error parsing schedule before save:", e)
+        }
+      }
+
       const res = await fetch(`/api/empleados/${params.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },

@@ -48,10 +48,18 @@ function DetalleEmpleadoContent() {
             const res = await fetch(`/api/empleados/${params.id}`)
             if (res.ok) {
                 const data = await res.json()
-                // Parse jornada_fija_hhmm if it's a string
-                if (data.jornada_fija_hhmm && typeof data.jornada_fija_hhmm === 'string') {
+                // Parse jornada_fija_hhmm if it's a string (handle potential double stringification)
+                if (data.jornada_fija_hhmm) {
                     try {
-                        data.jornada_fija_hhmm = JSON.parse(data.jornada_fija_hhmm)
+                        let schedule = data.jornada_fija_hhmm
+                        if (typeof schedule === 'string') {
+                            schedule = JSON.parse(schedule)
+                        }
+                        // Check if it's STILL a string after first parse (double encoded)
+                        if (typeof schedule === 'string') {
+                            schedule = JSON.parse(schedule)
+                        }
+                        data.jornada_fija_hhmm = schedule
                     } catch (e) {
                         console.error("Error parsing schedule:", e)
                     }
