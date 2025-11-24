@@ -17,6 +17,16 @@ export default function DetalleEmpleadoPage() {
     )
 }
 
+const DAYS = [
+    { id: "lunes", label: "Lunes" },
+    { id: "martes", label: "Martes" },
+    { id: "miercoles", label: "Miércoles" },
+    { id: "jueves", label: "Jueves" },
+    { id: "viernes", label: "Viernes" },
+    { id: "sabado", label: "Sábado" },
+    { id: "domingo", label: "Domingo" },
+]
+
 function DetalleEmpleadoContent() {
     const params = useParams()
     const { user } = useAuth()
@@ -38,6 +48,14 @@ function DetalleEmpleadoContent() {
             const res = await fetch(`/api/empleados/${params.id}`)
             if (res.ok) {
                 const data = await res.json()
+                // Parse jornada_fija_hhmm if it's a string
+                if (data.jornada_fija_hhmm && typeof data.jornada_fija_hhmm === 'string') {
+                    try {
+                        data.jornada_fija_hhmm = JSON.parse(data.jornada_fija_hhmm)
+                    } catch (e) {
+                        console.error("Error parsing schedule:", e)
+                    }
+                }
                 setEmpleado(data)
             }
         } catch (error) {
@@ -56,7 +74,7 @@ function DetalleEmpleadoContent() {
     }
 
     return (
-        <div className="max-w-3xl mx-auto">
+        <div className="max-w-4xl mx-auto">
             <div className="flex items-center justify-between mb-6">
                 <h1 className="text-3xl font-bold text-foreground">Detalles del Empleado</h1>
                 <button
@@ -85,56 +103,77 @@ function DetalleEmpleadoContent() {
                     </div>
                 </div>
 
-                {/* Details Grid */}
-                <div className="p-8 grid grid-cols-1 md:grid-cols-2 gap-8">
+                {/* Details Content */}
+                <div className="p-8 space-y-8">
+
+                    {/* Info Laboral Section */}
                     <div className="space-y-4">
                         <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider border-b border-border pb-2">
                             Información Laboral
                         </h3>
-                        <div className="grid grid-cols-2 gap-4">
-                            <div>
-                                <p className="text-xs text-muted-foreground">Rol en sistema</p>
-                                <p className="font-medium text-foreground">{empleado.rol}</p>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                            <div className="p-4 bg-background rounded-lg border border-border">
+                                <p className="text-xs text-muted-foreground mb-1">Rol en sistema</p>
+                                <p className="font-medium text-foreground text-lg">{empleado.rol}</p>
                             </div>
-                            <div>
-                                <p className="text-xs text-muted-foreground">Tipo de trabajador</p>
-                                <p className="font-medium text-foreground">{empleado.tipo_trabajador || "-"}</p>
+                            <div className="p-4 bg-background rounded-lg border border-border">
+                                <p className="text-xs text-muted-foreground mb-1">Tipo de trabajador</p>
+                                <p className="font-medium text-foreground text-lg">{empleado.tipo_trabajador || "-"}</p>
                             </div>
-                            <div>
-                                <p className="text-xs text-muted-foreground">Salario Base</p>
-                                <p className="font-medium text-foreground">
+                            <div className="p-4 bg-background rounded-lg border border-border">
+                                <p className="text-xs text-muted-foreground mb-1">Salario Base</p>
+                                <p className="font-medium text-foreground text-lg">
                                     {empleado.salario_base ? `$${Number(empleado.salario_base).toLocaleString()}` : "-"}
                                 </p>
                             </div>
                         </div>
                     </div>
 
+                    {/* Horario Semanal Section */}
                     <div className="space-y-4">
                         <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider border-b border-border pb-2">
-                            Horario Fijo
+                            Horario Semanal
                         </h3>
                         {empleado.jornada_fija_hhmm ? (
-                            <div className="space-y-3">
-                                <div className="flex justify-between items-center text-sm">
-                                    <span className="text-muted-foreground">Mañana:</span>
-                                    {empleado.jornada_fija_hhmm.morning?.enabled ? (
-                                        <span className="font-medium text-foreground">
-                                            {empleado.jornada_fija_hhmm.morning.start} - {empleado.jornada_fija_hhmm.morning.end}
-                                        </span>
-                                    ) : (
-                                        <span className="text-muted-foreground italic">No labora</span>
-                                    )}
-                                </div>
-                                <div className="flex justify-between items-center text-sm">
-                                    <span className="text-muted-foreground">Tarde:</span>
-                                    {empleado.jornada_fija_hhmm.afternoon?.enabled ? (
-                                        <span className="font-medium text-foreground">
-                                            {empleado.jornada_fija_hhmm.afternoon.start} - {empleado.jornada_fija_hhmm.afternoon.end}
-                                        </span>
-                                    ) : (
-                                        <span className="text-muted-foreground italic">No labora</span>
-                                    )}
-                                </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                                {DAYS.map((day) => {
+                                    const daySchedule = empleado.jornada_fija_hhmm[day.id]
+                                    const isDayEnabled = daySchedule?.enabled
+
+                                    return (
+                                        <div key={day.id} className={`p-3 rounded-md border ${isDayEnabled ? "border-border bg-card" : "border-border/50 bg-muted/30"}`}>
+                                            <div className="font-medium text-sm mb-2 flex items-center justify-between">
+                                                <span>{day.label}</span>
+                                                {!isDayEnabled && <span className="text-xs text-muted-foreground italic">Descanso</span>}
+                                            </div>
+
+                                            {isDayEnabled ? (
+                                                <div className="space-y-1 text-xs">
+                                                    <div className="flex justify-between">
+                                                        <span className="text-muted-foreground">M:</span>
+                                                        <span className="font-medium">
+                                                            {daySchedule.morning?.enabled
+                                                                ? `${daySchedule.morning.start} - ${daySchedule.morning.end}`
+                                                                : "No labora"}
+                                                        </span>
+                                                    </div>
+                                                    <div className="flex justify-between">
+                                                        <span className="text-muted-foreground">T:</span>
+                                                        <span className="font-medium">
+                                                            {daySchedule.afternoon?.enabled
+                                                                ? `${daySchedule.afternoon.start} - ${daySchedule.afternoon.end}`
+                                                                : "No labora"}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            ) : (
+                                                <div className="text-xs text-muted-foreground italic text-center py-2">
+                                                    No programado
+                                                </div>
+                                            )}
+                                        </div>
+                                    )
+                                })}
                             </div>
                         ) : (
                             <p className="text-sm text-muted-foreground italic">No hay horario fijo registrado</p>
