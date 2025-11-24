@@ -64,39 +64,34 @@ function HorasExtraContent() {
             ) : empleados.length === 0 ? (
                 <div className="text-center py-8 text-muted-foreground">No se encontraron empleados</div>
             ) : (
-                <div className="bg-card border border-border rounded-lg shadow-md overflow-hidden">
-                    <div className="overflow-x-auto">
-                        <table className="w-full">
-                            <thead className="bg-muted">
-                                <tr>
-                                    <th className="px-4 py-3 text-left text-sm font-medium text-foreground">Nombre</th>
-                                    <th className="px-4 py-3 text-left text-sm font-medium text-foreground">Cargo</th>
-                                    <th className="px-4 py-3 text-left text-sm font-medium text-foreground">Área</th>
-                                    <th className="px-4 py-3 text-left text-sm font-medium text-foreground">Acciones</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-border">
-                                {empleados.map((empleado) => (
-                                    <tr key={empleado.id} className="hover:bg-accent transition-colors">
-                                        <td className="px-4 py-3 text-sm text-foreground">
-                                            <div className="font-medium">{empleado.nombre || empleado.username}</div>
-                                            <div className="text-xs text-muted-foreground">{empleado.username}</div>
-                                        </td>
-                                        <td className="px-4 py-3 text-sm text-foreground">{empleado.cargo || "-"}</td>
-                                        <td className="px-4 py-3 text-sm text-foreground">{empleado.area || "-"}</td>
-                                        <td className="px-4 py-3 text-sm">
-                                            <button
-                                                onClick={() => handleRegistrarHoras(empleado)}
-                                                className="bg-primary text-primary-foreground px-3 py-1.5 rounded text-xs font-medium hover:opacity-90 transition-opacity"
-                                            >
-                                                Registrar horas extra
-                                            </button>
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    {empleados.map((empleado) => (
+                        <div key={empleado.id} className="bg-card border border-border rounded-lg shadow-sm hover:shadow-md transition-shadow p-6 flex flex-col items-center text-center">
+                            <div className="h-20 w-20 rounded-full bg-primary/10 flex items-center justify-center mb-4">
+                                <span className="text-2xl font-bold text-primary">
+                                    {(empleado.nombre || empleado.username || "?").charAt(0).toUpperCase()}
+                                </span>
+                            </div>
+
+                            <h3 className="font-semibold text-lg text-foreground mb-1">
+                                {empleado.nombre || empleado.username}
+                            </h3>
+
+                            <div className="text-sm text-muted-foreground mb-4 space-y-1">
+                                <p>{empleado.cargo || "Sin cargo"}</p>
+                                <p className="text-xs bg-muted px-2 py-1 rounded-full inline-block">
+                                    {empleado.area || "Sin área"}
+                                </p>
+                            </div>
+
+                            <button
+                                onClick={() => handleRegistrarHoras(empleado)}
+                                className="mt-auto w-full bg-primary text-primary-foreground px-4 py-2 rounded-md text-sm font-medium hover:opacity-90 transition-opacity"
+                            >
+                                Registrar horas extra
+                            </button>
+                        </div>
+                    ))}
                 </div>
             )}
         </div>
