@@ -37,7 +37,7 @@ function NuevoEmpleadoContent() {
   })
 
   useEffect(() => {
-    if (user && !canManageEmployees(user.rol)) {
+    if (user && (!canManageEmployees(user.rol) || isCoordinator(user.rol))) {
       router.push("/dashboard")
     }
     fetchRoles()
@@ -92,7 +92,7 @@ function NuevoEmpleadoContent() {
     }
   }
 
-  if (!canManageEmployees(user?.rol)) {
+  if (!canManageEmployees(user?.rol) || isCoordinator(user?.rol)) {
     return null
   }
 
