@@ -231,6 +231,7 @@ function NuevoEmpleadoContent() {
                 step="0.01"
                 value={formData.salario_base}
                 onChange={handleChange}
+                required
                 className="w-full px-3 py-2 border border-input bg-background text-foreground rounded-md focus:outline-none focus:ring-2 focus:ring-ring"
               />
             </div>

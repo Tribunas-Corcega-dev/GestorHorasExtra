@@ -114,7 +114,7 @@ export async function PUT(request, props) {
 
     if (updateError) {
       console.error("[v0] Error updating employee:", updateError)
-      return NextResponse.json({ message: "Error al actualizar el empleado" }, { status: 500 })
+      return NextResponse.json({ message: `Error al actualizar el empleado: ${updateError.message}` }, { status: 500 })
     }
 
     return NextResponse.json(updatedEmpleado)
