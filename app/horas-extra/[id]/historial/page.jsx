@@ -1,10 +1,12 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useOvertimeCalculator } from "@/hooks/useOvertimeCalculator"
 import { useAuth } from "@/hooks/useAuth"
 import { Layout } from "@/components/Layout"
 import { ProtectedRoute } from "@/components/ProtectedRoute"
 import { canManageOvertime } from "@/lib/permissions"
+import { formatDateForDisplay } from "@/lib/utils"
 import { useRouter, useParams } from "next/navigation"
 
 export default function HistorialHorasExtraPage() {
@@ -21,38 +23,32 @@ function HistorialContent() {
     const params = useParams()
     const { user } = useAuth()
     const router = useRouter()
-    const [loading, setLoading] = useState(true)
+    const [loadingEmp, setLoadingEmp] = useState(true)
     const [empleado, setEmpleado] = useState(null)
-    const [jornadas, setJornadas] = useState([])
+
+    // Use the calculator hook
+    const { loading: loadingCalc, calculations, summary } = useOvertimeCalculator(params?.id)
 
     useEffect(() => {
         if (user && !canManageOvertime(user.rol)) {
             router.push("/dashboard")
         }
         if (params?.id) {
-            fetchData()
+            fetchEmpleado()
         }
     }, [user, router, params?.id])
 
-    async function fetchData() {
+    async function fetchEmpleado() {
         try {
-            // Fetch employee data
             const empRes = await fetch(`/api/empleados/${params.id}`)
             if (empRes.ok) {
                 const empData = await empRes.json()
                 setEmpleado(empData)
             }
-
-            // Fetch history
-            const histRes = await fetch(`/api/jornadas?empleado_id=${params.id}`)
-            if (histRes.ok) {
-                const histData = await histRes.json()
-                setJornadas(histData)
-            }
         } catch (error) {
-            console.error("Error fetching data:", error)
+            console.error("Error fetching employee:", error)
         } finally {
-            setLoading(false)
+            setLoadingEmp(false)
         }
     }
 
@@ -60,12 +56,12 @@ function HistorialContent() {
         return null
     }
 
-    if (loading) {
+    if (loadingEmp || loadingCalc) {
         return <div className="text-center py-8">Cargando...</div>
     }
 
     return (
-        <div className="max-w-4xl mx-auto">
+        <div className="max-w-5xl mx-auto">
             <div className="flex items-center justify-between mb-6">
                 <div>
                     <h1 className="text-3xl font-bold text-foreground">Historial de Horas Extra</h1>
@@ -83,7 +79,16 @@ function HistorialContent() {
                 </button>
             </div>
 
-            {jornadas.length === 0 ? (
+            {/* Summary Card */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+                <div className="bg-card border border-border rounded-lg p-6 shadow-sm">
+                    <h3 className="text-sm font-medium text-muted-foreground mb-2">Total Horas Extra</h3>
+                    <div className="text-3xl font-bold text-primary">{summary.totalOvertimeHours}</div>
+                    <p className="text-xs text-muted-foreground mt-1">Acumulado total</p>
+                </div>
+            </div>
+
+            {calculations.length === 0 ? (
                 <div className="text-center py-12 bg-card border border-border rounded-lg">
                     <p className="text-muted-foreground">No hay registros de horas extra para este empleado.</p>
                 </div>
@@ -97,18 +102,19 @@ function HistorialContent() {
                                     <th className="px-4 py-3 text-left text-sm font-medium text-foreground">Día</th>
                                     <th className="px-4 py-3 text-left text-sm font-medium text-foreground">Mañana</th>
                                     <th className="px-4 py-3 text-left text-sm font-medium text-foreground">Tarde</th>
+                                    <th className="px-4 py-3 text-left text-sm font-medium text-foreground">Horas Extra</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-border">
-                                {jornadas.map((jornada) => {
-                                    const schedule = jornada.jornada_base_calcular
+                                {calculations.map((item) => {
+                                    const schedule = item.schedule
                                     return (
-                                        <tr key={jornada.id} className="hover:bg-accent/50 transition-colors">
+                                        <tr key={item.id} className="hover:bg-accent/50 transition-colors">
                                             <td className="px-4 py-3 text-sm text-foreground font-medium">
-                                                {new Date(jornada.fecha).toLocaleDateString()}
+                                                {formatDateForDisplay(item.date)}
                                             </td>
                                             <td className="px-4 py-3 text-sm text-foreground">
-                                                {schedule.dayOfWeek || "-"}
+                                                {item.dayId ? item.dayId.charAt(0).toUpperCase() + item.dayId.slice(1) : "-"}
                                             </td>
                                             <td className="px-4 py-3 text-sm text-foreground">
                                                 {schedule.morning.enabled ? (
@@ -126,6 +132,15 @@ function HistorialContent() {
                                                     </span>
                                                 ) : (
                                                     <span className="text-muted-foreground text-xs italic">No labora</span>
+                                                )}
+                                            </td>
+                                            <td className="px-4 py-3 text-sm font-bold text-primary">
+                                                {item.formattedOvertime !== "00:00" ? (
+                                                    <span className="bg-primary/10 text-primary px-2 py-0.5 rounded text-xs">
+                                                        {item.formattedOvertime}
+                                                    </span>
+                                                ) : (
+                                                    <span className="text-muted-foreground text-xs">-</span>
                                                 )}
                                             </td>
                                         </tr>
