@@ -48,8 +48,7 @@ function HorasExtraContent() {
     }
 
     const handleRegistrarHoras = (empleado) => {
-        // Placeholder action as per requirements
-        alert(`Registrar horas extra para: ${empleado.nombre || empleado.username}`)
+        router.push(`/horas-extra/${empleado.id}/registrar`)
     }
 
     if (!canManageOvertime(user?.rol)) {

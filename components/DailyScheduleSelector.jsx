@@ -1,0 +1,132 @@
+"use client"
+
+import { useState, useEffect } from "react"
+
+const DEFAULT_SCHEDULE = {
+    enabled: true,
+    morning: { start: "07:45", end: "12:00", enabled: true },
+    afternoon: { start: "13:45", end: "17:00", enabled: true },
+}
+
+export function DailyScheduleSelector({ value, onChange }) {
+    const [schedule, setSchedule] = useState(() => {
+        if (value) {
+            try {
+                // If value is a string, parse it. If it's an object, use it.
+                // If it's empty/null, use default.
+                const parsed = typeof value === "string" ? JSON.parse(value) : value
+                return parsed || { ...DEFAULT_SCHEDULE }
+            } catch (e) {
+                console.error("Error parsing daily schedule value:", e)
+                return { ...DEFAULT_SCHEDULE }
+            }
+        }
+        return { ...DEFAULT_SCHEDULE }
+    })
+
+    useEffect(() => {
+        onChange(schedule)
+    }, [schedule])
+
+    const handleShiftToggle = (period) => {
+        setSchedule((prev) => ({
+            ...prev,
+            [period]: {
+                ...prev[period],
+                enabled: !prev[period].enabled,
+            },
+        }))
+    }
+
+    const handleTimeChange = (period, field, time) => {
+        setSchedule((prev) => ({
+            ...prev,
+            [period]: {
+                ...prev[period],
+                [field]: time,
+            },
+        }))
+    }
+
+    return (
+        <div className="p-4 border rounded-lg bg-card border-border">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Morning Shift */}
+                <div className={`space-y-2 p-3 rounded-md border ${schedule.morning.enabled ? "border-border/50 bg-background/50" : "border-transparent bg-muted/20 opacity-70"
+                    }`}>
+                    <div className="flex items-center justify-between mb-2">
+                        <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Mañana</span>
+                        <input
+                            type="checkbox"
+                            checked={schedule.morning.enabled}
+                            onChange={() => handleShiftToggle("morning")}
+                            className="h-3.5 w-3.5 rounded border-gray-300"
+                            title="Activar/desactivar turno mañana"
+                        />
+                    </div>
+
+                    {schedule.morning.enabled && (
+                        <div className="flex items-center gap-2">
+                            <input
+                                type="time"
+                                value={schedule.morning.start}
+                                onChange={(e) => handleTimeChange("morning", "start", e.target.value)}
+                                className="flex-1 px-2 py-1 text-sm border border-input rounded bg-background text-foreground focus:ring-1 focus:ring-primary"
+                            />
+                            <span className="text-muted-foreground">-</span>
+                            <input
+                                type="time"
+                                value={schedule.morning.end}
+                                onChange={(e) => handleTimeChange("morning", "end", e.target.value)}
+                                className="flex-1 px-2 py-1 text-sm border border-input rounded bg-background text-foreground focus:ring-1 focus:ring-primary"
+                            />
+                        </div>
+                    )}
+                    {!schedule.morning.enabled && (
+                        <div className="text-xs text-muted-foreground text-center py-1.5 italic">
+                            No labora
+                        </div>
+                    )}
+                </div>
+
+                {/* Afternoon Shift */}
+                <div className={`space-y-2 p-3 rounded-md border ${schedule.afternoon.enabled ? "border-border/50 bg-background/50" : "border-transparent bg-muted/20 opacity-70"
+                    }`}>
+                    <div className="flex items-center justify-between mb-2">
+                        <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Tarde</span>
+                        <input
+                            type="checkbox"
+                            checked={schedule.afternoon.enabled}
+                            onChange={() => handleShiftToggle("afternoon")}
+                            className="h-3.5 w-3.5 rounded border-gray-300"
+                            title="Activar/desactivar turno tarde"
+                        />
+                    </div>
+
+                    {schedule.afternoon.enabled && (
+                        <div className="flex items-center gap-2">
+                            <input
+                                type="time"
+                                value={schedule.afternoon.start}
+                                onChange={(e) => handleTimeChange("afternoon", "start", e.target.value)}
+                                className="flex-1 px-2 py-1 text-sm border border-input rounded bg-background text-foreground focus:ring-1 focus:ring-primary"
+                            />
+                            <span className="text-muted-foreground">-</span>
+                            <input
+                                type="time"
+                                value={schedule.afternoon.end}
+                                onChange={(e) => handleTimeChange("afternoon", "end", e.target.value)}
+                                className="flex-1 px-2 py-1 text-sm border border-input rounded bg-background text-foreground focus:ring-1 focus:ring-primary"
+                            />
+                        </div>
+                    )}
+                    {!schedule.afternoon.enabled && (
+                        <div className="text-xs text-muted-foreground text-center py-1.5 italic">
+                            No labora
+                        </div>
+                    )}
+                </div>
+            </div>
+        </div>
+    )
+}
