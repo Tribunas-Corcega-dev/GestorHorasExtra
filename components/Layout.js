@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { useAuth } from "@/hooks/useAuth"
-import { isWorker } from "@/lib/permissions"
+import { isWorker, canManageOvertime } from "@/lib/permissions"
 import { useState } from "react"
 
 export function Layout({ children }) {
@@ -12,6 +12,7 @@ export function Layout({ children }) {
   if (!user) return children
 
   const showEmployeesLink = !isWorker(user.rol)
+  const showOvertimeLink = canManageOvertime(user.rol)
 
   return (
     <div className="min-h-screen bg-background">
@@ -66,6 +67,14 @@ export function Layout({ children }) {
                 Empleados
               </Link>
             )}
+            {showOvertimeLink && (
+              <Link
+                href="/horas-extra"
+                className="block px-4 py-2 rounded-md hover:bg-accent hover:text-accent-foreground transition-colors"
+              >
+                Horas Extra
+              </Link>
+            )}
           </nav>
         </aside>
 
@@ -91,6 +100,15 @@ export function Layout({ children }) {
                   onClick={() => setMenuOpen(false)}
                 >
                   Empleados
+                </Link>
+              )}
+              {showOvertimeLink && (
+                <Link
+                  href="/horas-extra"
+                  className="block px-4 py-2 rounded-md hover:bg-accent hover:text-accent-foreground transition-colors"
+                  onClick={() => setMenuOpen(false)}
+                >
+                  Horas Extra
                 </Link>
               )}
             </div>
