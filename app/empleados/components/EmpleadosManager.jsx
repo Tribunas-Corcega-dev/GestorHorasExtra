@@ -147,7 +147,7 @@ export function EmpleadosManager() {
 
                             <div className="grid grid-cols-2 gap-3 mt-auto">
                                 <Link
-                                    href={`/empleados/${empleado.id}`}
+                                    href={`/empleados/${empleado.id}/detalles`}
                                     className="flex items-center justify-center px-4 py-2 border border-border rounded-md text-sm font-medium hover:bg-accent transition-colors"
                                 >
                                     Ver Detalles
