@@ -46,21 +46,27 @@ export function useOvertimeCalculator(employeeId) {
                 const dayId = getDayId(jornada.fecha)
                 const fixedDay = fixedSchedule ? fixedSchedule[dayId] : null
 
-                // Calculate Recorded Hours
-                const recordedMinutes = calculateDailyMinutes(jornada.jornada_base_calcular)
+                // Get intervals for both schedules
+                const recordedIntervals = getIntervals(jornada.jornada_base_calcular)
+                const fixedIntervals = fixedDay ? getIntervals(fixedDay) : []
 
-                // Calculate Expected (Fixed) Hours
-                const expectedMinutes = fixedDay ? calculateDailyMinutes(fixedDay) : 0
+                // Calculate total minutes worked (recorded)
+                const recordedMinutes = calculateTotalMinutes(recordedIntervals)
 
-                // Calculate Difference (Overtime)
-                // If expected is 0 (rest day), all recorded hours are overtime
-                // If recorded > expected, difference is overtime
-                // If recorded <= expected, 0 overtime (or negative/undertime if we wanted to track that)
+                // Calculate expected minutes (fixed)
+                const expectedMinutes = calculateTotalMinutes(fixedIntervals)
 
-                let overtimeMinutes = 0
-                if (recordedMinutes > expectedMinutes) {
-                    overtimeMinutes = recordedMinutes - expectedMinutes
-                }
+                // Calculate Overlap (Minutes worked WITHIN fixed schedule)
+                let overlapMinutes = 0
+                recordedIntervals.forEach(recorded => {
+                    fixedIntervals.forEach(fixed => {
+                        overlapMinutes += getOverlap(recorded, fixed)
+                    })
+                })
+
+                // Overtime = Total Recorded - Overlap
+                // Any minute worked that is NOT in the overlap is overtime.
+                const overtimeMinutes = Math.max(0, recordedMinutes - overlapMinutes)
 
                 return {
                     id: jornada.id,
@@ -97,17 +103,8 @@ export function useOvertimeCalculator(employeeId) {
 // Helper Functions
 
 function getDayId(dateString) {
-    const days = ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo'];
-    // Note: getUTCDay returns 0 for Sunday, 1 for Monday, etc.
-    // Our array is 0-indexed starting with Monday? No, let's map correctly.
-    // standard getUTCDay: 0=Sun, 1=Mon, 2=Tue, 3=Wed, 4=Thu, 5=Fri, 6=Sat
-
     const date = new Date(dateString)
-    const dayIndex = date.getUTCDay() // 0-6
-
-    // Map standard index to our ID keys
-    // 0 (Sun) -> 'domingo'
-    // 1 (Mon) -> 'lunes'
+    const dayIndex = date.getUTCDay() // 0-6, 0=Sun
     const map = {
         0: 'domingo',
         1: 'lunes',
@@ -117,30 +114,37 @@ function getDayId(dateString) {
         5: 'viernes',
         6: 'sabado'
     }
-
     return map[dayIndex]
 }
 
-function calculateDailyMinutes(schedule) {
-    if (!schedule || !schedule.enabled) return 0
-
-    let total = 0
+function getIntervals(schedule) {
+    if (!schedule) return []
+    const intervals = []
 
     if (schedule.morning?.enabled && schedule.morning.start && schedule.morning.end) {
-        total += getMinutesDiff(schedule.morning.start, schedule.morning.end)
+        intervals.push({
+            start: timeToMinutes(schedule.morning.start),
+            end: timeToMinutes(schedule.morning.end)
+        })
     }
 
     if (schedule.afternoon?.enabled && schedule.afternoon.start && schedule.afternoon.end) {
-        total += getMinutesDiff(schedule.afternoon.start, schedule.afternoon.end)
+        intervals.push({
+            start: timeToMinutes(schedule.afternoon.start),
+            end: timeToMinutes(schedule.afternoon.end)
+        })
     }
-
-    return total
+    return intervals
 }
 
-function getMinutesDiff(start, end) {
-    const startMins = timeToMinutes(start)
-    const endMins = timeToMinutes(end)
-    return Math.max(0, endMins - startMins)
+function calculateTotalMinutes(intervals) {
+    return intervals.reduce((acc, curr) => acc + (curr.end - curr.start), 0)
+}
+
+function getOverlap(range1, range2) {
+    const start = Math.max(range1.start, range2.start)
+    const end = Math.min(range1.end, range2.end)
+    return Math.max(0, end - start)
 }
 
 function timeToMinutes(timeStr) {
