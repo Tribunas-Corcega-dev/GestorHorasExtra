@@ -6,6 +6,7 @@ import { Layout } from "@/components/Layout"
 import { ProtectedRoute } from "@/components/ProtectedRoute"
 import { canManageEmployees, isCoordinator } from "@/lib/permissions"
 import { useRouter } from "next/navigation"
+import { ScheduleSelector } from "@/components/ScheduleSelector"
 
 export default function NuevoEmpleadoPage() {
   return (
@@ -65,6 +66,10 @@ function NuevoEmpleadoContent() {
   function handleChange(e) {
     const { name, value } = e.target
     setFormData((prev) => ({ ...prev, [name]: value }))
+  }
+
+  function handleScheduleChange(newSchedule) {
+    setFormData((prev) => ({ ...prev, jornada_fija_hhmm: newSchedule }))
   }
 
   async function handleSubmit(e) {
@@ -230,18 +235,13 @@ function NuevoEmpleadoContent() {
               />
             </div>
 
-            <div>
-              <label htmlFor="jornada_fija_hhmm" className="block text-sm font-medium text-foreground mb-1">
-                Jornada fija (HH:MM)
+            <div className="md:col-span-2">
+              <label className="block text-sm font-medium text-foreground mb-2">
+                Horario de trabajo (Jornada Fija)
               </label>
-              <input
-                id="jornada_fija_hhmm"
-                name="jornada_fija_hhmm"
-                type="text"
-                placeholder="08:00"
+              <ScheduleSelector
                 value={formData.jornada_fija_hhmm}
-                onChange={handleChange}
-                className="w-full px-3 py-2 border border-input bg-background text-foreground rounded-md focus:outline-none focus:ring-2 focus:ring-ring"
+                onChange={handleScheduleChange}
               />
             </div>
           </div>
