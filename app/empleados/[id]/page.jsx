@@ -26,6 +26,16 @@ function EditarEmpleadoContent() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState("")
   const [roles, setRoles] = useState([])
+  const [defaultSchedules, setDefaultSchedules] = useState(null)
+
+  const AREA_MAPPING = {
+    "Acueducto": "h_acueducto",
+    "Alcantarillado": "h_alcantarillado",
+    "Aseo": "h_aseo",
+    "Operario Bocatoma": "h_op_bocatoma",
+    "Administrativo": "h_admin",
+    "Planta Tratamiento": "h_planta_tratamiento"
+  }
 
   const [formData, setFormData] = useState({
     nombre: "",
@@ -47,6 +57,7 @@ function EditarEmpleadoContent() {
     if (params?.id) {
       fetchEmpleado()
       fetchRoles()
+      fetchDefaultSchedules()
     }
   }, [user, router, params?.id])
 
@@ -87,9 +98,47 @@ function EditarEmpleadoContent() {
     }
   }
 
+  async function fetchDefaultSchedules() {
+    try {
+      const res = await fetch("/api/horarios")
+      if (res.ok) {
+        const data = await res.json()
+        setDefaultSchedules(data)
+      }
+    } catch (error) {
+      console.error("Error fetching default schedules:", error)
+    }
+  }
+
   function handleChange(e) {
     const { name, value } = e.target
     setFormData((prev) => ({ ...prev, [name]: value }))
+  }
+
+  function handleAreaChange(e) {
+    const newArea = e.target.value
+    let newSchedule = formData.jornada_fija_hhmm
+
+    // Auto-fill schedule if available
+    if (newArea && defaultSchedules) {
+      const column = AREA_MAPPING[newArea]
+      const areaSchedule = defaultSchedules[column]
+
+      if (areaSchedule) {
+        try {
+          // Parse if it's a string, otherwise use as is
+          newSchedule = typeof areaSchedule === 'string' ? JSON.parse(areaSchedule) : areaSchedule
+        } catch (err) {
+          console.error("Error parsing default schedule:", err)
+        }
+      }
+    }
+
+    setFormData((prev) => ({
+      ...prev,
+      area: newArea,
+      jornada_fija_hhmm: newSchedule
+    }))
   }
 
   function handleScheduleChange(newSchedule) {
@@ -189,15 +238,21 @@ function EditarEmpleadoContent() {
               <label htmlFor="area" className="block text-sm font-medium text-foreground mb-1">
                 Área
               </label>
-              <input
+              <select
                 id="area"
                 name="area"
-                type="text"
                 value={formData.area}
-                onChange={handleChange}
+                onChange={handleAreaChange}
                 disabled={isCoordinator(user?.rol)}
                 className="w-full px-3 py-2 border border-input bg-background text-foreground rounded-md focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50"
-              />
+              >
+                <option value="">Seleccionar área</option>
+                {Object.keys(AREA_MAPPING).map((area) => (
+                  <option key={area} value={area}>
+                    {area}
+                  </option>
+                ))}
+              </select>
             </div>
           </div>
 
