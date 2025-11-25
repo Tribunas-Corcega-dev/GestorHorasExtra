@@ -1,7 +1,6 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useOvertimeCalculator } from "@/hooks/useOvertimeCalculator"
 import { useAuth } from "@/hooks/useAuth"
 import { Layout } from "@/components/Layout"
 import { ProtectedRoute } from "@/components/ProtectedRoute"
@@ -23,32 +22,54 @@ function HistorialContent() {
     const params = useParams()
     const { user } = useAuth()
     const router = useRouter()
-    const [loadingEmp, setLoadingEmp] = useState(true)
+    const [loading, setLoading] = useState(true)
     const [empleado, setEmpleado] = useState(null)
-
-    // Use the calculator hook
-    const { loading: loadingCalc, calculations, summary } = useOvertimeCalculator(params?.id)
+    const [jornadas, setJornadas] = useState([])
+    const [summary, setSummary] = useState({ totalOvertimeHours: "00:00" })
 
     useEffect(() => {
         if (user && !canManageOvertime(user.rol)) {
             router.push("/dashboard")
         }
         if (params?.id) {
-            fetchEmpleado()
+            fetchData()
         }
     }, [user, router, params?.id])
 
-    async function fetchEmpleado() {
+    async function fetchData() {
         try {
+            // Fetch employee data
             const empRes = await fetch(`/api/empleados/${params.id}`)
             if (empRes.ok) {
                 const empData = await empRes.json()
                 setEmpleado(empData)
             }
+
+            // Fetch history
+            const histRes = await fetch(`/api/jornadas?empleado_id=${params.id}`)
+            if (histRes.ok) {
+                const histData = await histRes.json()
+                setJornadas(histData)
+
+                // Calculate summary from stored values
+                let totalMinutes = 0
+                histData.forEach(jornada => {
+                    if (jornada.horas_extra_hhmm && jornada.horas_extra_hhmm.minutes) {
+                        totalMinutes += jornada.horas_extra_hhmm.minutes
+                    }
+                })
+
+                // Format total minutes
+                const hours = Math.floor(totalMinutes / 60)
+                const minutes = totalMinutes % 60
+                const formattedTotal = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`
+
+                setSummary({ totalOvertimeHours: formattedTotal })
+            }
         } catch (error) {
-            console.error("Error fetching employee:", error)
+            console.error("Error fetching data:", error)
         } finally {
-            setLoadingEmp(false)
+            setLoading(false)
         }
     }
 
@@ -56,7 +77,7 @@ function HistorialContent() {
         return null
     }
 
-    if (loadingEmp || loadingCalc) {
+    if (loading) {
         return <div className="text-center py-8">Cargando...</div>
     }
 
@@ -88,7 +109,7 @@ function HistorialContent() {
                 </div>
             </div>
 
-            {calculations.length === 0 ? (
+            {jornadas.length === 0 ? (
                 <div className="text-center py-12 bg-card border border-border rounded-lg">
                     <p className="text-muted-foreground">No hay registros de horas extra para este empleado.</p>
                 </div>
@@ -106,15 +127,21 @@ function HistorialContent() {
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-border">
-                                {calculations.map((item) => {
-                                    const schedule = item.schedule
+                                {jornadas.map((jornada) => {
+                                    const schedule = jornada.jornada_base_calcular
+                                    // Determine day name (could use helper or just display what's there if stored, but let's calculate for display consistency)
+                                    // Actually, let's use the helper since we have the date
+                                    const dayName = new Date(jornada.fecha).toLocaleDateString('es-ES', { weekday: 'long' })
+
+                                    const overtimeFormatted = jornada.horas_extra_hhmm?.formatted || "-"
+
                                     return (
-                                        <tr key={item.id} className="hover:bg-accent/50 transition-colors">
+                                        <tr key={jornada.id} className="hover:bg-accent/50 transition-colors">
                                             <td className="px-4 py-3 text-sm text-foreground font-medium">
-                                                {formatDateForDisplay(item.date)}
+                                                {formatDateForDisplay(jornada.fecha)}
                                             </td>
-                                            <td className="px-4 py-3 text-sm text-foreground">
-                                                {item.dayId ? item.dayId.charAt(0).toUpperCase() + item.dayId.slice(1) : "-"}
+                                            <td className="px-4 py-3 text-sm text-foreground capitalize">
+                                                {dayName}
                                             </td>
                                             <td className="px-4 py-3 text-sm text-foreground">
                                                 {schedule.morning.enabled ? (
@@ -135,9 +162,9 @@ function HistorialContent() {
                                                 )}
                                             </td>
                                             <td className="px-4 py-3 text-sm font-bold text-primary">
-                                                {item.formattedOvertime !== "00:00" ? (
+                                                {overtimeFormatted !== "-" && overtimeFormatted !== "00:00" ? (
                                                     <span className="bg-primary/10 text-primary px-2 py-0.5 rounded text-xs">
-                                                        {item.formattedOvertime}
+                                                        {overtimeFormatted}
                                                     </span>
                                                 ) : (
                                                     <span className="text-muted-foreground text-xs">-</span>

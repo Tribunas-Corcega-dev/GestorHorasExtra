@@ -7,6 +7,7 @@ import { ProtectedRoute } from "@/components/ProtectedRoute"
 import { canManageOvertime } from "@/lib/permissions"
 import { useRouter, useParams } from "next/navigation"
 import { DailyScheduleSelector } from "@/components/DailyScheduleSelector"
+import { calculateOvertimeForDay, getDayId, formatMinutesToHHMM } from "@/hooks/useOvertimeCalculator"
 
 export default function RegistrarHorasExtraPage() {
     return (
@@ -68,6 +69,27 @@ function RegistrarHorasExtraContent() {
                 throw new Error("Debes seleccionar una fecha")
             }
 
+            // Calculate overtime
+            let overtimeMinutes = 0
+            if (empleado && empleado.jornada_fija_hhmm) {
+                let fixedSchedule = empleado.jornada_fija_hhmm
+                if (typeof fixedSchedule === 'string') {
+                    try {
+                        fixedSchedule = JSON.parse(fixedSchedule)
+                        if (typeof fixedSchedule === 'string') fixedSchedule = JSON.parse(fixedSchedule)
+                    } catch (e) {
+                        console.error("Error parsing fixed schedule:", e)
+                        fixedSchedule = null
+                    }
+                }
+
+                if (fixedSchedule) {
+                    const dayId = getDayId(fecha)
+                    const fixedDay = fixedSchedule[dayId]
+                    overtimeMinutes = calculateOvertimeForDay(jornada, fixedDay)
+                }
+            }
+
             const res = await fetch("/api/jornadas", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -75,6 +97,10 @@ function RegistrarHorasExtraContent() {
                     empleado_id: params.id,
                     fecha,
                     jornada_base_calcular: jornada,
+                    horas_extra_hhmm: {
+                        minutes: overtimeMinutes,
+                        formatted: formatMinutesToHHMM(overtimeMinutes)
+                    }
                 }),
             })
 

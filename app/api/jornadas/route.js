@@ -27,7 +27,7 @@ export async function POST(request) {
         }
 
         const body = await request.json()
-        const { empleado_id, fecha, jornada_base_calcular } = body
+        const { empleado_id, fecha, jornada_base_calcular, horas_extra_hhmm } = body
 
         if (!empleado_id || !fecha || !jornada_base_calcular) {
             return NextResponse.json({ message: "Faltan datos requeridos" }, { status: 400 })
@@ -41,7 +41,7 @@ export async function POST(request) {
                     empleado_id,
                     fecha,
                     jornada_base_calcular,
-                    horas_extra_hhmm: {}, // Inicializar vacío como solicitado
+                    horas_extra_hhmm: horas_extra_hhmm || {},
                 },
             ])
             .select()
