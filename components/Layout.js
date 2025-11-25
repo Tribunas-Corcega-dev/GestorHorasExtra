@@ -68,12 +68,20 @@ export function Layout({ children }) {
               </Link>
             )}
             {showOvertimeLink && (
-              <Link
-                href="/horas-extra"
-                className="block px-4 py-2 rounded-md hover:bg-accent hover:text-accent-foreground transition-colors"
-              >
-                Horas Extra
-              </Link>
+              <>
+                <Link
+                  href="/horas-extra"
+                  className="block px-4 py-2 rounded-md hover:bg-accent hover:text-accent-foreground transition-colors"
+                >
+                  Horas Extra
+                </Link>
+                <Link
+                  href="/ajustes"
+                  className="block px-4 py-2 rounded-md hover:bg-accent hover:text-accent-foreground transition-colors"
+                >
+                  Ajustes
+                </Link>
+              </>
             )}
           </nav>
         </aside>
@@ -103,13 +111,22 @@ export function Layout({ children }) {
                 </Link>
               )}
               {showOvertimeLink && (
-                <Link
-                  href="/horas-extra"
-                  className="block px-4 py-2 rounded-md hover:bg-accent hover:text-accent-foreground transition-colors"
-                  onClick={() => setMenuOpen(false)}
-                >
-                  Horas Extra
-                </Link>
+                <>
+                  <Link
+                    href="/horas-extra"
+                    className="block px-4 py-2 rounded-md hover:bg-accent hover:text-accent-foreground transition-colors"
+                    onClick={() => setMenuOpen(false)}
+                  >
+                    Horas Extra
+                  </Link>
+                  <Link
+                    href="/ajustes"
+                    className="block px-4 py-2 rounded-md hover:bg-accent hover:text-accent-foreground transition-colors"
+                    onClick={() => setMenuOpen(false)}
+                  >
+                    Ajustes
+                  </Link>
+                </>
               )}
             </div>
           </div>
