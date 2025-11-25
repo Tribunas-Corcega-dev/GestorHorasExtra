@@ -23,7 +23,11 @@ export function ScheduleSelector({ value, onChange }) {
     const schedule = useMemo(() => {
         let incoming = {}
         try {
-            incoming = typeof value === "string" ? JSON.parse(value) : value
+            if (typeof value === "string") {
+                incoming = value.trim() ? JSON.parse(value) : {}
+            } else {
+                incoming = value
+            }
         } catch (e) {
             console.error("Error parsing schedule value:", e)
         }
@@ -31,11 +35,29 @@ export function ScheduleSelector({ value, onChange }) {
         const merged = {}
         DAYS.forEach((day) => {
             // Start with default (disabled)
-            merged[day.id] = { ...DEFAULT_DAY_SCHEDULE }
+            const defaultDay = { ...DEFAULT_DAY_SCHEDULE }
 
             // Override with incoming value if present
             if (incoming && incoming[day.id]) {
-                merged[day.id] = { ...merged[day.id], ...incoming[day.id] }
+                const incomingDay = incoming[day.id]
+
+                merged[day.id] = {
+                    enabled: incomingDay.enabled ?? defaultDay.enabled,
+                    morning: {
+                        ...defaultDay.morning,
+                        ...(incomingDay.morning || {}),
+                        start: incomingDay.morning?.start || "",
+                        end: incomingDay.morning?.end || ""
+                    },
+                    afternoon: {
+                        ...defaultDay.afternoon,
+                        ...(incomingDay.afternoon || {}),
+                        start: incomingDay.afternoon?.start || "",
+                        end: incomingDay.afternoon?.end || ""
+                    }
+                }
+            } else {
+                merged[day.id] = defaultDay
             }
         })
         return merged
