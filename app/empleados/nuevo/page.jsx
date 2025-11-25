@@ -38,6 +38,7 @@ function NuevoEmpleadoContent() {
   })
 
   const [defaultSchedules, setDefaultSchedules] = useState(null)
+  const [minWage, setMinWage] = useState(null)
 
   const AREA_MAPPING = {
     "Acueducto": "h_acueducto",
@@ -54,6 +55,7 @@ function NuevoEmpleadoContent() {
     }
     fetchRoles()
     fetchDefaultSchedules()
+    fetchParameters()
   }, [user, router])
 
   useEffect(() => {
@@ -84,6 +86,20 @@ function NuevoEmpleadoContent() {
       }
     } catch (error) {
       console.error("Error fetching default schedules:", error)
+    }
+  }
+
+  async function fetchParameters() {
+    try {
+      const res = await fetch("/api/parametros")
+      if (res.ok) {
+        const data = await res.json()
+        if (data.salario_minimo) {
+          setMinWage(data.salario_minimo)
+        }
+      }
+    } catch (error) {
+      console.error("Error fetching parameters:", error)
     }
   }
 
@@ -280,16 +296,28 @@ function NuevoEmpleadoContent() {
               <label htmlFor="salario_base" className="block text-sm font-medium text-foreground mb-1">
                 Salario base
               </label>
-              <input
-                id="salario_base"
-                name="salario_base"
-                type="number"
-                step="0.01"
-                value={formData.salario_base}
-                onChange={handleChange}
-                required
-                className="w-full px-3 py-2 border border-input bg-background text-foreground rounded-md focus:outline-none focus:ring-2 focus:ring-ring"
-              />
+              <div className="flex gap-2">
+                <input
+                  id="salario_base"
+                  name="salario_base"
+                  type="number"
+                  step="0.01"
+                  value={formData.salario_base}
+                  onChange={handleChange}
+                  required
+                  className="w-full px-3 py-2 border border-input bg-background text-foreground rounded-md focus:outline-none focus:ring-2 focus:ring-ring"
+                />
+                {minWage && (
+                  <button
+                    type="button"
+                    onClick={() => setFormData((prev) => ({ ...prev, salario_base: minWage }))}
+                    className="px-4 py-2 bg-slate-100 border border-slate-300 text-slate-700 rounded-md text-sm font-medium whitespace-nowrap hover:bg-slate-200 transition-colors focus:outline-none focus:ring-2 focus:ring-slate-400"
+                    title={`Asignar salario mínimo: ${minWage}`}
+                  >
+                    Asignar Mínimo
+                  </button>
+                )}
+              </div>
             </div>
 
             <div className="md:col-span-2">
