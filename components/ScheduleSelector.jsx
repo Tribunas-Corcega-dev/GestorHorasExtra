@@ -14,33 +14,92 @@ const DAYS = [
 
 const DEFAULT_DAY_SCHEDULE = {
     enabled: true,
-    morning: { start: "08:00", end: "12:00", enabled: true },
-    afternoon: { start: "13:00", end: "17:00", enabled: true },
+    morning: { start: "07:30", end: "12:00", enabled: true },
+    afternoon: { start: "13:45", end: "17:00", enabled: true },
 }
 
 export function ScheduleSelector({ value, onChange }) {
     const [schedule, setSchedule] = useState(() => {
-        if (value) {
-            try {
-                return typeof value === "string" ? JSON.parse(value) : value
-            } catch (e) {
-                console.error("Error parsing schedule value:", e)
-            }
-        }
+        let initial = {}
 
-        const initial = {}
+        // Initialize with defaults first
         DAYS.forEach((day) => {
             initial[day.id] = { ...DEFAULT_DAY_SCHEDULE }
             if (day.id === "sabado" || day.id === "domingo") {
                 initial[day.id].enabled = false
             }
         })
+
+        // Merge with provided value if valid
+        if (value) {
+            try {
+                const parsed = typeof value === "string" ? JSON.parse(value) : value
+                // Only merge if parsed is an object
+                if (parsed && typeof parsed === 'object') {
+                    // Merge day by day to ensure structure
+                    Object.keys(parsed).forEach(dayId => {
+                        if (initial[dayId]) {
+                            initial[dayId] = { ...initial[dayId], ...parsed[dayId] }
+                        }
+                    })
+                }
+            } catch (e) {
+                console.error("Error parsing schedule value:", e)
+            }
+        }
+
         return initial
     })
 
     const [copyModalOpen, setCopyModalOpen] = useState(false)
     const [sourceDayForCopy, setSourceDayForCopy] = useState(null)
     const [selectedDaysForCopy, setSelectedDaysForCopy] = useState([])
+
+    // Update internal state when value prop changes (e.g. loaded from DB)
+    useEffect(() => {
+        if (value) {
+            setSchedule(prev => {
+                let incoming = {}
+                try {
+                    incoming = typeof value === "string" ? JSON.parse(value) : value
+                } catch (e) {
+                    console.error("Error parsing incoming schedule:", e)
+                }
+
+                if (!incoming || Object.keys(incoming).length === 0) {
+                    // If incoming is empty, keep current or reset? 
+                    // Usually if we switch areas we want to reflect the new area's schedule (even if empty/default)
+                    // But we need to ensure we don't break the structure.
+                    // Let's reconstruct defaults if incoming is empty but we want to reset.
+                    // However, 'value' might be the *initial* value. 
+                    // If we want to support switching areas, we need to reset state based on new value.
+
+                    const reset = {}
+                    DAYS.forEach((day) => {
+                        reset[day.id] = { ...DEFAULT_DAY_SCHEDULE }
+                        if (day.id === "sabado" || day.id === "domingo") {
+                            reset[day.id].enabled = false
+                        }
+                    })
+                    return reset
+                }
+
+                // Merge incoming with defaults to ensure completeness
+                const merged = {}
+                DAYS.forEach((day) => {
+                    merged[day.id] = { ...DEFAULT_DAY_SCHEDULE }
+                    if (day.id === "sabado" || day.id === "domingo") {
+                        merged[day.id].enabled = false
+                    }
+
+                    if (incoming[day.id]) {
+                        merged[day.id] = { ...merged[day.id], ...incoming[day.id] }
+                    }
+                })
+                return merged
+            })
+        }
+    }, [value])
 
     useEffect(() => {
         onChange(JSON.stringify(schedule))
@@ -135,8 +194,8 @@ export function ScheduleSelector({ value, onChange }) {
                                 <label
                                     key={day.id}
                                     className={`flex items-center p-3 border rounded-md cursor-pointer transition-colors ${selectedDaysForCopy.includes(day.id)
-                                            ? "bg-primary/10 border-primary"
-                                            : "bg-background border-input hover:bg-accent"
+                                        ? "bg-primary/10 border-primary"
+                                        : "bg-background border-input hover:bg-accent"
                                         }`}
                                 >
                                     <input
