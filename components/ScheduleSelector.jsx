@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useMemo } from "react"
 
 const DAYS = [
     { id: "lunes", label: "Lunes" },
@@ -13,132 +13,75 @@ const DAYS = [
 ]
 
 const DEFAULT_DAY_SCHEDULE = {
-    enabled: true,
-    morning: { start: "07:30", end: "12:00", enabled: true },
-    afternoon: { start: "13:45", end: "17:00", enabled: true },
+    enabled: false,
+    morning: { start: "", end: "", enabled: false },
+    afternoon: { start: "", end: "", enabled: false },
 }
 
 export function ScheduleSelector({ value, onChange }) {
-    const [schedule, setSchedule] = useState(() => {
-        let initial = {}
-
-        // Initialize with defaults first
-        DAYS.forEach((day) => {
-            initial[day.id] = { ...DEFAULT_DAY_SCHEDULE }
-            if (day.id === "sabado" || day.id === "domingo") {
-                initial[day.id].enabled = false
-            }
-        })
-
-        // Merge with provided value if valid
-        if (value) {
-            try {
-                const parsed = typeof value === "string" ? JSON.parse(value) : value
-                // Only merge if parsed is an object
-                if (parsed && typeof parsed === 'object') {
-                    // Merge day by day to ensure structure
-                    Object.keys(parsed).forEach(dayId => {
-                        if (initial[dayId]) {
-                            initial[dayId] = { ...initial[dayId], ...parsed[dayId] }
-                        }
-                    })
-                }
-            } catch (e) {
-                console.error("Error parsing schedule value:", e)
-            }
+    // Derive schedule from value prop + defaults
+    const schedule = useMemo(() => {
+        let incoming = {}
+        try {
+            incoming = typeof value === "string" ? JSON.parse(value) : value
+        } catch (e) {
+            console.error("Error parsing schedule value:", e)
         }
 
-        return initial
-    })
+        const merged = {}
+        DAYS.forEach((day) => {
+            // Start with default (disabled)
+            merged[day.id] = { ...DEFAULT_DAY_SCHEDULE }
+
+            // Override with incoming value if present
+            if (incoming && incoming[day.id]) {
+                merged[day.id] = { ...merged[day.id], ...incoming[day.id] }
+            }
+        })
+        return merged
+    }, [value])
 
     const [copyModalOpen, setCopyModalOpen] = useState(false)
     const [sourceDayForCopy, setSourceDayForCopy] = useState(null)
     const [selectedDaysForCopy, setSelectedDaysForCopy] = useState([])
 
-    // Update internal state when value prop changes (e.g. loaded from DB)
-    useEffect(() => {
-        if (value) {
-            setSchedule(prev => {
-                let incoming = {}
-                try {
-                    incoming = typeof value === "string" ? JSON.parse(value) : value
-                } catch (e) {
-                    console.error("Error parsing incoming schedule:", e)
-                }
-
-                if (!incoming || Object.keys(incoming).length === 0) {
-                    // If incoming is empty, keep current or reset? 
-                    // Usually if we switch areas we want to reflect the new area's schedule (even if empty/default)
-                    // But we need to ensure we don't break the structure.
-                    // Let's reconstruct defaults if incoming is empty but we want to reset.
-                    // However, 'value' might be the *initial* value. 
-                    // If we want to support switching areas, we need to reset state based on new value.
-
-                    const reset = {}
-                    DAYS.forEach((day) => {
-                        reset[day.id] = { ...DEFAULT_DAY_SCHEDULE }
-                        if (day.id === "sabado" || day.id === "domingo") {
-                            reset[day.id].enabled = false
-                        }
-                    })
-                    return reset
-                }
-
-                // Merge incoming with defaults to ensure completeness
-                const merged = {}
-                DAYS.forEach((day) => {
-                    merged[day.id] = { ...DEFAULT_DAY_SCHEDULE }
-                    if (day.id === "sabado" || day.id === "domingo") {
-                        merged[day.id].enabled = false
-                    }
-
-                    if (incoming[day.id]) {
-                        merged[day.id] = { ...merged[day.id], ...incoming[day.id] }
-                    }
-                })
-                return merged
-            })
-        }
-    }, [value])
-
-    useEffect(() => {
-        onChange(JSON.stringify(schedule))
-    }, [schedule])
-
     const handleDayToggle = (dayId) => {
-        setSchedule((prev) => ({
-            ...prev,
+        const newSchedule = {
+            ...schedule,
             [dayId]: {
-                ...prev[dayId],
-                enabled: !prev[dayId].enabled,
+                ...schedule[dayId],
+                enabled: !schedule[dayId].enabled,
             },
-        }))
+        }
+        onChange(newSchedule)
     }
 
     const handleShiftToggle = (dayId, period) => {
-        setSchedule((prev) => ({
-            ...prev,
+        const newSchedule = {
+            ...schedule,
             [dayId]: {
-                ...prev[dayId],
+                ...schedule[dayId],
                 [period]: {
-                    ...prev[dayId][period],
-                    enabled: !prev[dayId][period].enabled,
+                    ...schedule[dayId][period],
+                    enabled: !schedule[dayId][period].enabled,
                 },
             },
-        }))
+        }
+        onChange(newSchedule)
     }
 
     const handleTimeChange = (dayId, period, field, time) => {
-        setSchedule((prev) => ({
-            ...prev,
+        const newSchedule = {
+            ...schedule,
             [dayId]: {
-                ...prev[dayId],
+                ...schedule[dayId],
                 [period]: {
-                    ...prev[dayId][period],
+                    ...schedule[dayId][period],
                     [field]: time,
                 },
             },
-        }))
+        }
+        onChange(newSchedule)
     }
 
     const openCopyModal = (dayId) => {
@@ -159,18 +102,16 @@ export function ScheduleSelector({ value, onChange }) {
         if (!sourceDayForCopy || selectedDaysForCopy.length === 0) return
 
         const sourceSchedule = schedule[sourceDayForCopy]
+        const newSchedule = { ...schedule }
 
-        setSchedule((prev) => {
-            const newSchedule = { ...prev }
-            selectedDaysForCopy.forEach((targetDayId) => {
-                newSchedule[targetDayId] = {
-                    ...JSON.parse(JSON.stringify(sourceSchedule)),
-                    enabled: true,
-                }
-            })
-            return newSchedule
+        selectedDaysForCopy.forEach((targetDayId) => {
+            newSchedule[targetDayId] = {
+                ...JSON.parse(JSON.stringify(sourceSchedule)),
+                enabled: true,
+            }
         })
 
+        onChange(newSchedule)
         setCopyModalOpen(false)
         setSourceDayForCopy(null)
         setSelectedDaysForCopy([])

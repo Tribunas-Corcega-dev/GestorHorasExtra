@@ -159,8 +159,8 @@ function HorariosContent() {
                                         setError("")
                                     }}
                                     className={`w-full text-left px-3 py-2 rounded-md text-sm transition-colors ${selectedArea === area
-                                            ? "bg-primary text-primary-foreground font-medium"
-                                            : "hover:bg-accent hover:text-accent-foreground text-muted-foreground"
+                                        ? "bg-primary text-primary-foreground font-medium"
+                                        : "hover:bg-accent hover:text-accent-foreground text-muted-foreground"
                                         }`}
                                 >
                                     {area}
