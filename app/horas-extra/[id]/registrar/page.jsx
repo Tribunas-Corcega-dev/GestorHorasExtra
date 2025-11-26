@@ -97,6 +97,7 @@ function RegistrarHorasExtraContent() {
                     empleado_id: params.id,
                     fecha,
                     jornada_base_calcular: jornada,
+                    es_festivo: jornada.es_festivo,
                     horas_extra_hhmm: {
                         minutes: overtimeMinutes,
                         formatted: formatMinutesToHHMM(overtimeMinutes)
