@@ -7,6 +7,7 @@ import { ProtectedRoute } from "@/components/ProtectedRoute"
 import { canManageOvertime } from "@/lib/permissions"
 import { formatDateForDisplay } from "@/lib/utils"
 import { useRouter, useParams } from "next/navigation"
+import { formatMinutesToHHMM } from "@/hooks/useOvertimeCalculator"
 
 export default function HistorialHorasExtraPage() {
     return (
@@ -18,6 +19,16 @@ export default function HistorialHorasExtraPage() {
     )
 }
 
+const LABELS = {
+    extra_diurna: "Extra Diurna",
+    extra_nocturna: "Extra Nocturna",
+    extra_diurna_festivo: "Extra Diurna Festivo",
+    extra_nocturna_festivo: "Extra Nocturna Festivo",
+    recargo_nocturno: "Recargo Nocturno",
+    dominical_festivo: "Dominical/Festivo",
+    recargo_nocturno_festivo: "Recargo Nocturno Festivo"
+}
+
 function HistorialContent() {
     const params = useParams()
     const { user } = useAuth()
@@ -25,7 +36,10 @@ function HistorialContent() {
     const [loading, setLoading] = useState(true)
     const [empleado, setEmpleado] = useState(null)
     const [jornadas, setJornadas] = useState([])
-    const [summary, setSummary] = useState({ totalOvertimeHours: "00:00" })
+    const [summary, setSummary] = useState({
+        totalOvertimeHours: "00:00",
+        breakdown: {}
+    })
 
     useEffect(() => {
         if (user && !canManageOvertime(user.rol)) {
@@ -53,18 +67,34 @@ function HistorialContent() {
 
                 // Calculate summary from stored values
                 let totalMinutes = 0
+                const breakdownTotals = {
+                    extra_diurna: 0,
+                    extra_nocturna: 0,
+                    extra_diurna_festivo: 0,
+                    extra_nocturna_festivo: 0,
+                    recargo_nocturno: 0,
+                    dominical_festivo: 0,
+                    recargo_nocturno_festivo: 0
+                }
+
                 histData.forEach(jornada => {
-                    if (jornada.horas_extra_hhmm && jornada.horas_extra_hhmm.minutes) {
-                        totalMinutes += jornada.horas_extra_hhmm.minutes
+                    if (jornada.horas_extra_hhmm) {
+                        totalMinutes += jornada.horas_extra_hhmm.minutes || 0
+
+                        if (jornada.horas_extra_hhmm.breakdown) {
+                            Object.entries(jornada.horas_extra_hhmm.breakdown).forEach(([key, val]) => {
+                                if (breakdownTotals[key] !== undefined) {
+                                    breakdownTotals[key] += val
+                                }
+                            })
+                        }
                     }
                 })
 
-                // Format total minutes
-                const hours = Math.floor(totalMinutes / 60)
-                const minutes = totalMinutes % 60
-                const formattedTotal = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`
-
-                setSummary({ totalOvertimeHours: formattedTotal })
+                setSummary({
+                    totalOvertimeHours: formatMinutesToHHMM(totalMinutes),
+                    breakdown: breakdownTotals
+                })
             }
         } catch (error) {
             console.error("Error fetching data:", error)
@@ -82,7 +112,7 @@ function HistorialContent() {
     }
 
     return (
-        <div className="max-w-5xl mx-auto">
+        <div className="max-w-6xl mx-auto">
             <div className="flex items-center justify-between mb-6">
                 <div>
                     <h1 className="text-3xl font-bold text-foreground">Historial de Horas Extra</h1>
@@ -100,13 +130,26 @@ function HistorialContent() {
                 </button>
             </div>
 
-            {/* Summary Card */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-                <div className="bg-card border border-border rounded-lg p-6 shadow-sm">
-                    <h3 className="text-sm font-medium text-muted-foreground mb-2">Total Horas Extra</h3>
-                    <div className="text-3xl font-bold text-primary">{summary.totalOvertimeHours}</div>
-                    <p className="text-xs text-muted-foreground mt-1">Acumulado total</p>
+            {/* Summary Grid */}
+            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4 mb-8">
+                <div className="bg-primary/10 border border-primary/20 rounded-lg p-4 shadow-sm col-span-2 md:col-span-4 lg:col-span-1 flex flex-col justify-center">
+                    <h3 className="text-xs font-bold text-primary uppercase tracking-wider mb-1">Total General</h3>
+                    <div className="text-2xl font-bold text-primary">{summary.totalOvertimeHours}</div>
                 </div>
+
+                {Object.entries(summary.breakdown).map(([key, minutes]) => {
+                    if (minutes === 0) return null
+                    return (
+                        <div key={key} className="bg-card border border-border rounded-lg p-4 shadow-sm">
+                            <h3 className="text-xs font-medium text-muted-foreground mb-1 truncate" title={LABELS[key]}>
+                                {LABELS[key]}
+                            </h3>
+                            <div className="text-xl font-semibold text-foreground">
+                                {formatMinutesToHHMM(minutes)}
+                            </div>
+                        </div>
+                    )
+                })}
             </div>
 
             {jornadas.length === 0 ? (
@@ -121,53 +164,71 @@ function HistorialContent() {
                                 <tr>
                                     <th className="px-4 py-3 text-left text-sm font-medium text-foreground">Fecha</th>
                                     <th className="px-4 py-3 text-left text-sm font-medium text-foreground">Día</th>
-                                    <th className="px-4 py-3 text-left text-sm font-medium text-foreground">Mañana</th>
-                                    <th className="px-4 py-3 text-left text-sm font-medium text-foreground">Tarde</th>
-                                    <th className="px-4 py-3 text-left text-sm font-medium text-foreground">Horas Extra</th>
+                                    <th className="px-4 py-3 text-left text-sm font-medium text-foreground">Tipo</th>
+                                    <th className="px-4 py-3 text-left text-sm font-medium text-foreground">Horario</th>
+                                    <th className="px-4 py-3 text-left text-sm font-medium text-foreground">Detalle Horas Extra</th>
+                                    <th className="px-4 py-3 text-right text-sm font-medium text-foreground">Total</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-border">
                                 {jornadas.map((jornada) => {
                                     const schedule = jornada.jornada_base_calcular
-                                    // Determine day name (could use helper or just display what's there if stored, but let's calculate for display consistency)
-                                    // Actually, let's use the helper since we have the date
                                     const dayName = new Date(jornada.fecha).toLocaleDateString('es-ES', { weekday: 'long' })
-
                                     const overtimeFormatted = jornada.horas_extra_hhmm?.formatted || "-"
+                                    const breakdown = jornada.horas_extra_hhmm?.breakdown || {}
+                                    const hasBreakdown = Object.values(breakdown).some(v => v > 0)
 
                                     return (
                                         <tr key={jornada.id} className="hover:bg-accent/50 transition-colors">
-                                            <td className="px-4 py-3 text-sm text-foreground font-medium">
+                                            <td className="px-4 py-3 text-sm text-foreground font-medium whitespace-nowrap">
                                                 {formatDateForDisplay(jornada.fecha)}
                                             </td>
                                             <td className="px-4 py-3 text-sm text-foreground capitalize">
                                                 {dayName}
                                             </td>
-                                            <td className="px-4 py-3 text-sm text-foreground">
-                                                {schedule.morning.enabled ? (
-                                                    <span className="bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400 px-2 py-0.5 rounded text-xs">
-                                                        {schedule.morning.start} - {schedule.morning.end}
+                                            <td className="px-4 py-3 text-sm">
+                                                {jornada.es_festivo ? (
+                                                    <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400">
+                                                        Festivo
                                                     </span>
                                                 ) : (
-                                                    <span className="text-muted-foreground text-xs italic">No labora</span>
+                                                    <span className="text-muted-foreground text-xs">Ordinario</span>
                                                 )}
                                             </td>
                                             <td className="px-4 py-3 text-sm text-foreground">
-                                                {schedule.afternoon.enabled ? (
-                                                    <span className="bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400 px-2 py-0.5 rounded text-xs">
-                                                        {schedule.afternoon.start} - {schedule.afternoon.end}
-                                                    </span>
-                                                ) : (
-                                                    <span className="text-muted-foreground text-xs italic">No labora</span>
-                                                )}
+                                                <div className="flex flex-col gap-1">
+                                                    {schedule.morning.enabled && (
+                                                        <span className="text-xs">M: {schedule.morning.start}-{schedule.morning.end}</span>
+                                                    )}
+                                                    {schedule.afternoon.enabled && (
+                                                        <span className="text-xs">T: {schedule.afternoon.start}-{schedule.afternoon.end}</span>
+                                                    )}
+                                                    {!schedule.morning.enabled && !schedule.afternoon.enabled && (
+                                                        <span className="text-xs italic text-muted-foreground">Sin turno</span>
+                                                    )}
+                                                </div>
                                             </td>
-                                            <td className="px-4 py-3 text-sm font-bold text-primary">
-                                                {overtimeFormatted !== "-" && overtimeFormatted !== "00:00" ? (
-                                                    <span className="bg-primary/10 text-primary px-2 py-0.5 rounded text-xs">
-                                                        {overtimeFormatted}
-                                                    </span>
+                                            <td className="px-4 py-3 text-sm">
+                                                {hasBreakdown ? (
+                                                    <div className="flex flex-wrap gap-1">
+                                                        {Object.entries(breakdown).map(([key, minutes]) => {
+                                                            if (minutes <= 0) return null
+                                                            return (
+                                                                <span key={key} className="inline-flex items-center px-2 py-0.5 rounded text-xs bg-secondary text-secondary-foreground border border-border" title={LABELS[key]}>
+                                                                    {LABELS[key]}: {formatMinutesToHHMM(minutes)}
+                                                                </span>
+                                                            )
+                                                        })}
+                                                    </div>
                                                 ) : (
                                                     <span className="text-muted-foreground text-xs">-</span>
+                                                )}
+                                            </td>
+                                            <td className="px-4 py-3 text-sm font-bold text-primary text-right">
+                                                {overtimeFormatted !== "-" && overtimeFormatted !== "00:00" ? (
+                                                    <span>{overtimeFormatted}</span>
+                                                ) : (
+                                                    <span className="text-muted-foreground font-normal">-</span>
                                                 )}
                                             </td>
                                         </tr>
