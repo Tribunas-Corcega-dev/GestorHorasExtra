@@ -3,6 +3,7 @@ import jwt from "jsonwebtoken"
 import bcrypt from "bcryptjs"
 import { supabase } from "@/lib/supabaseClient"
 import { canManageEmployees, isCoordinator } from "@/lib/permissions"
+import { calculateEmployeeWorkValues } from "@/lib/calculations"
 
 const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key-change-in-production"
 
@@ -95,6 +96,18 @@ export async function PUT(request, props) {
     if (body.tipo_trabajador !== undefined) updateData.tipo_trabajador = body.tipo_trabajador
     if (body.salario_base !== undefined) updateData.salario_base = body.salario_base
     if (body.jornada_fija_hhmm !== undefined) updateData.jornada_fija_hhmm = body.jornada_fija_hhmm
+
+    // Recalculate work values if schedule or salary changes
+    if (body.jornada_fija_hhmm !== undefined || body.salario_base !== undefined) {
+      const scheduleToUse = body.jornada_fija_hhmm !== undefined ? body.jornada_fija_hhmm : currentEmpleado.jornada_fija_hhmm
+      const salaryToUse = body.salario_base !== undefined ? body.salario_base : currentEmpleado.salario_base
+
+      const { horas_semanales, horas_mensuales, valor_hora } = calculateEmployeeWorkValues(scheduleToUse, salaryToUse)
+
+      updateData.horas_semanales = horas_semanales
+      updateData.horas_mensuales = horas_mensuales
+      updateData.valor_hora = valor_hora
+    }
 
     // Si se proporciona nueva contraseña
     if (body.password) {

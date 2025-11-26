@@ -3,6 +3,7 @@ import jwt from "jsonwebtoken"
 import bcrypt from "bcryptjs"
 import { supabase } from "@/lib/supabaseClient"
 import { canManageEmployees, isCoordinator } from "@/lib/permissions"
+import { calculateEmployeeWorkValues } from "@/lib/calculations"
 
 const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key-change-in-production"
 
@@ -103,6 +104,9 @@ export async function POST(request) {
     // Generar hash de la contraseña
     const password_hash = await bcrypt.hash(password, 10)
 
+    // Calculate work values
+    const { horas_semanales, horas_mensuales, valor_hora } = calculateEmployeeWorkValues(jornada_fija_hhmm, salario_base)
+
     // Insertar nuevo usuario
     const { data: newUser, error } = await supabase
       .from("usuarios")
@@ -117,6 +121,9 @@ export async function POST(request) {
           tipo_trabajador: tipo_trabajador || null,
           salario_base: salario_base || null,
           jornada_fija_hhmm: jornada_fija_hhmm || null,
+          horas_semanales,
+          horas_mensuales,
+          valor_hora
         },
       ])
       .select("id, username, nombre, cargo, area, rol, tipo_trabajador, salario_base, jornada_fija_hhmm")
