@@ -29,6 +29,14 @@ const LABELS = {
     recargo_nocturno_festivo: "Recargo Nocturno Festivo"
 }
 
+// Helper to format minutes to float hours (e.g. 90 -> 1.5h)
+function formatMinutesToFloat(minutes) {
+    if (!minutes) return "0h"
+    const hours = minutes / 60
+    // Remove trailing zeros after decimal if integer, otherwise max 2 decimals
+    return `${parseFloat(hours.toFixed(2))}h`
+}
+
 function HistorialContent() {
     const params = useParams()
     const { user } = useAuth()
@@ -38,6 +46,7 @@ function HistorialContent() {
     const [jornadas, setJornadas] = useState([])
     const [summary, setSummary] = useState({
         totalOvertimeHours: "00:00",
+        totalOvertimeMinutes: 0,
         breakdown: {}
     })
 
@@ -93,6 +102,7 @@ function HistorialContent() {
 
                 setSummary({
                     totalOvertimeHours: formatMinutesToHHMM(totalMinutes),
+                    totalOvertimeMinutes: totalMinutes,
                     breakdown: breakdownTotals
                 })
             }
@@ -134,7 +144,12 @@ function HistorialContent() {
             <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4 mb-8">
                 <div className="bg-primary/10 border border-primary/20 rounded-lg p-4 shadow-sm col-span-2 md:col-span-4 lg:col-span-1 flex flex-col justify-center">
                     <h3 className="text-xs font-bold text-primary uppercase tracking-wider mb-1">Total General</h3>
-                    <div className="text-2xl font-bold text-primary">{summary.totalOvertimeHours}</div>
+                    <div className="text-2xl font-bold text-primary">
+                        {formatMinutesToFloat(summary.totalOvertimeMinutes)}
+                    </div>
+                    <div className="text-xs text-primary/70 font-medium">
+                        {summary.totalOvertimeHours}
+                    </div>
                 </div>
 
                 {Object.entries(summary.breakdown).map(([key, minutes]) => {
@@ -145,6 +160,9 @@ function HistorialContent() {
                                 {LABELS[key]}
                             </h3>
                             <div className="text-xl font-semibold text-foreground">
+                                {formatMinutesToFloat(minutes)}
+                            </div>
+                            <div className="text-xs text-muted-foreground">
                                 {formatMinutesToHHMM(minutes)}
                             </div>
                         </div>
@@ -175,6 +193,7 @@ function HistorialContent() {
                                     const schedule = jornada.jornada_base_calcular
                                     const dayName = new Date(jornada.fecha).toLocaleDateString('es-ES', { weekday: 'long' })
                                     const overtimeFormatted = jornada.horas_extra_hhmm?.formatted || "-"
+                                    const overtimeMinutes = jornada.horas_extra_hhmm?.minutes || 0
                                     const breakdown = jornada.horas_extra_hhmm?.breakdown || {}
                                     const hasBreakdown = Object.values(breakdown).some(v => v > 0)
 
@@ -215,7 +234,7 @@ function HistorialContent() {
                                                             if (minutes <= 0) return null
                                                             return (
                                                                 <span key={key} className="inline-flex items-center px-2 py-0.5 rounded text-xs bg-secondary text-secondary-foreground border border-border" title={LABELS[key]}>
-                                                                    {LABELS[key]}: {formatMinutesToHHMM(minutes)}
+                                                                    {LABELS[key]}: {formatMinutesToFloat(minutes)}
                                                                 </span>
                                                             )
                                                         })}
@@ -225,8 +244,11 @@ function HistorialContent() {
                                                 )}
                                             </td>
                                             <td className="px-4 py-3 text-sm font-bold text-primary text-right">
-                                                {overtimeFormatted !== "-" && overtimeFormatted !== "00:00" ? (
-                                                    <span>{overtimeFormatted}</span>
+                                                {overtimeMinutes > 0 ? (
+                                                    <div className="flex flex-col items-end">
+                                                        <span>{formatMinutesToFloat(overtimeMinutes)}</span>
+                                                        <span className="text-xs text-muted-foreground font-normal">{overtimeFormatted}</span>
+                                                    </div>
                                                 ) : (
                                                     <span className="text-muted-foreground font-normal">-</span>
                                                 )}
