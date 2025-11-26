@@ -8,6 +8,7 @@ import { canManageOvertime } from "@/lib/permissions"
 import { formatDateForDisplay } from "@/lib/utils"
 import { useRouter, useParams } from "next/navigation"
 import { formatMinutesToHHMM } from "@/hooks/useOvertimeCalculator"
+import { calculateOvertimeValue, calculateTotalOvertimeValue } from "@/lib/calculations"
 
 export default function HistorialHorasExtraPage() {
     return (
@@ -37,6 +38,15 @@ function formatMinutesToFloat(minutes) {
     return `${parseFloat(hours.toFixed(2))}h`
 }
 
+function formatCurrency(value) {
+    return new Intl.NumberFormat('es-CO', {
+        style: 'currency',
+        currency: 'COP',
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0
+    }).format(value)
+}
+
 function HistorialContent() {
     const params = useParams()
     const { user } = useAuth()
@@ -44,9 +54,11 @@ function HistorialContent() {
     const [loading, setLoading] = useState(true)
     const [empleado, setEmpleado] = useState(null)
     const [jornadas, setJornadas] = useState([])
+    const [recargos, setRecargos] = useState([])
     const [summary, setSummary] = useState({
         totalOvertimeHours: "00:00",
         totalOvertimeMinutes: 0,
+        totalValue: 0,
         breakdown: {}
     })
 
@@ -63,9 +75,18 @@ function HistorialContent() {
         try {
             // Fetch employee data
             const empRes = await fetch(`/api/empleados/${params.id}`)
+            let empData = null
             if (empRes.ok) {
-                const empData = await empRes.json()
+                empData = await empRes.json()
                 setEmpleado(empData)
+            }
+
+            // Fetch surcharges
+            const recargosRes = await fetch("/api/recargos")
+            let recargosData = []
+            if (recargosRes.ok) {
+                recargosData = await recargosRes.json()
+                setRecargos(recargosData)
             }
 
             // Fetch history
@@ -76,6 +97,7 @@ function HistorialContent() {
 
                 // Calculate summary from stored values
                 let totalMinutes = 0
+                let totalValue = 0
                 const breakdownTotals = {
                     extra_diurna: 0,
                     extra_nocturna: 0,
@@ -91,11 +113,21 @@ function HistorialContent() {
                         totalMinutes += jornada.horas_extra_hhmm.minutes || 0
 
                         if (jornada.horas_extra_hhmm.breakdown) {
+                            // Accumulate minutes
                             Object.entries(jornada.horas_extra_hhmm.breakdown).forEach(([key, val]) => {
                                 if (breakdownTotals[key] !== undefined) {
                                     breakdownTotals[key] += val
                                 }
                             })
+
+                            // Calculate value for this day
+                            if (empData && empData.valor_hora) {
+                                totalValue += calculateTotalOvertimeValue(
+                                    jornada.horas_extra_hhmm.breakdown,
+                                    empData.valor_hora,
+                                    recargosData
+                                )
+                            }
                         }
                     }
                 })
@@ -103,6 +135,7 @@ function HistorialContent() {
                 setSummary({
                     totalOvertimeHours: formatMinutesToHHMM(totalMinutes),
                     totalOvertimeMinutes: totalMinutes,
+                    totalValue: totalValue,
                     breakdown: breakdownTotals
                 })
             }
@@ -122,14 +155,17 @@ function HistorialContent() {
     }
 
     return (
-        <div className="max-w-6xl mx-auto">
+        <div className="max-w-7xl mx-auto">
             <div className="flex items-center justify-between mb-6">
                 <div>
                     <h1 className="text-3xl font-bold text-foreground">Historial de Horas Extra</h1>
                     {empleado && (
-                        <p className="text-muted-foreground mt-1">
-                            {empleado.nombre || empleado.username} • {empleado.cargo}
-                        </p>
+                        <div className="mt-1 text-muted-foreground">
+                            <p>{empleado.nombre || empleado.username} • {empleado.cargo}</p>
+                            {empleado.valor_hora && (
+                                <p className="text-sm">Valor Hora: <span className="font-semibold text-foreground">{formatCurrency(empleado.valor_hora)}</span></p>
+                            )}
+                        </div>
                     )}
                 </div>
                 <button
@@ -147,13 +183,20 @@ function HistorialContent() {
                     <div className="text-2xl font-bold text-primary">
                         {formatMinutesToFloat(summary.totalOvertimeMinutes)}
                     </div>
-                    <div className="text-xs text-primary/70 font-medium">
-                        {summary.totalOvertimeHours}
+                    <div className="text-lg font-semibold text-green-600 dark:text-green-400 mt-1">
+                        {formatCurrency(summary.totalValue)}
                     </div>
                 </div>
 
                 {Object.entries(summary.breakdown).map(([key, minutes]) => {
                     if (minutes === 0) return null
+
+                    let value = 0
+                    if (empleado && empleado.valor_hora && recargos.length > 0) {
+                        const breakdownObj = { [key]: minutes }
+                        value = calculateTotalOvertimeValue(breakdownObj, empleado.valor_hora, recargos)
+                    }
+
                     return (
                         <div key={key} className="bg-card border border-border rounded-lg p-4 shadow-sm">
                             <h3 className="text-xs font-medium text-muted-foreground mb-1 truncate" title={LABELS[key]}>
@@ -162,8 +205,8 @@ function HistorialContent() {
                             <div className="text-xl font-semibold text-foreground">
                                 {formatMinutesToFloat(minutes)}
                             </div>
-                            <div className="text-xs text-muted-foreground">
-                                {formatMinutesToHHMM(minutes)}
+                            <div className="text-sm font-medium text-green-600 dark:text-green-400">
+                                {formatCurrency(value)}
                             </div>
                         </div>
                     )
@@ -185,6 +228,7 @@ function HistorialContent() {
                                     <th className="px-4 py-3 text-left text-sm font-medium text-foreground">Tipo</th>
                                     <th className="px-4 py-3 text-left text-sm font-medium text-foreground">Horario</th>
                                     <th className="px-4 py-3 text-left text-sm font-medium text-foreground">Detalle Horas Extra</th>
+                                    <th className="px-4 py-3 text-right text-sm font-medium text-foreground">Valor</th>
                                     <th className="px-4 py-3 text-right text-sm font-medium text-foreground">Total</th>
                                 </tr>
                             </thead>
@@ -196,6 +240,11 @@ function HistorialContent() {
                                     const overtimeMinutes = jornada.horas_extra_hhmm?.minutes || 0
                                     const breakdown = jornada.horas_extra_hhmm?.breakdown || {}
                                     const hasBreakdown = Object.values(breakdown).some(v => v > 0)
+
+                                    let dayValue = 0
+                                    if (empleado && empleado.valor_hora && recargos.length > 0) {
+                                        dayValue = calculateTotalOvertimeValue(breakdown, empleado.valor_hora, recargos)
+                                    }
 
                                     return (
                                         <tr key={jornada.id} className="hover:bg-accent/50 transition-colors">
@@ -232,8 +281,15 @@ function HistorialContent() {
                                                     <div className="flex flex-wrap gap-1">
                                                         {Object.entries(breakdown).map(([key, minutes]) => {
                                                             if (minutes <= 0) return null
+                                                            // Calculate individual value
+                                                            let itemValue = 0
+                                                            if (empleado && empleado.valor_hora && recargos.length > 0) {
+                                                                const breakdownObj = { [key]: minutes }
+                                                                itemValue = calculateTotalOvertimeValue(breakdownObj, empleado.valor_hora, recargos)
+                                                            }
+
                                                             return (
-                                                                <span key={key} className="inline-flex items-center px-2 py-0.5 rounded text-xs bg-secondary text-secondary-foreground border border-border" title={LABELS[key]}>
+                                                                <span key={key} className="inline-flex items-center px-2 py-0.5 rounded text-xs bg-secondary text-secondary-foreground border border-border mr-1 mb-1" title={`${LABELS[key]}: ${formatCurrency(itemValue)}`}>
                                                                     {LABELS[key]}: {formatMinutesToFloat(minutes)}
                                                                 </span>
                                                             )
@@ -242,6 +298,9 @@ function HistorialContent() {
                                                 ) : (
                                                     <span className="text-muted-foreground text-xs">-</span>
                                                 )}
+                                            </td>
+                                            <td className="px-4 py-3 text-sm font-bold text-green-600 dark:text-green-400 text-right whitespace-nowrap">
+                                                {dayValue > 0 ? formatCurrency(dayValue) : "-"}
                                             </td>
                                             <td className="px-4 py-3 text-sm font-bold text-primary text-right">
                                                 {overtimeMinutes > 0 ? (
