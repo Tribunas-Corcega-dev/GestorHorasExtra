@@ -32,13 +32,62 @@ function RecargosContent() {
         recargo_percentage: ""
     })
 
+    const [nightShiftModalOpen, setNightShiftModalOpen] = useState(false)
+    const [nightShiftForm, setNightShiftForm] = useState({ start: "21:00", end: "06:00" })
+    const [parametrosId, setParametrosId] = useState(null)
+    const [currentYear, setCurrentYear] = useState(new Date().getFullYear().toString())
+
     useEffect(() => {
         if (user && !canManageOvertime(user.rol)) {
             router.push("/dashboard")
         } else {
             fetchRecargos()
+            fetchParametros()
         }
     }, [user, router])
+
+    async function fetchParametros() {
+        try {
+            const res = await fetch("/api/parametros")
+            if (res.ok) {
+                const data = await res.json()
+                if (data.id) {
+                    setParametrosId(data.id)
+                    setCurrentYear(data.anio_vigencia || new Date().getFullYear().toString())
+                    if (data.jornada_nocturna) {
+                        setNightShiftForm(data.jornada_nocturna)
+                    }
+                }
+            }
+        } catch (err) {
+            console.error("Error fetching parametros:", err)
+        }
+    }
+
+    async function saveNightShift() {
+        try {
+            const res = await fetch("/api/parametros", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    id: parametrosId,
+                    anio_vigencia: currentYear,
+                    jornada_nocturna: nightShiftForm
+                })
+            })
+
+            if (res.ok) {
+                setNightShiftModalOpen(false)
+                // Optional: Show success message
+            } else {
+                const data = await res.json()
+                setError(data.message || "Error al guardar jornada nocturna")
+            }
+        } catch (err) {
+            console.error("Error saving night shift:", err)
+            setError("Error al guardar cambios")
+        }
+    }
 
     async function fetchRecargos() {
         try {
@@ -114,13 +163,72 @@ function RecargosContent() {
 
     return (
         <div className="max-w-5xl mx-auto">
-            <div className="flex items-center gap-4 mb-6">
-                <Link href="/ajustes" className="text-muted-foreground hover:text-foreground">
-                    <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+            {/* Night Shift Modal */}
+            {nightShiftModalOpen && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+                    <div className="bg-card border border-border rounded-lg shadow-lg p-6 w-full max-w-md">
+                        <h3 className="text-lg font-bold mb-4 text-foreground">Configurar Jornada Nocturna</h3>
+                        <p className="text-sm text-muted-foreground mb-4">
+                            Define el rango horario que se considera como jornada nocturna.
+                        </p>
+
+                        <div className="space-y-4 mb-6">
+                            <div>
+                                <label className="block text-sm font-medium text-foreground mb-1">Hora Inicio</label>
+                                <input
+                                    type="time"
+                                    value={nightShiftForm.start}
+                                    onChange={(e) => setNightShiftForm(prev => ({ ...prev, start: e.target.value }))}
+                                    className="w-full px-3 py-2 border border-input rounded bg-background text-foreground"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-foreground mb-1">Hora Fin</label>
+                                <input
+                                    type="time"
+                                    value={nightShiftForm.end}
+                                    onChange={(e) => setNightShiftForm(prev => ({ ...prev, end: e.target.value }))}
+                                    className="w-full px-3 py-2 border border-input rounded bg-background text-foreground"
+                                />
+                            </div>
+                        </div>
+
+                        <div className="flex justify-end gap-3">
+                            <button
+                                onClick={() => setNightShiftModalOpen(false)}
+                                className="px-4 py-2 text-sm font-medium text-foreground bg-background border border-input rounded-md hover:bg-accent"
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                onClick={saveNightShift}
+                                className="px-4 py-2 text-sm font-medium text-primary-foreground bg-primary rounded-md hover:opacity-90"
+                            >
+                                Guardar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-4">
+                    <Link href="/ajustes" className="text-muted-foreground hover:text-foreground">
+                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+                        </svg>
+                    </Link>
+                    <h1 className="text-3xl font-bold text-foreground">Recargos Horas Extra</h1>
+                </div>
+                <button
+                    onClick={() => setNightShiftModalOpen(true)}
+                    className="px-4 py-2 bg-secondary text-secondary-foreground rounded-md hover:opacity-90 font-medium text-sm flex items-center gap-2"
+                >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
                     </svg>
-                </Link>
-                <h1 className="text-3xl font-bold text-foreground">Recargos Horas Extra</h1>
+                    Configurar Jornada Nocturna
+                </button>
             </div>
 
             <div className="bg-card border border-border rounded-lg shadow-sm overflow-hidden">

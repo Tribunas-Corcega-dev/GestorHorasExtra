@@ -54,18 +54,23 @@ export async function POST(request) {
         }
 
         const body = await request.json()
-        const { salario_minimo, anio_vigencia, id } = body
+        const { salario_minimo, anio_vigencia, jornada_nocturna, id } = body
 
-        if (!salario_minimo || !anio_vigencia) {
+        if (!anio_vigencia) {
             return NextResponse.json({ message: "Faltan datos requeridos" }, { status: 400 })
         }
+
+        // Prepare update object with only defined fields
+        const updates = { anio_vigencia }
+        if (salario_minimo !== undefined) updates.salario_minimo = salario_minimo
+        if (jornada_nocturna !== undefined) updates.jornada_nocturna = jornada_nocturna
 
         let result
         if (id) {
             // Update existing
             result = await supabase
                 .from("parametros")
-                .update({ salario_minimo, anio_vigencia })
+                .update(updates)
                 .eq("id", id)
                 .select()
                 .single()
@@ -76,14 +81,14 @@ export async function POST(request) {
             if (existing) {
                 result = await supabase
                     .from("parametros")
-                    .update({ salario_minimo, anio_vigencia })
+                    .update(updates)
                     .eq("id", existing.id)
                     .select()
                     .single()
             } else {
                 result = await supabase
                     .from("parametros")
-                    .insert([{ salario_minimo, anio_vigencia }])
+                    .insert([updates])
                     .select()
                     .single()
             }
