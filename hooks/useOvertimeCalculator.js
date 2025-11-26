@@ -6,7 +6,8 @@ export function useOvertimeCalculator(employeeId) {
     const [calculations, setCalculations] = useState([])
     const [summary, setSummary] = useState({
         totalOvertimeMinutes: 0,
-        totalOvertimeHours: "00:00"
+        totalOvertimeHours: "00:00",
+        breakdown: {}
     })
 
     useEffect(() => {
@@ -36,48 +37,57 @@ export function useOvertimeCalculator(employeeId) {
                 }
             }
 
-            // 2. Fetch Jornadas (Recorded Shifts)
+            // 2. Fetch Parameters (Night Shift)
+            const paramRes = await fetch("/api/parametros")
+            let nightShiftRange = null
+            if (paramRes.ok) {
+                const params = await paramRes.json()
+                nightShiftRange = params.jornada_nocturna
+            }
+
+            // 3. Fetch Jornadas (Recorded Shifts)
             const jornadasRes = await fetch(`/api/jornadas?empleado_id=${employeeId}`)
             if (!jornadasRes.ok) throw new Error("Error fetching jornadas")
             const jornadas = await jornadasRes.json()
 
-            // 3. Calculate Overtime
+            // 4. Calculate Overtime
             const results = jornadas.map(jornada => {
                 const dayId = getDayId(jornada.fecha)
                 const fixedDay = fixedSchedule ? fixedSchedule[dayId] : null
 
-                // Calculate Overtime using the new helper
-                const overtimeMinutes = calculateOvertimeForDay(jornada.jornada_base_calcular, fixedDay);
-
-                // Get intervals for both schedules
-                const recordedIntervals = getIntervals(jornada.jornada_base_calcular)
-                const fixedIntervals = fixedDay ? getIntervals(fixedDay) : []
-
-                // Calculate total minutes worked (recorded)
-                const recordedMinutes = calculateTotalMinutes(recordedIntervals)
-
-                // Calculate expected minutes (fixed)
-                const expectedMinutes = calculateTotalMinutes(fixedIntervals)
+                // Calculate Overtime using the new logic
+                const calculation = calculateOvertimeForDay(
+                    jornada.jornada_base_calcular,
+                    fixedDay,
+                    nightShiftRange,
+                    jornada.es_festivo
+                );
 
                 return {
                     id: jornada.id,
                     date: jornada.fecha,
                     dayId,
-                    recordedMinutes,
-                    expectedMinutes,
-                    overtimeMinutes,
-                    formattedOvertime: formatMinutesToHHMM(overtimeMinutes),
+                    ...calculation,
                     schedule: jornada.jornada_base_calcular
                 }
             })
 
-            // 4. Summarize
-            const totalMinutes = results.reduce((acc, curr) => acc + curr.overtimeMinutes, 0)
+            // 5. Summarize
+            const totalMinutes = results.reduce((acc, curr) => acc + curr.totalMinutes, 0)
+
+            // Aggregate breakdown
+            const aggregatedBreakdown = {}
+            results.forEach(r => {
+                Object.entries(r.breakdown).forEach(([key, val]) => {
+                    aggregatedBreakdown[key] = (aggregatedBreakdown[key] || 0) + val
+                })
+            })
 
             setCalculations(results)
             setSummary({
                 totalOvertimeMinutes: totalMinutes,
-                totalOvertimeHours: formatMinutesToHHMM(totalMinutes)
+                totalOvertimeHours: formatMinutesToHHMM(totalMinutes),
+                breakdown: aggregatedBreakdown
             })
 
         } catch (err) {
@@ -91,51 +101,127 @@ export function useOvertimeCalculator(employeeId) {
     return { loading, error, calculations, summary, refresh: calculateOvertime }
 }
 
-// Helper Functions
+// --- Core Logic ---
+
+export function calculateOvertimeForDay(recordedSchedule, fixedScheduleDay, nightShiftRange, isFestivo) {
+    // 1. Get Intervals
+    const recordedIntervals = getIntervals(recordedSchedule)
+    const fixedIntervals = fixedScheduleDay ? getIntervals(fixedScheduleDay) : []
+
+    // Normalize night shift intervals (handle crossing midnight)
+    const nightIntervals = getNightIntervals(nightShiftRange)
+
+    // 2. Calculate Total Worked Minutes
+    const totalRecordedMinutes = calculateTotalMinutes(recordedIntervals)
+
+    // 3. Separate Ordinary vs Extra Hours
+    // Ordinary = Intersection(Recorded, Fixed)
+    const ordinaryIntervals = intersectIntervalsList(recordedIntervals, fixedIntervals)
+
+    // Extra = Recorded - Fixed
+    const extraIntervals = subtractIntervalsList(recordedIntervals, fixedIntervals)
+
+    // 4. Classify Hours
+    const breakdown = {
+        extra_diurna: 0,
+        extra_nocturna: 0,
+        extra_diurna_festivo: 0,
+        extra_nocturna_festivo: 0,
+        recargo_nocturno: 0,
+        dominical_festivo: 0,
+        recargo_nocturno_festivo: 0
+    }
+
+    // --- Classify Extra Hours ---
+    // Extra Night = Intersection(Extra, Night)
+    const extraNightIntervals = intersectIntervalsList(extraIntervals, nightIntervals)
+    const extraNightMinutes = calculateTotalMinutes(extraNightIntervals)
+
+    // Extra Day = Extra - Night
+    const extraDayIntervals = subtractIntervalsList(extraIntervals, nightIntervals)
+    const extraDayMinutes = calculateTotalMinutes(extraDayIntervals)
+
+    if (isFestivo) {
+        breakdown.extra_diurna_festivo = extraDayMinutes
+        breakdown.extra_nocturna_festivo = extraNightMinutes
+    } else {
+        breakdown.extra_diurna = extraDayMinutes
+        breakdown.extra_nocturna = extraNightMinutes
+    }
+
+    // --- Classify Ordinary Hours ---
+    // Ordinary Night = Intersection(Ordinary, Night)
+    const ordinaryNightIntervals = intersectIntervalsList(ordinaryIntervals, nightIntervals)
+    const ordinaryNightMinutes = calculateTotalMinutes(ordinaryNightIntervals)
+
+    // Ordinary Day = Ordinary - Night
+    const ordinaryDayIntervals = subtractIntervalsList(ordinaryIntervals, nightIntervals)
+    const ordinaryDayMinutes = calculateTotalMinutes(ordinaryDayIntervals)
+
+    if (isFestivo) {
+        // All ordinary hours on a holiday are "Dominical/Festivo" related
+        // "Dominical/Festivo" usually refers to the base pay or surcharge for working on a holiday during the day
+        // "Nocturno Dom/Fest" refers to the surcharge for working on a holiday at night
+
+        // Based on user table:
+        // dominical/festivo: extra=0, dom/fest=1 (Implies Day)
+        // nocturno dominical/festivo: extra=0, nocturna=1, dom/fest=1
+
+        breakdown.dominical_festivo = ordinaryDayMinutes
+        breakdown.recargo_nocturno_festivo = ordinaryNightMinutes
+    } else {
+        // Normal Day
+        // recargo nocturno: extra=0, nocturna=1
+        breakdown.recargo_nocturno = ordinaryNightMinutes
+        // Ordinary Day hours are just normal salary, usually not tracked as "overtime/surcharge"
+    }
+
+    // Calculate total "payable" minutes (sum of all categories)
+    const totalMinutes = Object.values(breakdown).reduce((a, b) => a + b, 0)
+
+    return {
+        totalMinutes,
+        breakdown
+    }
+}
+
+// --- Helper Functions ---
 
 export function getDayId(dateString) {
     const date = new Date(dateString)
-    const dayIndex = date.getUTCDay() // 0-6, 0=Sun
-    const map = {
-        0: 'domingo',
-        1: 'lunes',
-        2: 'martes',
-        3: 'miercoles',
-        4: 'jueves',
-        5: 'viernes',
-        6: 'sabado'
-    }
+    const dayIndex = date.getUTCDay()
+    const map = { 0: 'domingo', 1: 'lunes', 2: 'martes', 3: 'miercoles', 4: 'jueves', 5: 'viernes', 6: 'sabado' }
     return map[dayIndex]
 }
 
 export function getIntervals(schedule) {
     if (!schedule) return []
     const intervals = []
-
     if (schedule.morning?.enabled && schedule.morning.start && schedule.morning.end) {
-        intervals.push({
-            start: timeToMinutes(schedule.morning.start),
-            end: timeToMinutes(schedule.morning.end)
-        })
+        intervals.push({ start: timeToMinutes(schedule.morning.start), end: timeToMinutes(schedule.morning.end) })
     }
-
     if (schedule.afternoon?.enabled && schedule.afternoon.start && schedule.afternoon.end) {
-        intervals.push({
-            start: timeToMinutes(schedule.afternoon.start),
-            end: timeToMinutes(schedule.afternoon.end)
-        })
+        intervals.push({ start: timeToMinutes(schedule.afternoon.start), end: timeToMinutes(schedule.afternoon.end) })
     }
-    return intervals
+    return intervals.sort((a, b) => a.start - b.start)
 }
 
-export function calculateTotalMinutes(intervals) {
-    return intervals.reduce((acc, curr) => acc + (curr.end - curr.start), 0)
-}
+export function getNightIntervals(range) {
+    if (!range || !range.start || !range.end) return [] // Default or empty
 
-export function getOverlap(range1, range2) {
-    const start = Math.max(range1.start, range2.start)
-    const end = Math.min(range1.end, range2.end)
-    return Math.max(0, end - start)
+    const start = timeToMinutes(range.start)
+    const end = timeToMinutes(range.end)
+
+    if (start <= end) {
+        // Same day (e.g., 22:00 - 23:00)
+        return [{ start, end }]
+    } else {
+        // Crosses midnight (e.g., 21:00 - 06:00) -> [21:00, 1440] and [0, 06:00]
+        return [
+            { start: start, end: 1440 },
+            { start: 0, end: end }
+        ]
+    }
 }
 
 export function timeToMinutes(timeStr) {
@@ -146,26 +232,87 @@ export function timeToMinutes(timeStr) {
 
 export function formatMinutesToHHMM(totalMinutes) {
     const hours = Math.floor(totalMinutes / 60)
-    const minutes = totalMinutes % 60
+    const minutes = Math.round(totalMinutes % 60) // Round to nearest minute
     return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`
 }
 
-export function calculateOvertimeForDay(recordedSchedule, fixedScheduleDay) {
-    // Get intervals for both schedules
-    const recordedIntervals = getIntervals(recordedSchedule)
-    const fixedIntervals = fixedScheduleDay ? getIntervals(fixedScheduleDay) : []
+export function calculateTotalMinutes(intervals) {
+    return intervals.reduce((acc, curr) => acc + (curr.end - curr.start), 0)
+}
 
-    // Calculate total minutes worked (recorded)
-    const recordedMinutes = calculateTotalMinutes(recordedIntervals)
+// --- Interval Math ---
 
-    // Calculate Overlap (Minutes worked WITHIN fixed schedule)
-    let overlapMinutes = 0
-    recordedIntervals.forEach(recorded => {
-        fixedIntervals.forEach(fixed => {
-            overlapMinutes += getOverlap(recorded, fixed)
+// Intersection of two single intervals
+function intersectIntervals(a, b) {
+    const start = Math.max(a.start, b.start)
+    const end = Math.min(a.end, b.end)
+    if (start < end) return { start, end }
+    return null
+}
+
+// Intersection of two lists of intervals
+function intersectIntervalsList(listA, listB) {
+    const result = []
+    listA.forEach(a => {
+        listB.forEach(b => {
+            const intersection = intersectIntervals(a, b)
+            if (intersection) result.push(intersection)
         })
     })
+    return mergeIntervals(result)
+}
 
-    // Overtime = Total Recorded - Overlap
-    return Math.max(0, recordedMinutes - overlapMinutes)
+// Subtract listB from listA (A - B)
+function subtractIntervalsList(listA, listB) {
+    let result = [...listA]
+
+    listB.forEach(b => {
+        const nextResult = []
+        result.forEach(a => {
+            // Subtract b from a
+            // Case 1: No overlap
+            if (a.end <= b.start || a.start >= b.end) {
+                nextResult.push(a)
+                return
+            }
+
+            // Case 2: Overlap
+            // Left part
+            if (a.start < b.start) {
+                nextResult.push({ start: a.start, end: b.start })
+            }
+            // Right part
+            if (a.end > b.end) {
+                nextResult.push({ start: b.end, end: a.end })
+            }
+        })
+        result = nextResult
+    })
+
+    return mergeIntervals(result)
+}
+
+// Merge overlapping intervals in a list
+function mergeIntervals(intervals) {
+    if (intervals.length === 0) return []
+
+    // Sort by start time
+    const sorted = [...intervals].sort((a, b) => a.start - b.start)
+
+    const merged = [sorted[0]]
+
+    for (let i = 1; i < sorted.length; i++) {
+        const current = sorted[i]
+        const last = merged[merged.length - 1]
+
+        if (current.start < last.end) {
+            // Overlap, extend last
+            last.end = Math.max(last.end, current.end)
+        } else {
+            // No overlap, add new
+            merged.push(current)
+        }
+    }
+
+    return merged
 }
