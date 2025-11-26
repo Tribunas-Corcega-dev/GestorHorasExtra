@@ -134,7 +134,7 @@ function RecargosContent() {
                     <table className="w-full text-sm text-left">
                         <thead className="text-xs text-muted-foreground uppercase bg-muted/50 border-b border-border">
                             <tr>
-                                <th className="px-6 py-3 w-16">ID</th>
+
                                 <th className="px-6 py-3">Tipo de Hora Extra</th>
                                 <th className="px-6 py-3 w-32 text-right">Recargo (%)</th>
                                 <th className="px-6 py-3 w-32 text-center">Acciones</th>
@@ -143,9 +143,7 @@ function RecargosContent() {
                         <tbody className="divide-y divide-border">
                             {recargos.map((recargo) => (
                                 <tr key={recargo.id} className="bg-background hover:bg-accent/50 transition-colors">
-                                    <td className="px-6 py-4 font-medium text-muted-foreground">
-                                        {recargo.id}
-                                    </td>
+
 
                                     <td className="px-6 py-4">
                                         {editingId === recargo.id ? (
