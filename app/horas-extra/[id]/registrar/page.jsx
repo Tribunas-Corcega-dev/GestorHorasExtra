@@ -35,14 +35,31 @@ function RegistrarHorasExtraContent() {
         afternoon: { start: "13:00", end: "17:00", enabled: true },
     })
 
+    const [nightShiftRange, setNightShiftRange] = useState(null)
+
     useEffect(() => {
         if (user && !canManageOvertime(user.rol)) {
             router.push("/dashboard")
         }
         if (params?.id) {
             fetchEmpleado()
+            fetchParametros()
         }
     }, [user, router, params?.id])
+
+    async function fetchParametros() {
+        try {
+            const res = await fetch("/api/parametros")
+            if (res.ok) {
+                const data = await res.json()
+                if (data.jornada_nocturna) {
+                    setNightShiftRange(data.jornada_nocturna)
+                }
+            }
+        } catch (err) {
+            console.error("Error fetching parametros:", err)
+        }
+    }
 
     async function fetchEmpleado() {
         try {
@@ -70,7 +87,11 @@ function RegistrarHorasExtraContent() {
             }
 
             // Calculate overtime
-            let overtimeMinutes = 0
+            let overtimeResults = {
+                totalMinutes: 0,
+                breakdown: {}
+            }
+
             if (empleado && empleado.jornada_fija_hhmm) {
                 let fixedSchedule = empleado.jornada_fija_hhmm
                 if (typeof fixedSchedule === 'string') {
@@ -86,7 +107,14 @@ function RegistrarHorasExtraContent() {
                 if (fixedSchedule) {
                     const dayId = getDayId(fecha)
                     const fixedDay = fixedSchedule[dayId]
-                    overtimeMinutes = calculateOvertimeForDay(jornada, fixedDay)
+
+                    // Use the new calculator signature
+                    overtimeResults = calculateOvertimeForDay(
+                        jornada,
+                        fixedDay,
+                        nightShiftRange,
+                        jornada.es_festivo
+                    )
                 }
             }
 
@@ -99,8 +127,9 @@ function RegistrarHorasExtraContent() {
                     jornada_base_calcular: jornada,
                     es_festivo: jornada.es_festivo,
                     horas_extra_hhmm: {
-                        minutes: overtimeMinutes,
-                        formatted: formatMinutesToHHMM(overtimeMinutes)
+                        minutes: overtimeResults.totalMinutes,
+                        formatted: formatMinutesToHHMM(overtimeResults.totalMinutes),
+                        breakdown: overtimeResults.breakdown
                     }
                 }),
             })
