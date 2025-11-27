@@ -39,6 +39,21 @@ export async function POST(request) {
         const arrayBuffer = await file.arrayBuffer()
         const buffer = Buffer.from(arrayBuffer)
 
+        // 3.5 Limpiar carpeta del usuario (Solo mantener la última foto)
+        const folder = path.split('/')[0] // El path es "cc/filename"
+        if (folder) {
+            const { data: existingFiles } = await supabaseAdmin.storage
+                .from("fotos_trabajadores")
+                .list(folder)
+
+            if (existingFiles && existingFiles.length > 0) {
+                const filesToRemove = existingFiles.map(f => `${folder}/${f.name}`)
+                await supabaseAdmin.storage
+                    .from("fotos_trabajadores")
+                    .remove(filesToRemove)
+            }
+        }
+
         // 4. Subir a Supabase Storage (usando Service Role para bypass RLS)
         const { data, error } = await supabaseAdmin.storage
             .from("fotos_trabajadores")
