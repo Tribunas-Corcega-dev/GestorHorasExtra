@@ -139,3 +139,56 @@ export async function PUT(request, props) {
     return NextResponse.json({ message: "Error interno del servidor" }, { status: 500 })
   }
 }
+
+export async function DELETE(request, props) {
+  try {
+    const params = await props.params
+    const user = await getUserFromRequest(request)
+
+    // Only HR/Admin can delete employees (not coordinators)
+    if (!user || !canManageEmployees(user.rol) || isCoordinator(user.rol)) {
+      return NextResponse.json({ message: "No autorizado" }, { status: 403 })
+    }
+
+    const { id } = params
+    const body = await request.json()
+    const { password } = body
+
+    if (!password) {
+      return NextResponse.json({ message: "Se requiere contraseña para eliminar" }, { status: 400 })
+    }
+
+    // Verify the logged-in user's password
+    const passwordMatch = await bcrypt.compare(password, user.password_hash)
+    if (!passwordMatch) {
+      return NextResponse.json({ message: "Contraseña incorrecta" }, { status: 401 })
+    }
+
+    // Check if employee exists
+    const { data: empleado, error: fetchError } = await supabase
+      .from("usuarios")
+      .select("id")
+      .eq("id", id)
+      .single()
+
+    if (fetchError || !empleado) {
+      return NextResponse.json({ message: "Empleado no encontrado" }, { status: 404 })
+    }
+
+    // Delete the employee
+    const { error: deleteError } = await supabase
+      .from("usuarios")
+      .delete()
+      .eq("id", id)
+
+    if (deleteError) {
+      console.error("[v0] Error deleting employee:", deleteError)
+      return NextResponse.json({ message: `Error al eliminar el empleado: ${deleteError.message}` }, { status: 500 })
+    }
+
+    return NextResponse.json({ message: "Empleado eliminado exitosamente" })
+  } catch (error) {
+    console.error("[v0] Error in DELETE empleado:", error)
+    return NextResponse.json({ message: "Error interno del servidor" }, { status: 500 })
+  }
+}

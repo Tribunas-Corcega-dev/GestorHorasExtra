@@ -32,6 +32,9 @@ function EditarEmpleadoContent() {
   const [uploading, setUploading] = useState(false)
   const [file, setFile] = useState(null)
   const [previewUrl, setPreviewUrl] = useState(null)
+  const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [deletePassword, setDeletePassword] = useState("")
+  const [deleting, setDeleting] = useState(false)
 
   const AREA_MAPPING = {
     "Acueducto": "h_acueducto",
@@ -244,6 +247,32 @@ function EditarEmpleadoContent() {
       setUploading(false)
     } finally {
       setSaving(false)
+    }
+  }
+
+  async function handleDelete() {
+    setError("")
+    setDeleting(true)
+
+    try {
+      const res = await fetch(`/api/empleados/${params.id}`, {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ password: deletePassword }),
+      })
+
+      const data = await res.json()
+
+      if (!res.ok) {
+        throw new Error(data.message || "Error al eliminar empleado")
+      }
+
+      router.push("/empleados")
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setDeleting(false)
+      setShowDeleteModal(false)
     }
   }
 
@@ -467,9 +496,65 @@ function EditarEmpleadoContent() {
             >
               Cancelar
             </button>
+            {!isCoordinator(user?.rol) && (
+              <button
+                type="button"
+                onClick={() => setShowDeleteModal(true)}
+                className="px-6 py-2 bg-destructive text-white rounded-md hover:opacity-90 transition-opacity font-medium"
+              >
+                Eliminar
+              </button>
+            )}
           </div>
         </form>
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-card border border-border rounded-lg shadow-lg p-6 max-w-md w-full mx-4">
+            <h2 className="text-xl font-bold text-foreground mb-4">Confirmar Eliminación</h2>
+            <p className="text-muted-foreground mb-4">
+              ¿Está seguro que desea eliminar a <strong>{originalData?.nombre || originalData?.username}</strong>?
+              Esta acción no se puede deshacer.
+            </p>
+            <div className="mb-4">
+              <label htmlFor="deletePassword" className="block text-sm font-medium text-foreground mb-1">
+                Ingrese su contraseña para confirmar
+              </label>
+              <input
+                id="deletePassword"
+                type="password"
+                value={deletePassword}
+                onChange={(e) => setDeletePassword(e.target.value)}
+                className="w-full px-3 py-2 border border-input bg-background text-foreground rounded-md focus:outline-none focus:ring-2 focus:ring-ring"
+                placeholder="Contraseña"
+              />
+            </div>
+            {error && <div className="bg-destructive/10 text-destructive px-4 py-3 rounded-md text-sm mb-4">{error}</div>}
+            <div className="flex gap-3">
+              <button
+                onClick={() => {
+                  setShowDeleteModal(false)
+                  setDeletePassword("")
+                  setError("")
+                }}
+                disabled={deleting}
+                className="flex-1 px-4 py-2 border border-border rounded-md hover:bg-accent transition-colors text-foreground font-medium disabled:opacity-50"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleDelete}
+                disabled={deleting || !deletePassword}
+                className="flex-1 px-4 py-2 bg-destructive text-white rounded-md hover:opacity-90 transition-opacity font-medium disabled:opacity-50"
+              >
+                {deleting ? "Eliminando..." : "Eliminar"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
