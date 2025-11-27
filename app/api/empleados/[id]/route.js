@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import jwt from "jsonwebtoken"
 import bcrypt from "bcryptjs"
 import { supabase } from "@/lib/supabaseClient"
+import { supabaseAdmin } from "@/lib/supabaseAdmin"
 import { canManageEmployees, isCoordinator } from "@/lib/permissions"
 import { calculateEmployeeWorkValues } from "@/lib/calculations"
 
@@ -164,15 +165,38 @@ export async function DELETE(request, props) {
       return NextResponse.json({ message: "Contraseña incorrecta" }, { status: 401 })
     }
 
-    // Check if employee exists
+    // Check if employee exists and get cc for photo deletion
     const { data: empleado, error: fetchError } = await supabase
       .from("usuarios")
-      .select("id")
+      .select("id, cc")
       .eq("id", id)
       .single()
 
     if (fetchError || !empleado) {
       return NextResponse.json({ message: "Empleado no encontrado" }, { status: 404 })
+    }
+
+    // Delete employee's photo folder from storage if they have a cc
+    if (empleado.cc && supabaseAdmin) {
+      try {
+        const { data: files } = await supabaseAdmin.storage
+          .from("fotos_trabajadores")
+          .list(empleado.cc)
+
+        if (files && files.length > 0) {
+          const filesToRemove = files.map(f => `${empleado.cc}/${f.name}`)
+          const { error: removeError } = await supabaseAdmin.storage
+            .from("fotos_trabajadores")
+            .remove(filesToRemove)
+
+          if (removeError) {
+            console.error("[v0] Error removing files:", removeError)
+          }
+        }
+      } catch (storageError) {
+        console.error("[v0] Error deleting employee photos:", storageError)
+        // Continue with employee deletion even if photo deletion fails
+      }
     }
 
     // Delete the employee
