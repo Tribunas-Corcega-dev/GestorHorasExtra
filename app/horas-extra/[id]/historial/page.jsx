@@ -160,11 +160,29 @@ function HistorialContent() {
                 <div>
                     <h1 className="text-3xl font-bold text-foreground">Historial de Horas Extra</h1>
                     {empleado && (
-                        <div className="mt-1 text-muted-foreground">
-                            <p>{empleado.nombre || empleado.username}</p>
-                            {empleado.valor_hora && (
-                                <p className="text-sm">Valor Hora: <span className="font-semibold text-foreground">{formatCurrency(empleado.valor_hora)}</span></p>
-                            )}
+                        <div className="mt-4 flex items-center gap-4">
+                            <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center overflow-hidden relative flex-shrink-0">
+                                {empleado.foto_url ? (
+                                    <img
+                                        src={empleado.foto_url}
+                                        alt={`Foto de ${empleado.nombre || empleado.username}`}
+                                        className="h-full w-full object-cover"
+                                    />
+                                ) : (
+                                    <span className="text-xl font-bold text-primary">
+                                        {(empleado.nombre || empleado.username || "?").charAt(0).toUpperCase()}
+                                    </span>
+                                )}
+                            </div>
+                            <div>
+                                <h2 className="font-semibold text-lg text-foreground">{empleado.nombre || empleado.username}</h2>
+                                <div className="text-sm text-muted-foreground">
+                                    <p>CC: {empleado.cc || "No registrada"}</p>
+                                    {empleado.valor_hora && (
+                                        <p>Valor Hora: <span className="font-semibold text-foreground">{formatCurrency(empleado.valor_hora)}</span></p>
+                                    )}
+                                </div>
+                            </div>
                         </div>
                     )}
                 </div>

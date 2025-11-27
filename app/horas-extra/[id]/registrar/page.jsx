@@ -161,10 +161,26 @@ function RegistrarHorasExtraContent() {
             <h1 className="text-3xl font-bold mb-6 text-foreground">Registrar Horas Extra</h1>
 
             {empleado && (
-                <div className="mb-6 bg-muted/30 p-4 rounded-lg border border-border">
-                    <h2 className="font-semibold text-lg">{empleado.nombre || empleado.username}</h2>
-                    <div className="text-sm text-muted-foreground">
-                        {empleado.area}
+                <div className="mb-6 bg-muted/30 p-4 rounded-lg border border-border flex items-center gap-4">
+                    <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center overflow-hidden relative flex-shrink-0">
+                        {empleado.foto_url ? (
+                            <img
+                                src={empleado.foto_url}
+                                alt={`Foto de ${empleado.nombre || empleado.username}`}
+                                className="h-full w-full object-cover"
+                            />
+                        ) : (
+                            <span className="text-xl font-bold text-primary">
+                                {(empleado.nombre || empleado.username || "?").charAt(0).toUpperCase()}
+                            </span>
+                        )}
+                    </div>
+                    <div>
+                        <h2 className="font-semibold text-lg">{empleado.nombre || empleado.username}</h2>
+                        <div className="text-sm text-muted-foreground">
+                            <p>CC: {empleado.cc || "No registrada"}</p>
+                            <p>{empleado.area}</p>
+                        </div>
                     </div>
                 </div>
             )}
