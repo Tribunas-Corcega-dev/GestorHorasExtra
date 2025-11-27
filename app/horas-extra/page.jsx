@@ -67,10 +67,18 @@ function HorasExtraContent() {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {empleados.map((empleado) => (
                         <div key={empleado.id} className="bg-card border border-border rounded-lg shadow-sm hover:shadow-md transition-shadow p-6 flex flex-col items-center text-center">
-                            <div className="h-20 w-20 rounded-full bg-primary/10 flex items-center justify-center mb-4">
-                                <span className="text-2xl font-bold text-primary">
-                                    {(empleado.nombre || empleado.username || "?").charAt(0).toUpperCase()}
-                                </span>
+                            <div className="h-20 w-20 rounded-full bg-primary/10 flex items-center justify-center mb-4 overflow-hidden relative">
+                                {empleado.foto_url ? (
+                                    <img
+                                        src={empleado.foto_url}
+                                        alt={`Foto de ${empleado.nombre || empleado.username}`}
+                                        className="h-full w-full object-cover"
+                                    />
+                                ) : (
+                                    <span className="text-2xl font-bold text-primary">
+                                        {(empleado.nombre || empleado.username || "?").charAt(0).toUpperCase()}
+                                    </span>
+                                )}
                             </div>
 
                             <h3 className="font-semibold text-lg text-foreground mb-1">
