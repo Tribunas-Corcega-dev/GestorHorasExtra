@@ -96,8 +96,12 @@ function DetalleEmpleadoContent() {
             <div className="bg-card border border-border rounded-xl shadow-lg overflow-hidden">
                 {/* Header / Banner */}
                 <div className="bg-primary/10 p-8 flex flex-col items-center border-b border-border">
-                    <div className="h-32 w-32 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-5xl font-bold mb-4 shadow-md">
-                        {(empleado.nombre || empleado.username || "?").charAt(0).toUpperCase()}
+                    <div className="h-32 w-32 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-5xl font-bold mb-4 shadow-md overflow-hidden">
+                        {empleado.foto_url ? (
+                            <img src={empleado.foto_url} alt={empleado.nombre} className="h-full w-full object-cover" />
+                        ) : (
+                            (empleado.nombre || empleado.username || "?").charAt(0).toUpperCase()
+                        )}
                     </div>
                     <h2 className="text-2xl font-bold text-foreground">{empleado.nombre || empleado.username}</h2>
                     <p className="text-muted-foreground font-medium">@{empleado.username}</p>

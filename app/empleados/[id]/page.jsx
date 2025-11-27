@@ -7,6 +7,7 @@ import { ProtectedRoute } from "@/components/ProtectedRoute"
 import { canManageEmployees, isCoordinator } from "@/lib/permissions"
 import { useRouter, useParams } from "next/navigation"
 import { ScheduleSelector } from "@/components/ScheduleSelector"
+import { supabase } from "@/lib/supabaseClient"
 
 export default function EditarEmpleadoPage() {
   return (
@@ -28,6 +29,9 @@ function EditarEmpleadoContent() {
   const [roles, setRoles] = useState([])
   const [defaultSchedules, setDefaultSchedules] = useState(null)
   const [minWage, setMinWage] = useState(null)
+  const [uploading, setUploading] = useState(false)
+  const [file, setFile] = useState(null)
+  const [previewUrl, setPreviewUrl] = useState(null)
 
   const AREA_MAPPING = {
     "Acueducto": "h_acueducto",
@@ -41,6 +45,7 @@ function EditarEmpleadoContent() {
   const [formData, setFormData] = useState({
     nombre: "",
     cc: "",
+    foto_url: "",
     cargo: "",
     area: "",
     tipo_trabajador: "",
@@ -75,6 +80,7 @@ function EditarEmpleadoContent() {
       setFormData({
         nombre: data.nombre || "",
         cc: data.cc || "",
+        foto_url: data.foto_url || "",
         cargo: data.cargo || "",
         area: data.area || "",
         tipo_trabajador: data.tipo_trabajador || "",
@@ -133,6 +139,14 @@ function EditarEmpleadoContent() {
     setFormData((prev) => ({ ...prev, [name]: value }))
   }
 
+  function handleImageSelect(e) {
+    const selectedFile = e.target.files[0]
+    if (selectedFile) {
+      setFile(selectedFile)
+      setPreviewUrl(URL.createObjectURL(selectedFile))
+    }
+  }
+
   function handleAreaChange(e) {
     const newArea = e.target.value
     let newSchedule = formData.jornada_fija_hhmm
@@ -169,7 +183,36 @@ function EditarEmpleadoContent() {
     setSaving(true)
 
     try {
-      const updateData = { ...formData }
+      let finalFotoUrl = formData.foto_url
+
+      // Upload image if selected
+      if (file) {
+        setUploading(true)
+        const fileExt = file.name.split('.').pop()
+        const fileName = `${Math.random()}.${fileExt}`
+        const filePath = `${formData.cc}/${fileName}`
+
+        const uploadFormData = new FormData()
+        uploadFormData.append("file", file)
+        uploadFormData.append("path", filePath)
+
+        const uploadRes = await fetch("/api/upload", {
+          method: "POST",
+          body: uploadFormData,
+        })
+
+        if (!uploadRes.ok) {
+          const errorData = await uploadRes.json()
+          throw new Error(errorData.message || "Error al subir imagen")
+        }
+
+        const { publicUrl } = await uploadRes.json()
+
+        finalFotoUrl = publicUrl
+        setUploading(false)
+      }
+
+      const updateData = { ...formData, foto_url: finalFotoUrl }
       // Si no se cambió la contraseña, no la enviamos
       if (!updateData.password) {
         delete updateData.password
@@ -198,6 +241,7 @@ function EditarEmpleadoContent() {
       router.push("/empleados")
     } catch (err) {
       setError(err.message)
+      setUploading(false)
     } finally {
       setSaving(false)
     }
@@ -223,6 +267,33 @@ function EditarEmpleadoContent() {
 
       <div className="bg-card border border-border rounded-lg shadow-md p-6">
         <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="flex justify-center mb-6">
+            <div className="flex flex-col items-center gap-2">
+              <div className="h-24 w-24 rounded-full bg-muted flex items-center justify-center overflow-hidden border-2 border-border relative">
+                {previewUrl || formData.foto_url ? (
+                  <img src={previewUrl || formData.foto_url} alt="Foto de perfil" className="h-full w-full object-cover" />
+                ) : (
+                  <span className="text-muted-foreground text-xs text-center px-2">Sin foto</span>
+                )}
+                {uploading && (
+                  <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                    <span className="text-white text-xs">Subiendo...</span>
+                  </div>
+                )}
+              </div>
+              <label className="cursor-pointer bg-primary text-primary-foreground px-3 py-1 rounded-md text-xs font-medium hover:opacity-90 transition-opacity">
+                Cambiar Foto
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleImageSelect}
+                  className="hidden"
+                  disabled={uploading}
+                />
+              </label>
+            </div>
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label htmlFor="nombre" className="block text-sm font-medium text-foreground mb-1">

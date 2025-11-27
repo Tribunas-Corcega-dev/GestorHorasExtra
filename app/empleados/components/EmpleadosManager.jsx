@@ -115,10 +115,14 @@ export function EmpleadosManager() {
                     {empleados.map((empleado) => (
                         <div key={empleado.id} className="bg-card border border-border rounded-lg shadow-sm hover:shadow-md transition-shadow p-6 flex flex-col">
                             <div className="flex items-center gap-4 mb-4">
-                                <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0">
-                                    <span className="text-xl font-bold text-primary">
-                                        {(empleado.nombre || empleado.username || "?").charAt(0).toUpperCase()}
-                                    </span>
+                                <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 overflow-hidden">
+                                    {empleado.foto_url ? (
+                                        <img src={empleado.foto_url} alt={empleado.nombre} className="h-full w-full object-cover" />
+                                    ) : (
+                                        <span className="text-xl font-bold text-primary">
+                                            {(empleado.nombre || empleado.username || "?").charAt(0).toUpperCase()}
+                                        </span>
+                                    )}
                                 </div>
                                 <div>
                                     <h3 className="font-semibold text-lg text-foreground line-clamp-1">
