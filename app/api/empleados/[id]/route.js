@@ -97,6 +97,8 @@ export async function PUT(request, props) {
     if (body.salario_base !== undefined) updateData.salario_base = body.salario_base
     if (body.jornada_fija_hhmm !== undefined) updateData.jornada_fija_hhmm = body.jornada_fija_hhmm
 
+    // Note: 'cc' is read-only, so we don't update it here.
+
     // Recalculate work values if schedule or salary changes
     if (body.jornada_fija_hhmm !== undefined || body.salario_base !== undefined) {
       const scheduleToUse = body.jornada_fija_hhmm !== undefined ? body.jornada_fija_hhmm : currentEmpleado.jornada_fija_hhmm
@@ -122,7 +124,7 @@ export async function PUT(request, props) {
       .from("usuarios")
       .update(updateData)
       .eq("id", id)
-      .select("id, username, nombre, cargo, area, rol, tipo_trabajador, salario_base, jornada_fija_hhmm")
+      .select("id, username, nombre, cc, cargo, area, rol, tipo_trabajador, salario_base, jornada_fija_hhmm")
       .single()
 
     if (updateError) {

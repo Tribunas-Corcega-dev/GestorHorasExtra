@@ -35,7 +35,7 @@ export async function GET(request) {
 
     let query = supabase
       .from("usuarios")
-      .select("id, username, nombre, cargo, area, rol, tipo_trabajador, salario_base, jornada_fija_hhmm")
+      .select("id, username, nombre, cc, cargo, area, rol, tipo_trabajador, salario_base, jornada_fija_hhmm")
 
     // Si es coordinador, solo puede ver empleados de su área
     if (isCoordinator(user.rol)) {
@@ -78,11 +78,11 @@ export async function POST(request) {
     }
 
     const body = await request.json()
-    const { username, password, nombre, cargo, area, rol, tipo_trabajador, salario_base, jornada_fija_hhmm } = body
+    const { username, password, nombre, cc, cargo, area, rol, tipo_trabajador, salario_base, jornada_fija_hhmm } = body
 
     // Validaciones
-    if (!username || !password) {
-      return NextResponse.json({ message: "Username y contraseña son obligatorios" }, { status: 400 })
+    if (!username || !password || !cc) {
+      return NextResponse.json({ message: "Username, contraseña y cédula son obligatorios" }, { status: 400 })
     }
 
     if (password.length < 8) {
@@ -115,6 +115,7 @@ export async function POST(request) {
           username,
           password_hash,
           nombre: nombre || null,
+          cc: cc || null,
           cargo: cargo || null,
           area: area || null,
           rol: rol || "OPERARIO",
@@ -126,7 +127,7 @@ export async function POST(request) {
           valor_hora
         },
       ])
-      .select("id, username, nombre, cargo, area, rol, tipo_trabajador, salario_base, jornada_fija_hhmm")
+      .select("id, username, nombre, cc, cargo, area, rol, tipo_trabajador, salario_base, jornada_fija_hhmm")
       .single()
 
     if (error) {

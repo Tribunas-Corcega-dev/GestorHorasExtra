@@ -29,6 +29,7 @@ function NuevoEmpleadoContent() {
     username: "",
     password: "",
     nombre: "",
+    cc: "",
     cargo: "",
     area: "",
     tipo_trabajador: "",
@@ -205,18 +206,34 @@ function NuevoEmpleadoContent() {
             </div>
           </div>
 
-          <div>
-            <label htmlFor="nombre" className="block text-sm font-medium text-foreground mb-1">
-              Nombre completo
-            </label>
-            <input
-              id="nombre"
-              name="nombre"
-              type="text"
-              value={formData.nombre}
-              onChange={handleChange}
-              className="w-full px-3 py-2 border border-input bg-background text-foreground rounded-md focus:outline-none focus:ring-2 focus:ring-ring"
-            />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label htmlFor="nombre" className="block text-sm font-medium text-foreground mb-1">
+                Nombre completo
+              </label>
+              <input
+                id="nombre"
+                name="nombre"
+                type="text"
+                value={formData.nombre}
+                onChange={handleChange}
+                className="w-full px-3 py-2 border border-input bg-background text-foreground rounded-md focus:outline-none focus:ring-2 focus:ring-ring"
+              />
+            </div>
+            <div>
+              <label htmlFor="cc" className="block text-sm font-medium text-foreground mb-1">
+                Cédula *
+              </label>
+              <input
+                id="cc"
+                name="cc"
+                type="number"
+                value={formData.cc}
+                onChange={handleChange}
+                required
+                className="w-full px-3 py-2 border border-input bg-background text-foreground rounded-md focus:outline-none focus:ring-2 focus:ring-ring"
+              />
+            </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

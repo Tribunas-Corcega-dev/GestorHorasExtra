@@ -40,6 +40,7 @@ function EditarEmpleadoContent() {
 
   const [formData, setFormData] = useState({
     nombre: "",
+    cc: "",
     cargo: "",
     area: "",
     tipo_trabajador: "",
@@ -73,6 +74,7 @@ function EditarEmpleadoContent() {
       setOriginalData(data)
       setFormData({
         nombre: data.nombre || "",
+        cc: data.cc || "",
         cargo: data.cargo || "",
         area: data.area || "",
         tipo_trabajador: data.tipo_trabajador || "",
@@ -221,18 +223,34 @@ function EditarEmpleadoContent() {
 
       <div className="bg-card border border-border rounded-lg shadow-md p-6">
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label htmlFor="nombre" className="block text-sm font-medium text-foreground mb-1">
-              Nombre completo
-            </label>
-            <input
-              id="nombre"
-              name="nombre"
-              type="text"
-              value={formData.nombre}
-              onChange={handleChange}
-              className="w-full px-3 py-2 border border-input bg-background text-foreground rounded-md focus:outline-none focus:ring-2 focus:ring-ring"
-            />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label htmlFor="nombre" className="block text-sm font-medium text-foreground mb-1">
+                Nombre completo
+              </label>
+              <input
+                id="nombre"
+                name="nombre"
+                type="text"
+                value={formData.nombre}
+                onChange={handleChange}
+                className="w-full px-3 py-2 border border-input bg-background text-foreground rounded-md focus:outline-none focus:ring-2 focus:ring-ring"
+              />
+            </div>
+            <div>
+              <label htmlFor="cc" className="block text-sm font-medium text-foreground mb-1">
+                Cédula
+              </label>
+              <input
+                id="cc"
+                name="cc"
+                type="number"
+                value={formData.cc}
+                disabled
+                className="w-full px-3 py-2 border border-input bg-muted text-muted-foreground rounded-md focus:outline-none cursor-not-allowed"
+                title="La cédula no se puede editar"
+              />
+            </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
