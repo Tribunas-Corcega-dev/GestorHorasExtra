@@ -101,6 +101,13 @@ export async function POST(request) {
       return NextResponse.json({ message: "El username ya existe" }, { status: 400 })
     }
 
+    // Verificar si la cédula ya existe
+    const { data: existingCC } = await supabase.from("usuarios").select("id").eq("cc", cc).single()
+
+    if (existingCC) {
+      return NextResponse.json({ message: "La cédula ya está registrada" }, { status: 400 })
+    }
+
     // Generar hash de la contraseña
     const password_hash = await bcrypt.hash(password, 10)
 
@@ -117,10 +124,8 @@ export async function POST(request) {
           nombre: nombre || null,
           cc: cc || null,
           foto_url: foto_url || null,
-          cargo: cargo || null,
           area: area || null,
           rol: rol || "OPERARIO",
-          tipo_trabajador: tipo_trabajador || null,
           salario_base: salario_base || null,
           jornada_fija_hhmm: jornada_fija_hhmm || null,
           horas_semanales,

@@ -158,10 +158,22 @@ function NuevoEmpleadoContent() {
     setLoading(true)
 
     try {
-      let finalFotoUrl = formData.foto_url
+      // First, create the employee without the photo
+      const res = await fetch("/api/empleados", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(formData),
+      })
 
-      // Upload image if selected
-      if (file) {
+      if (!res.ok) {
+        const errorData = await res.json()
+        throw new Error(errorData.message || "Error al crear empleado")
+      }
+
+      const newEmployee = await res.json()
+
+      // If employee creation was successful and there's a file, upload it
+      if (file && newEmployee.id) {
         setUploading(true)
         const fileExt = file.name.split('.').pop()
         const fileName = `${Math.random()}.${fileExt}`
@@ -176,26 +188,17 @@ function NuevoEmpleadoContent() {
           body: uploadFormData,
         })
 
-        if (!uploadRes.ok) {
-          const errorData = await uploadRes.json()
-          throw new Error(errorData.message || "Error al subir imagen")
+        if (uploadRes.ok) {
+          const { publicUrl } = await uploadRes.json()
+
+          // Update employee with photo URL
+          await fetch(`/api/empleados/${newEmployee.id}`, {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ foto_url: publicUrl }),
+          })
         }
-
-        const { publicUrl } = await uploadRes.json()
-
-        finalFotoUrl = publicUrl
         setUploading(false)
-      }
-
-      const res = await fetch("/api/empleados", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...formData, foto_url: finalFotoUrl }),
-      })
-
-      if (!res.ok) {
-        const errorData = await res.json()
-        throw new Error(errorData.message || "Error al crear empleado")
       }
 
       router.push("/empleados")
