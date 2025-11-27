@@ -78,7 +78,6 @@ function HorasExtraContent() {
                             </h3>
 
                             <div className="text-sm text-muted-foreground mb-4 space-y-1">
-                                <p>{empleado.cargo || "Sin cargo"}</p>
                                 <p className="text-xs bg-muted px-2 py-1 rounded-full inline-block">
                                     {empleado.area || "Sin área"}
                                 </p>

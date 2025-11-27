@@ -107,9 +107,6 @@ function DetalleEmpleadoContent() {
                     <p className="text-muted-foreground font-medium">@{empleado.username}</p>
                     <div className="mt-4 flex gap-2">
                         <span className="px-3 py-1 bg-background rounded-full text-xs font-medium border border-border shadow-sm">
-                            {empleado.cargo || "Sin cargo"}
-                        </span>
-                        <span className="px-3 py-1 bg-background rounded-full text-xs font-medium border border-border shadow-sm">
                             {empleado.area || "Sin área"}
                         </span>
                     </div>
@@ -131,10 +128,6 @@ function DetalleEmpleadoContent() {
                             <div className="p-4 bg-background rounded-lg border border-border">
                                 <p className="text-xs text-muted-foreground mb-1">Rol en sistema</p>
                                 <p className="font-medium text-foreground text-lg">{empleado.rol}</p>
-                            </div>
-                            <div className="p-4 bg-background rounded-lg border border-border">
-                                <p className="text-xs text-muted-foreground mb-1">Tipo de trabajador</p>
-                                <p className="font-medium text-foreground text-lg">{empleado.tipo_trabajador || "-"}</p>
                             </div>
                             <div className="p-4 bg-background rounded-lg border border-border">
                                 <p className="text-xs text-muted-foreground mb-1">Salario Base</p>

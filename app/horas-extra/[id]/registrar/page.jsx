@@ -164,7 +164,7 @@ function RegistrarHorasExtraContent() {
                 <div className="mb-6 bg-muted/30 p-4 rounded-lg border border-border">
                     <h2 className="font-semibold text-lg">{empleado.nombre || empleado.username}</h2>
                     <div className="text-sm text-muted-foreground">
-                        {empleado.cargo} • {empleado.area}
+                        {empleado.area}
                     </div>
                 </div>
             )}

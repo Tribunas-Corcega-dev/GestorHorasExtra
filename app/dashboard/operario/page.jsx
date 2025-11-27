@@ -31,12 +31,6 @@ function OperarioContent() {
                         <p className="text-lg font-semibold text-foreground">{user.nombre}</p>
                     </div>
                 )}
-                {user.cargo && (
-                    <div>
-                        <p className="text-sm text-muted-foreground">Cargo</p>
-                        <p className="text-lg font-semibold text-foreground">{user.cargo}</p>
-                    </div>
-                )}
                 {user.area && (
                     <div>
                         <p className="text-sm text-muted-foreground">Área</p>

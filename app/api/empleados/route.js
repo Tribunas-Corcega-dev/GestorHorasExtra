@@ -35,7 +35,7 @@ export async function GET(request) {
 
     let query = supabase
       .from("usuarios")
-      .select("id, username, nombre, cc, foto_url, cargo, area, rol, tipo_trabajador, salario_base, jornada_fija_hhmm")
+      .select("id, username, nombre, cc, foto_url, area, rol, salario_base, jornada_fija_hhmm")
 
     // Si es coordinador, solo puede ver empleados de su área
     if (isCoordinator(user.rol)) {
@@ -78,7 +78,7 @@ export async function POST(request) {
     }
 
     const body = await request.json()
-    const { username, password, nombre, cc, foto_url, cargo, area, rol, tipo_trabajador, salario_base, jornada_fija_hhmm } = body
+    const { username, password, nombre, cc, foto_url, area, rol, salario_base, jornada_fija_hhmm } = body
 
     // Validaciones
     if (!username || !password || !cc) {
@@ -128,7 +128,7 @@ export async function POST(request) {
           valor_hora
         },
       ])
-      .select("id, username, nombre, cc, foto_url, cargo, area, rol, tipo_trabajador, salario_base, jornada_fija_hhmm")
+      .select("id, username, nombre, cc, foto_url, area, rol, salario_base, jornada_fija_hhmm")
       .single()
 
     if (error) {

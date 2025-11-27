@@ -85,7 +85,6 @@ export async function PUT(request, props) {
     const updateData = {}
 
     if (body.nombre !== undefined) updateData.nombre = body.nombre
-    if (body.cargo !== undefined) updateData.cargo = body.cargo
     if (body.area !== undefined) {
       // Si es coordinador, no puede cambiar el área
       if (isCoordinator(user.rol)) {
@@ -94,7 +93,6 @@ export async function PUT(request, props) {
       updateData.area = body.area
     }
     if (body.rol !== undefined) updateData.rol = body.rol
-    if (body.tipo_trabajador !== undefined) updateData.tipo_trabajador = body.tipo_trabajador
     if (body.salario_base !== undefined) updateData.salario_base = body.salario_base
     if (body.jornada_fija_hhmm !== undefined) updateData.jornada_fija_hhmm = body.jornada_fija_hhmm
     if (body.foto_url !== undefined) updateData.foto_url = body.foto_url
@@ -126,7 +124,7 @@ export async function PUT(request, props) {
       .from("usuarios")
       .update(updateData)
       .eq("id", id)
-      .select("id, username, nombre, cc, foto_url, cargo, area, rol, tipo_trabajador, salario_base, jornada_fija_hhmm")
+      .select("id, username, nombre, cc, foto_url, area, rol, salario_base, jornada_fija_hhmm")
       .single()
 
     if (updateError) {

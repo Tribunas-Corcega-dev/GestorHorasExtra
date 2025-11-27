@@ -122,10 +122,6 @@ export function EmpleadosCoordinador() {
 
                             <div className="space-y-2 mb-6 flex-1">
                                 <div className="flex justify-between text-sm">
-                                    <span className="text-muted-foreground">Cargo:</span>
-                                    <span className="font-medium text-foreground text-right">{empleado.cargo || "-"}</span>
-                                </div>
-                                <div className="flex justify-between text-sm">
                                     <span className="text-muted-foreground">Área:</span>
                                     <span className="font-medium text-foreground text-right">{empleado.area || "-"}</span>
                                 </div>

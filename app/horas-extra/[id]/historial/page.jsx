@@ -161,7 +161,7 @@ function HistorialContent() {
                     <h1 className="text-3xl font-bold text-foreground">Historial de Horas Extra</h1>
                     {empleado && (
                         <div className="mt-1 text-muted-foreground">
-                            <p>{empleado.nombre || empleado.username} • {empleado.cargo}</p>
+                            <p>{empleado.nombre || empleado.username}</p>
                             {empleado.valor_hora && (
                                 <p className="text-sm">Valor Hora: <span className="font-semibold text-foreground">{formatCurrency(empleado.valor_hora)}</span></p>
                             )}

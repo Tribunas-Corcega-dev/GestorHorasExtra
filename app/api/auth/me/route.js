@@ -23,7 +23,7 @@ export async function GET(request) {
     // Obtener usuario actualizado de la base de datos
     const { data: user, error } = await supabase
       .from("usuarios")
-      .select("id, username, nombre, cargo, area, rol")
+      .select("id, username, nombre, area, rol")
       .eq("id", decoded.id)
       .single()
 
