@@ -121,6 +121,10 @@ function DetalleEmpleadoContent() {
                         </h3>
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                             <div className="p-4 bg-background rounded-lg border border-border">
+                                <p className="text-xs text-muted-foreground mb-1">Cédula</p>
+                                <p className="font-medium text-foreground text-lg">{empleado.cc || "-"}</p>
+                            </div>
+                            <div className="p-4 bg-background rounded-lg border border-border">
                                 <p className="text-xs text-muted-foreground mb-1">Rol en sistema</p>
                                 <p className="font-medium text-foreground text-lg">{empleado.rol}</p>
                             </div>

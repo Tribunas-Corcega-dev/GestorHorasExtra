@@ -125,6 +125,9 @@ export function EmpleadosManager() {
                                         {empleado.nombre || empleado.username}
                                     </h3>
                                     <p className="text-sm text-muted-foreground">@{empleado.username}</p>
+                                    {empleado.cc && (
+                                        <p className="text-xs text-muted-foreground mt-0.5">CC: {empleado.cc}</p>
+                                    )}
                                 </div>
                             </div>
 
