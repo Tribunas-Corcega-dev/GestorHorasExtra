@@ -308,20 +308,6 @@ function NuevoEmpleadoContent() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <label htmlFor="cargo" className="block text-sm font-medium text-foreground mb-1">
-                Cargo
-              </label>
-              <input
-                id="cargo"
-                name="cargo"
-                type="text"
-                value={formData.cargo}
-                onChange={handleChange}
-                className="w-full px-3 py-2 border border-input bg-background text-foreground rounded-md focus:outline-none focus:ring-2 focus:ring-ring"
-              />
-            </div>
-
-            <div>
               <label htmlFor="area" className="block text-sm font-medium text-foreground mb-1">
                 Área
               </label>
@@ -340,22 +326,6 @@ function NuevoEmpleadoContent() {
                   </option>
                 ))}
               </select>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label htmlFor="tipo_trabajador" className="block text-sm font-medium text-foreground mb-1">
-                Tipo de trabajador
-              </label>
-              <input
-                id="tipo_trabajador"
-                name="tipo_trabajador"
-                type="text"
-                value={formData.tipo_trabajador}
-                onChange={handleChange}
-                className="w-full px-3 py-2 border border-input bg-background text-foreground rounded-md focus:outline-none focus:ring-2 focus:ring-ring"
-              />
             </div>
 
             <div>
