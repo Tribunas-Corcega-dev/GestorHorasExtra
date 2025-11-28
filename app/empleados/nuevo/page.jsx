@@ -144,7 +144,8 @@ function NuevoEmpleadoContent() {
     setFormData((prev) => ({
       ...prev,
       area: newArea,
-      jornada_fija_hhmm: newSchedule
+      jornada_fija_hhmm: newSchedule,
+      rol: "" // Reset role when area changes
     }))
   }
 
@@ -340,13 +341,24 @@ function NuevoEmpleadoContent() {
                 name="rol"
                 value={formData.rol}
                 onChange={handleChange}
-                className="w-full px-3 py-2 border border-input bg-background text-foreground rounded-md focus:outline-none focus:ring-2 focus:ring-ring"
+                disabled={!formData.area}
+                className="w-full px-3 py-2 border border-input bg-background text-foreground rounded-md focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50"
               >
-                {roles.map((rol) => (
-                  <option key={rol} value={rol}>
-                    {rol}
-                  </option>
-                ))}
+                <option value="">Seleccionar rol</option>
+                {roles
+                  .filter(rol => {
+                    if (!formData.area) return false
+                    if (formData.area === "Administrativo") {
+                      return ["ASISTENTE_GERENCIA", "JEFE", "TALENTO_HUMANO"].includes(rol)
+                    } else {
+                      return ["OPERARIO", "COORDINADOR"].includes(rol)
+                    }
+                  })
+                  .map((rol) => (
+                    <option key={rol} value={rol}>
+                      {rol}
+                    </option>
+                  ))}
               </select>
             </div>
           </div>
