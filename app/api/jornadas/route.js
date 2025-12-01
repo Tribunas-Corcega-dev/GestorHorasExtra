@@ -43,6 +43,7 @@ export async function POST(request) {
                     jornada_base_calcular,
                     horas_extra_hhmm: horas_extra_hhmm || {},
                     es_festivo: es_festivo || false,
+                    registrado_por: user.id,
                 },
             ])
             .select()
