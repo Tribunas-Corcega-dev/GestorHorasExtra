@@ -22,7 +22,7 @@ export async function GET(request) {
     try {
         const user = await getUserFromRequest(request)
 
-        if (!user || !canManageOvertime(user.rol)) {
+        if (!user) {
             return NextResponse.json({ message: "No autorizado" }, { status: 403 })
         }
 

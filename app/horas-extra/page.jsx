@@ -24,14 +24,20 @@ function HorasExtraContent() {
     const [loading, setLoading] = useState(true)
 
     useEffect(() => {
-        if (user && !canManageOvertime(user.rol)) {
-            router.push("/dashboard")
+        if (user) {
+            if (user.rol === "OPERARIO") {
+                router.push(`/horas-extra/${user.id}/historial`)
+            } else if (!canManageOvertime(user.rol)) {
+                router.push("/dashboard")
+            }
         }
     }, [user, router])
 
     useEffect(() => {
-        fetchEmpleados()
-    }, [])
+        if (user && canManageOvertime(user.rol)) {
+            fetchEmpleados()
+        }
+    }, [user])
 
     async function fetchEmpleados() {
         try {

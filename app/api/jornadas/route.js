@@ -64,12 +64,13 @@ export async function GET(request) {
     try {
         const user = await getUserFromRequest(request)
 
-        if (!user || !canManageOvertime(user.rol)) {
-            return NextResponse.json({ message: "No autorizado" }, { status: 403 })
-        }
-
         const { searchParams } = new URL(request.url)
         const empleado_id = searchParams.get("empleado_id")
+
+        // Allow access if user has management permissions OR if they are requesting their own data
+        if (!user || (!canManageOvertime(user.rol) && user.id !== empleado_id)) {
+            return NextResponse.json({ message: "No autorizado" }, { status: 403 })
+        }
 
         let query = supabase
             .from("jornadas")

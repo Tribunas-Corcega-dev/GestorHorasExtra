@@ -11,7 +11,7 @@ export function Layout({ children }) {
   if (!user) return children
 
   const showEmployeesLink = !isWorker(user.rol)
-  const showOvertimeLink = canManageOvertime(user.rol)
+  const showOvertimeLink = canManageOvertime(user.rol) || isWorker(user.rol)
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
