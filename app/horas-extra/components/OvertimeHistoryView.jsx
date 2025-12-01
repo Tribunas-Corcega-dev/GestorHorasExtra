@@ -540,15 +540,43 @@ export function OvertimeHistoryView({ employeeId, showBackButton = true }) {
                                 Cancelar
                             </button>
                             <button
-                                onClick={() => {
+                                onClick={async () => {
                                     if (!appealDescription.trim()) {
                                         alert("Por favor, describe el motivo de tu apelación")
                                         return
                                     }
-                                    // TODO: Implement appeal submission logic
-                                    alert(`Apelación registrada (DEMO):\n\nJornada: ${formatDateForDisplay(selectedJornada.fecha)}\nMotivo: ${appealDescription}\nArchivos adjuntos: ${appealFiles.length}`)
-                                    setShowAppealModal(false)
-                                    setSelectedJornada(null)
+
+                                    try {
+                                        // Create FormData for file upload
+                                        const formData = new FormData()
+                                        formData.append("jornada_id", selectedJornada.id)
+                                        formData.append("motivo", appealDescription)
+
+                                        // Append files
+                                        appealFiles.forEach(file => {
+                                            formData.append("files", file)
+                                        })
+
+                                        const response = await fetch("/api/apelaciones", {
+                                            method: "POST",
+                                            body: formData
+                                        })
+
+                                        const data = await response.json()
+
+                                        if (response.ok) {
+                                            alert(`✓ Apelación enviada exitosamente\n\nSu apelación ha sido registrada y será revisada por el equipo correspondiente.`)
+                                            setShowAppealModal(false)
+                                            setSelectedJornada(null)
+                                            setAppealDescription("")
+                                            setAppealFiles([])
+                                        } else {
+                                            alert(`Error al enviar apelación:\n${data.message || "Error desconocido"}`)
+                                        }
+                                    } catch (error) {
+                                        console.error("Error submitting appeal:", error)
+                                        alert("Error al enviar la apelación. Por favor, intente nuevamente.")
+                                    }
                                 }}
                                 className="px-4 py-2 bg-orange-500 text-white rounded-md text-sm font-medium hover:bg-orange-600 transition-colors"
                             >
