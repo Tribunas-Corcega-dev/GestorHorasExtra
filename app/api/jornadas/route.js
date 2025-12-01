@@ -89,6 +89,32 @@ export async function GET(request) {
             return NextResponse.json({ message: `Error al obtener jornadas: ${error.message}` }, { status: 500 })
         }
 
+        // Fetch user details for registrado_por and aprobado_por
+        const userIds = new Set()
+        jornadas.forEach(j => {
+            if (j.registrado_por) userIds.add(j.registrado_por)
+            if (j.aprobado_por) userIds.add(j.aprobado_por)
+        })
+
+        if (userIds.size > 0) {
+            const { data: users } = await supabase
+                .from("usuarios")
+                .select("id, nombre, username")
+                .in("id", Array.from(userIds))
+
+            const userMap = {}
+            users?.forEach(u => userMap[u.id] = u)
+
+            // Attach user objects to jornadas
+            const jornadasWithUsers = jornadas.map(j => ({
+                ...j,
+                registrador: j.registrado_por ? userMap[j.registrado_por] : null,
+                aprobador: j.aprobado_por ? userMap[j.aprobado_por] : null
+            }))
+
+            return NextResponse.json(jornadasWithUsers)
+        }
+
         return NextResponse.json(jornadas)
     } catch (error) {
         console.error("[v0] Error in GET jornadas:", error)

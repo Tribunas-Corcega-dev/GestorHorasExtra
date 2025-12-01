@@ -49,6 +49,8 @@ export function OvertimeHistoryView({ employeeId, showBackButton = true }) {
         breakdown: {}
     })
 
+    const [selectedJornada, setSelectedJornada] = useState(null)
+
     useEffect(() => {
         // Redirect if user is not authorized to view THIS employee's history
         // Allow if:
@@ -244,6 +246,7 @@ export function OvertimeHistoryView({ employeeId, showBackButton = true }) {
                                     <th className="px-4 py-3 text-left text-sm font-medium text-foreground">Detalle Horas Extra</th>
                                     <th className="px-4 py-3 text-right text-sm font-medium text-foreground">Valor</th>
                                     <th className="px-4 py-3 text-right text-sm font-medium text-foreground">Total</th>
+                                    <th className="px-4 py-3 text-center text-sm font-medium text-foreground">Acciones</th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-border">
@@ -326,11 +329,132 @@ export function OvertimeHistoryView({ employeeId, showBackButton = true }) {
                                                     <span className="text-muted-foreground font-normal">-</span>
                                                 )}
                                             </td>
+                                            <td className="px-4 py-3 text-center">
+                                                <button
+                                                    onClick={() => setSelectedJornada(jornada)}
+                                                    className="text-primary hover:text-primary/80 text-sm font-medium underline"
+                                                >
+                                                    Ver Detalles
+                                                </button>
+                                            </td>
                                         </tr>
                                     )
                                 })}
                             </tbody>
                         </table>
+                    </div>
+                </div>
+            )}
+
+            {/* Details Modal */}
+            {selectedJornada && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+                    <div className="bg-card border border-border rounded-xl shadow-2xl max-w-lg w-full overflow-hidden animate-in fade-in zoom-in duration-200">
+                        <div className="p-6 border-b border-border flex justify-between items-center bg-muted/30">
+                            <h3 className="text-xl font-bold text-foreground">Detalles de la Jornada</h3>
+                            <button
+                                onClick={() => setSelectedJornada(null)}
+                                className="text-muted-foreground hover:text-foreground transition-colors"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18" /><path d="m6 6 18 18" /></svg>
+                            </button>
+                        </div>
+                        <div className="p-6 space-y-6">
+                            <div className="grid grid-cols-2 gap-4">
+                                <div>
+                                    <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Fecha</p>
+                                    <p className="font-medium text-foreground">{formatDateForDisplay(selectedJornada.fecha)}</p>
+                                </div>
+                                <div>
+                                    <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Tipo de Día</p>
+                                    <p className="font-medium text-foreground">
+                                        {selectedJornada.es_festivo ? "Festivo" : "Ordinario"}
+                                    </p>
+                                </div>
+                            </div>
+
+                            <div>
+                                <p className="text-xs text-muted-foreground uppercase tracking-wider mb-2">Horario Base</p>
+                                <div className="bg-muted/50 p-3 rounded-md text-sm space-y-1">
+                                    <div className="flex justify-between">
+                                        <span>Mañana:</span>
+                                        <span className="font-medium">
+                                            {selectedJornada.jornada_base_calcular.morning.enabled
+                                                ? `${selectedJornada.jornada_base_calcular.morning.start} - ${selectedJornada.jornada_base_calcular.morning.end}`
+                                                : "No labora"}
+                                        </span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span>Tarde:</span>
+                                        <span className="font-medium">
+                                            {selectedJornada.jornada_base_calcular.afternoon.enabled
+                                                ? `${selectedJornada.jornada_base_calcular.afternoon.start} - ${selectedJornada.jornada_base_calcular.afternoon.end}`
+                                                : "No labora"}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div>
+                                <p className="text-xs text-muted-foreground uppercase tracking-wider mb-2">Desglose de Horas Extra</p>
+                                {selectedJornada.horas_extra_hhmm?.breakdown && Object.keys(selectedJornada.horas_extra_hhmm.breakdown).length > 0 ? (
+                                    <div className="space-y-2">
+                                        {Object.entries(selectedJornada.horas_extra_hhmm.breakdown).map(([key, val]) => {
+                                            if (val <= 0) return null
+                                            return (
+                                                <div key={key} className="flex justify-between text-sm border-b border-border/50 pb-1 last:border-0">
+                                                    <span className="text-muted-foreground">{LABELS[key]}</span>
+                                                    <span className="font-medium text-foreground">{formatMinutesToFloat(val)}</span>
+                                                </div>
+                                            )
+                                        })}
+                                        <div className="flex justify-between text-sm font-bold pt-2 border-t border-border">
+                                            <span>Total</span>
+                                            <span className="text-primary">{selectedJornada.horas_extra_hhmm.formatted}</span>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <p className="text-sm text-muted-foreground italic">No hay horas extra registradas</p>
+                                )}
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4 pt-4 border-t border-border">
+                                <div>
+                                    <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Registrado Por</p>
+                                    <div className="flex items-center gap-2">
+                                        <div className="h-6 w-6 rounded-full bg-primary/20 flex items-center justify-center text-xs font-bold text-primary">
+                                            {(selectedJornada.registrador?.nombre || selectedJornada.registrador?.username || "?").charAt(0).toUpperCase()}
+                                        </div>
+                                        <p className="text-sm font-medium text-foreground truncate">
+                                            {selectedJornada.registrador?.nombre || selectedJornada.registrador?.username || "Desconocido"}
+                                        </p>
+                                    </div>
+                                </div>
+                                <div>
+                                    <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Aprobado Por</p>
+                                    {selectedJornada.aprobador ? (
+                                        <div className="flex items-center gap-2">
+                                            <div className="h-6 w-6 rounded-full bg-green-100 text-green-700 flex items-center justify-center text-xs font-bold">
+                                                {(selectedJornada.aprobador.nombre || selectedJornada.aprobador.username || "?").charAt(0).toUpperCase()}
+                                            </div>
+                                            <p className="text-sm font-medium text-foreground truncate">
+                                                {selectedJornada.aprobador.nombre || selectedJornada.aprobador.username}
+                                            </p>
+                                        </div>
+                                    ) : (
+                                        <p className="text-sm text-muted-foreground italic">Pendiente / No aplica</p>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                        <div className="p-4 bg-muted/30 border-t border-border flex justify-end">
+                            <button
+                                onClick={() => setSelectedJornada(null)}
+                                className="px-4 py-2 bg-primary text-primary-foreground rounded-md text-sm font-medium hover:opacity-90 transition-opacity"
+                            >
+                                Cerrar
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}
