@@ -64,6 +64,10 @@ function EditarEmpleadoContent() {
     if (user && !canManageEmployees(user.rol)) {
       router.push("/dashboard")
     }
+    // Coordinators cannot edit employees, only view details
+    if (user && isCoordinator(user.rol)) {
+      router.push("/empleados")
+    }
     if (params?.id) {
       fetchEmpleado()
       fetchRoles()
