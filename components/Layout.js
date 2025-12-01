@@ -7,7 +7,6 @@ import { useState } from "react"
 
 export function Layout({ children }) {
   const { user, logout } = useAuth()
-  const [menuOpen, setMenuOpen] = useState(false)
 
   if (!user) return children
 
@@ -15,9 +14,9 @@ export function Layout({ children }) {
   const showOvertimeLink = canManageOvertime(user.rol)
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background flex flex-col">
       {/* Header */}
-      <header className="bg-primary text-primary-foreground shadow-md">
+      <header className="bg-primary text-primary-foreground shadow-md z-10">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <img src="/assets/logo.png" alt="TribunasClock Logo" className="h-8 w-8" />
@@ -26,7 +25,7 @@ export function Layout({ children }) {
 
           <div className="flex items-center gap-4">
             {/* User Info */}
-            <div className="hidden md:flex flex-col items-end text-sm">
+            <div className="flex flex-col items-end text-sm">
               <span className="font-semibold">{user.username}</span>
               <span className="text-xs opacity-90">{user.rol}</span>
             </div>
@@ -34,22 +33,24 @@ export function Layout({ children }) {
             {/* Logout Button */}
             <button
               onClick={logout}
-              className="bg-primary-foreground text-primary px-4 py-2 rounded-md hover:opacity-90 transition-opacity text-sm font-medium"
+              className="bg-primary-foreground text-primary px-4 py-2 rounded-md hover:opacity-90 transition-opacity text-sm font-medium hidden md:block"
             >
               Cerrar sesión
             </button>
-
-            {/* Mobile Menu Toggle */}
-            <button onClick={() => setMenuOpen(!menuOpen)} className="md:hidden p-2" aria-label="Toggle menu">
+            <button
+              onClick={logout}
+              className="md:hidden p-2"
+              aria-label="Logout"
+            >
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
               </svg>
             </button>
           </div>
         </div>
       </header>
 
-      <div className="flex">
+      <div className="flex flex-1 pb-16 md:pb-0">
         {/* Sidebar - Desktop */}
         <aside className="hidden md:block w-64 bg-card border-r border-border min-h-[calc(100vh-73px)]">
           <nav className="p-4 space-y-2">
@@ -86,51 +87,42 @@ export function Layout({ children }) {
           </nav>
         </aside>
 
-        {/* Mobile Menu */}
-        {menuOpen && (
-          <div className="md:hidden fixed inset-0 bg-black bg-opacity-50 z-40" onClick={() => setMenuOpen(false)}>
-            <div className="bg-card w-64 h-full p-4 space-y-2" onClick={(e) => e.stopPropagation()}>
-              <div className="mb-4 pb-4 border-b border-border">
-                <p className="font-semibold">{user.username}</p>
-                <p className="text-sm text-muted-foreground">{user.rol}</p>
-              </div>
-              <Link
-                href="/dashboard"
-                className="block px-4 py-2 rounded-md hover:bg-accent hover:text-accent-foreground transition-colors"
-                onClick={() => setMenuOpen(false)}
-              >
-                Dashboard
+        {/* Mobile Tab Navigator */}
+        <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-card border-t border-border z-50 flex justify-around items-center h-16 px-2">
+          <Link href="/dashboard" className="flex flex-col items-center justify-center w-full h-full text-muted-foreground hover:text-primary">
+            <svg className="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+            </svg>
+            <span className="text-[10px]">Dashboard</span>
+          </Link>
+
+          {showEmployeesLink && (
+            <Link href="/empleados" className="flex flex-col items-center justify-center w-full h-full text-muted-foreground hover:text-primary">
+              <svg className="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+              </svg>
+              <span className="text-[10px]">Empleados</span>
+            </Link>
+          )}
+
+          {showOvertimeLink && (
+            <>
+              <Link href="/horas-extra" className="flex flex-col items-center justify-center w-full h-full text-muted-foreground hover:text-primary">
+                <svg className="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span className="text-[10px]">Horas Extra</span>
               </Link>
-              {showEmployeesLink && (
-                <Link
-                  href="/empleados"
-                  className="block px-4 py-2 rounded-md hover:bg-accent hover:text-accent-foreground transition-colors"
-                  onClick={() => setMenuOpen(false)}
-                >
-                  Empleados
-                </Link>
-              )}
-              {showOvertimeLink && (
-                <>
-                  <Link
-                    href="/horas-extra"
-                    className="block px-4 py-2 rounded-md hover:bg-accent hover:text-accent-foreground transition-colors"
-                    onClick={() => setMenuOpen(false)}
-                  >
-                    Horas Extra
-                  </Link>
-                  <Link
-                    href="/ajustes"
-                    className="block px-4 py-2 rounded-md hover:bg-accent hover:text-accent-foreground transition-colors"
-                    onClick={() => setMenuOpen(false)}
-                  >
-                    Ajustes
-                  </Link>
-                </>
-              )}
-            </div>
-          </div>
-        )}
+              <Link href="/ajustes" className="flex flex-col items-center justify-center w-full h-full text-muted-foreground hover:text-primary">
+                <svg className="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+                <span className="text-[10px]">Ajustes</span>
+              </Link>
+            </>
+          )}
+        </nav>
 
         {/* Main Content */}
         <main className="flex-1 p-4 md:p-8">{children}</main>
