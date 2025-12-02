@@ -119,3 +119,52 @@ export async function POST(request) {
         return NextResponse.json({ message: "Error interno del servidor" }, { status: 500 })
     }
 }
+
+export async function GET(request) {
+    try {
+        const user = await getUserFromRequest(request)
+
+        if (!user) {
+            return NextResponse.json({ message: "No autorizado" }, { status: 403 })
+        }
+
+        // Only HR can view all appeals
+        const canViewAppeals = ["TALENTO_HUMANO", "ASISTENTE_GERENCIA", "JEFE"].includes(user.rol)
+
+        if (!canViewAppeals) {
+            return NextResponse.json({ message: "No autorizado" }, { status: 403 })
+        }
+
+        const { searchParams } = new URL(request.url)
+        const estado = searchParams.get("estado") || "PENDIENTE"
+
+        // Fetch appeals with employee and jornada data
+        let query = supabase
+            .from("apelaciones")
+            .select(`
+                *,
+                empleado:usuarios!apelaciones_empleado_id_fkey(id, nombre, username, cc, foto_url, area),
+                jornada:jornadas!apelaciones_jornada_id_fkey(id, fecha, jornada_base_calcular, horas_extra_hhmm, es_festivo)
+            `)
+            .order("fecha", { ascending: false })
+
+        if (estado) {
+            query = query.eq("estado", estado)
+        }
+
+        const { data: appeals, error } = await query
+
+        if (error) {
+            console.error("Error fetching appeals:", error)
+            return NextResponse.json({
+                message: `Error al obtener apelaciones: ${error.message}`
+            }, { status: 500 })
+        }
+
+        return NextResponse.json(appeals)
+
+    } catch (error) {
+        console.error("Error in GET apelaciones:", error)
+        return NextResponse.json({ message: "Error interno del servidor" }, { status: 500 })
+    }
+}
