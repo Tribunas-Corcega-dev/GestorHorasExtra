@@ -67,10 +67,28 @@ export async function GET(request, context) {
                     .list(appeal.docs_url.replace("apelaciones/", ""))
 
                 if (fileList && fileList.length > 0) {
-                    files = fileList.map(file => ({
-                        name: file.name,
-                        path: `${appeal.docs_url}/${file.name}`,
-                        size: file.metadata?.size || 0
+                    // Generate signed URLs for each file
+                    files = await Promise.all(fileList.map(async (file) => {
+                        const filePath = `${appeal.docs_url.replace("apelaciones/", "")}/${file.name}`
+
+                        // Get signed URL (valid for 1 hour)
+                        const { data: signedUrlData } = await supabaseAdmin.storage
+                            .from("apelaciones")
+                            .createSignedUrl(filePath, 3600)
+
+                        // Detect if file is an image
+                        const imageExtensions = ['.jpg', '.jpeg', '.png', '.gif', '.webp', '.bmp', '.svg']
+                        const isImage = imageExtensions.some(ext =>
+                            file.name.toLowerCase().endsWith(ext)
+                        )
+
+                        return {
+                            name: file.name,
+                            path: `${appeal.docs_url}/${file.name}`,
+                            url: signedUrlData?.signedUrl || null,
+                            size: file.metadata?.size || 0,
+                            isImage
+                        }
                     }))
                 }
             } catch (storageError) {
