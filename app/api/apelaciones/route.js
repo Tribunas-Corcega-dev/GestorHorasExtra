@@ -128,8 +128,8 @@ export async function GET(request) {
             return NextResponse.json({ message: "No autorizado" }, { status: 403 })
         }
 
-        // Only HR can view all appeals
-        const canViewAppeals = ["TALENTO_HUMANO", "ASISTENTE_GERENCIA", "JEFE"].includes(user.rol)
+        // Only HR and Coordinators can view appeals
+        const canViewAppeals = ["TALENTO_HUMANO", "ASISTENTE_GERENCIA", "JEFE", "COORDINADOR"].includes(user.rol)
 
         if (!canViewAppeals) {
             return NextResponse.json({ message: "No autorizado" }, { status: 403 })
@@ -147,6 +147,21 @@ export async function GET(request) {
                 jornada:jornadas!apelaciones_jornada_id_fkey(id, fecha, jornada_base_calcular, horas_extra_hhmm, es_festivo)
             `)
             .order("fecha", { ascending: false })
+
+        // Filter by area if user is COORDINADOR
+        if (user.rol === "COORDINADOR") {
+            // We need to filter based on the joined employee table
+            // In Supabase JS client, we can filter on foreign tables using !inner
+            query = supabase
+                .from("apelaciones")
+                .select(`
+                    *,
+                    empleado:usuarios!apelaciones_empleado_id_fkey!inner(id, nombre, username, cc, foto_url, area),
+                    jornada:jornadas!apelaciones_jornada_id_fkey(id, fecha, jornada_base_calcular, horas_extra_hhmm, es_festivo)
+                `)
+                .eq("empleado.area", user.area)
+                .order("fecha", { ascending: false })
+        }
 
         if (estado) {
             query = query.eq("estado", estado)

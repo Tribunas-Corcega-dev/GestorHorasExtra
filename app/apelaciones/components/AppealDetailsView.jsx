@@ -21,8 +21,8 @@ export function AppealDetailsView({ appealId, showBackButton = true }) {
     const [expandedImage, setExpandedImage] = useState(null)
 
     useEffect(() => {
-        // Only HR can access
-        if (user && !["TALENTO_HUMANO", "ASISTENTE_GERENCIA", "JEFE"].includes(user.rol)) {
+        // Only HR and Coordinators can access
+        if (user && !["TALENTO_HUMANO", "ASISTENTE_GERENCIA", "JEFE", "COORDINADOR"].includes(user.rol)) {
             // If used as a component, maybe we shouldn't redirect but show an error or null?
             // For now keeping original logic but it might be better to handle this in the parent or return null
             router.push("/dashboard")

@@ -25,8 +25,8 @@ function ApelacionesContent() {
     const [filter, setFilter] = useState("PENDIENTE")
 
     useEffect(() => {
-        // Only HR can access
-        if (user && !["TALENTO_HUMANO", "ASISTENTE_GERENCIA", "JEFE"].includes(user.rol)) {
+        // Only HR and Coordinators can access
+        if (user && !["TALENTO_HUMANO", "ASISTENTE_GERENCIA", "JEFE", "COORDINADOR"].includes(user.rol)) {
             router.push("/dashboard")
             return
         }
@@ -68,8 +68,8 @@ function ApelacionesContent() {
                 <button
                     onClick={() => setFilter("PENDIENTE")}
                     className={`px-4 py-2 font-medium transition-colors ${filter === "PENDIENTE"
-                            ? "text-primary border-b-2 border-primary"
-                            : "text-muted-foreground hover:text-foreground"
+                        ? "text-primary border-b-2 border-primary"
+                        : "text-muted-foreground hover:text-foreground"
                         }`}
                 >
                     Pendientes
@@ -77,8 +77,8 @@ function ApelacionesContent() {
                 <button
                     onClick={() => setFilter("APROBADA")}
                     className={`px-4 py-2 font-medium transition-colors ${filter === "APROBADA"
-                            ? "text-primary border-b-2 border-primary"
-                            : "text-muted-foreground hover:text-foreground"
+                        ? "text-primary border-b-2 border-primary"
+                        : "text-muted-foreground hover:text-foreground"
                         }`}
                 >
                     Aprobadas
@@ -86,8 +86,8 @@ function ApelacionesContent() {
                 <button
                     onClick={() => setFilter("RECHAZADA")}
                     className={`px-4 py-2 font-medium transition-colors ${filter === "RECHAZADA"
-                            ? "text-primary border-b-2 border-primary"
-                            : "text-muted-foreground hover:text-foreground"
+                        ? "text-primary border-b-2 border-primary"
+                        : "text-muted-foreground hover:text-foreground"
                         }`}
                 >
                     Rechazadas
@@ -132,10 +132,10 @@ function ApelacionesContent() {
                                                 {appeal.empleado?.nombre || appeal.empleado?.username}
                                             </h3>
                                             <span className={`px-2 py-0.5 rounded text-xs font-medium ${appeal.estado === "PENDIENTE"
-                                                    ? "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400"
-                                                    : appeal.estado === "APROBADA"
-                                                        ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"
-                                                        : "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400"
+                                                ? "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400"
+                                                : appeal.estado === "APROBADA"
+                                                    ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"
+                                                    : "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400"
                                                 }`}>
                                                 {appeal.estado}
                                             </span>
