@@ -485,25 +485,40 @@ export function OvertimeHistoryView({ employeeId, showBackButton = true }) {
 
                             <div>
                                 <p className="text-xs text-muted-foreground uppercase tracking-wider mb-2">Desglose de Horas Extra</p>
-                                {selectedJornada.horas_extra_hhmm?.breakdown && Object.keys(selectedJornada.horas_extra_hhmm.breakdown).length > 0 ? (
-                                    <div className="space-y-2">
-                                        {Object.entries(selectedJornada.horas_extra_hhmm.breakdown).map(([key, val]) => {
-                                            if (val <= 0) return null
-                                            return (
-                                                <div key={key} className="flex justify-between text-sm border-b border-border/50 pb-1 last:border-0">
-                                                    <span className="text-muted-foreground">{LABELS[key]}</span>
-                                                    <span className="font-medium text-foreground">{formatMinutesToFloat(val)}</span>
-                                                </div>
-                                            )
-                                        })}
-                                        <div className="flex justify-between text-sm font-bold pt-2 border-t border-border">
-                                            <span>Total</span>
-                                            <span className="text-primary">{selectedJornada.horas_extra_hhmm.formatted}</span>
+                                {(() => {
+                                    const breakdown = selectedJornada.horas_extra_hhmm?.breakdown || {}
+                                    let flatBreakdown = {}
+
+                                    if (breakdown.overtime || breakdown.surcharges) {
+                                        flatBreakdown = { ...breakdown.overtime, ...breakdown.surcharges }
+                                    } else {
+                                        flatBreakdown = breakdown
+                                    }
+
+                                    const hasItems = Object.values(flatBreakdown).some(v => v > 0)
+
+                                    if (!hasItems) {
+                                        return <p className="text-sm text-muted-foreground italic">No hay horas extra registradas</p>
+                                    }
+
+                                    return (
+                                        <div className="space-y-2">
+                                            {Object.entries(flatBreakdown).map(([key, val]) => {
+                                                if (val <= 0) return null
+                                                return (
+                                                    <div key={key} className="flex justify-between text-sm border-b border-border/50 pb-1 last:border-0">
+                                                        <span className="text-muted-foreground">{LABELS[key]}</span>
+                                                        <span className="font-medium text-foreground">{formatMinutesToFloat(val)}</span>
+                                                    </div>
+                                                )
+                                            })}
+                                            <div className="flex justify-between text-sm font-bold pt-2 border-t border-border">
+                                                <span>Total</span>
+                                                <span className="text-primary">{selectedJornada.horas_extra_hhmm.formatted}</span>
+                                            </div>
                                         </div>
-                                    </div>
-                                ) : (
-                                    <p className="text-sm text-muted-foreground italic">No hay horas extra registradas</p>
-                                )}
+                                    )
+                                })()}
                             </div>
 
                             <div className="grid grid-cols-2 gap-4 pt-4 border-t border-border">
