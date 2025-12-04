@@ -23,6 +23,13 @@ function HorasExtraContent() {
     const [empleados, setEmpleados] = useState([])
     const [loading, setLoading] = useState(true)
 
+    // New search/filter state
+    const [search, setSearch] = useState("")
+    const [areaFilter, setAreaFilter] = useState("")
+    const [rolFilter, setRolFilter] = useState("")
+    const [roles, setRoles] = useState([])
+    const [areas, setAreas] = useState([])
+
     useEffect(() => {
         if (user) {
             if (user.rol === "OPERARIO") {
@@ -33,23 +40,55 @@ function HorasExtraContent() {
         }
     }, [user, router])
 
+    // Fetch roles once
+    useEffect(() => {
+        fetchRoles()
+    }, [])
+
+    // Fetch employees when user becomes available or filters/search change
     useEffect(() => {
         if (user && canManageOvertime(user.rol)) {
             fetchEmpleados()
         }
-    }, [user])
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [user, search, areaFilter, rolFilter])
 
     async function fetchEmpleados() {
         try {
-            const res = await fetch("/api/empleados")
+            setLoading(true)
+            const params = new URLSearchParams()
+            if (search) params.append("search", search)
+            if (areaFilter) params.append("area", areaFilter)
+            if (rolFilter) params.append("rol", rolFilter)
+
+            const res = await fetch(`/api/empleados?${params}`)
             if (res.ok) {
                 const data = await res.json()
                 setEmpleados(data)
+
+                // Extract unique areas
+                const uniqueAreas = [...new Set(data.map((e) => e.area).filter(Boolean))]
+                setAreas(uniqueAreas)
+            } else {
+                setEmpleados([])
             }
         } catch (error) {
             console.error("[v0] Error fetching employees:", error)
+            setEmpleados([])
         } finally {
             setLoading(false)
+        }
+    }
+
+    async function fetchRoles() {
+        try {
+            const res = await fetch("/api/roles")
+            if (res.ok) {
+                const data = await res.json()
+                setRoles(data)
+            }
+        } catch (error) {
+            console.error("[v0] Error fetching roles:", error)
         }
     }
 
@@ -64,6 +103,43 @@ function HorasExtraContent() {
     return (
         <div>
             <h1 className="text-3xl font-bold mb-6 text-foreground">Gestión de Horas Extra</h1>
+
+            {/* Filters: search, area, role */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                <input
+                    type="text"
+                    placeholder="Buscar por nombre o usuario"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    className="px-3 py-2 border border-input bg-background text-foreground rounded-md focus:outline-none focus:ring-2 focus:ring-ring"
+                />
+
+                <select
+                    value={areaFilter}
+                    onChange={(e) => setAreaFilter(e.target.value)}
+                    className="px-3 py-2 border border-input bg-background text-foreground rounded-md focus:outline-none focus:ring-2 focus:ring-ring"
+                >
+                    <option value="">Todas las áreas</option>
+                    {areas.map((area) => (
+                        <option key={area} value={area}>
+                            {area}
+                        </option>
+                    ))}
+                </select>
+
+                <select
+                    value={rolFilter}
+                    onChange={(e) => setRolFilter(e.target.value)}
+                    className="px-3 py-2 border border-input bg-background text-foreground rounded-md focus:outline-none focus:ring-2 focus:ring-ring"
+                >
+                    <option value="">Todos los roles</option>
+                    {roles.map((rol) => (
+                        <option key={rol} value={rol}>
+                            {rol}
+                        </option>
+                    ))}
+                </select>
+            </div>
 
             {loading ? (
                 <div className="text-center py-8">Cargando...</div>
