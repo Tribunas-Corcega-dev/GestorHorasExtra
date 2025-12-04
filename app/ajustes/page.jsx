@@ -3,7 +3,7 @@
 import { useAuth } from "@/hooks/useAuth"
 import { Layout } from "@/components/Layout"
 import { ProtectedRoute } from "@/components/ProtectedRoute"
-import { canManageOvertime } from "@/lib/permissions"
+import { canManageOvertime, isCoordinator } from "@/lib/permissions"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { useEffect } from "react"
@@ -30,6 +30,20 @@ function AjustesContent() {
 
     if (!canManageOvertime(user?.rol)) {
         return null
+    }
+
+    // Vista específica para Coordinadores
+    if (isCoordinator(user.rol)) {
+        return (
+            <div className="max-w-5xl mx-auto">
+                <h1 className="text-3xl font-bold mb-2 text-foreground">Ajustes de Coordinador</h1>
+                <p className="text-muted-foreground mb-8">Configuración de su área.</p>
+
+                <div className="bg-card border border-border rounded-lg p-8 text-center text-muted-foreground">
+                    <p>No hay ajustes disponibles por el momento.</p>
+                </div>
+            </div>
+        )
     }
 
     const menuItems = [

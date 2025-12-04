@@ -31,8 +31,8 @@ function RegistrarHorasExtraContent() {
     const [fecha, setFecha] = useState("")
     const [jornada, setJornada] = useState({
         enabled: true,
-        morning: { start: "08:00", end: "12:00", enabled: true },
-        afternoon: { start: "13:00", end: "17:00", enabled: true },
+        morning: { start: "07:30", end: "12:00", enabled: true },
+        afternoon: { start: "13:45", end: "17:00", enabled: true },
     })
 
     const [nightShiftRange, setNightShiftRange] = useState(null)

@@ -43,6 +43,7 @@ export async function POST(request) {
                     jornada_base_calcular,
                     horas_extra_hhmm: horas_extra_hhmm || {},
                     es_festivo: es_festivo || false,
+                    registrado_por: user.id,
                 },
             ])
             .select()
@@ -64,12 +65,13 @@ export async function GET(request) {
     try {
         const user = await getUserFromRequest(request)
 
-        if (!user || !canManageOvertime(user.rol)) {
-            return NextResponse.json({ message: "No autorizado" }, { status: 403 })
-        }
-
         const { searchParams } = new URL(request.url)
         const empleado_id = searchParams.get("empleado_id")
+
+        // Allow access if user has management permissions OR if they are requesting their own data
+        if (!user || (!canManageOvertime(user.rol) && user.id !== empleado_id)) {
+            return NextResponse.json({ message: "No autorizado" }, { status: 403 })
+        }
 
         let query = supabase
             .from("jornadas")
@@ -85,6 +87,32 @@ export async function GET(request) {
         if (error) {
             console.error("[v0] Error fetching jornadas:", error)
             return NextResponse.json({ message: `Error al obtener jornadas: ${error.message}` }, { status: 500 })
+        }
+
+        // Fetch user details for registrado_por and aprobado_por
+        const userIds = new Set()
+        jornadas.forEach(j => {
+            if (j.registrado_por) userIds.add(j.registrado_por)
+            if (j.aprobado_por) userIds.add(j.aprobado_por)
+        })
+
+        if (userIds.size > 0) {
+            const { data: users } = await supabase
+                .from("usuarios")
+                .select("id, nombre, username")
+                .in("id", Array.from(userIds))
+
+            const userMap = {}
+            users?.forEach(u => userMap[u.id] = u)
+
+            // Attach user objects to jornadas
+            const jornadasWithUsers = jornadas.map(j => ({
+                ...j,
+                registrador: j.registrado_por ? userMap[j.registrado_por] : null,
+                aprobador: j.aprobado_por ? userMap[j.aprobado_por] : null
+            }))
+
+            return NextResponse.json(jornadasWithUsers)
         }
 
         return NextResponse.json(jornadas)

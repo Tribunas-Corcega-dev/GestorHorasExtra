@@ -7,10 +7,13 @@ import { ProtectedRoute } from "@/components/ProtectedRoute"
 import Link from "next/link"
 
 export default function TalentoHumanoDashboard() {
+    const { user } = useAuth()
+    const title = user?.rol === "ASISTENTE_GERENCIA" ? "Dashboard Asistente de Gerencia" : "Dashboard Talento Humano"
+
     return (
-        <ProtectedRoute allowedRoles={["TALENTO_HUMANO"]}>
+        <ProtectedRoute allowedRoles={["TALENTO_HUMANO", "ASISTENTE_GERENCIA"]}>
             <Layout>
-                <DashboardStats title="Dashboard Talento Humano" />
+                <DashboardStats title={title} />
             </Layout>
         </ProtectedRoute>
     )

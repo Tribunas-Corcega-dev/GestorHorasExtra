@@ -26,9 +26,7 @@ export async function GET(request, props) {
     const params = await props.params
     const user = await getUserFromRequest(request)
 
-    if (!user || !canManageEmployees(user.rol)) {
-      return NextResponse.json({ message: "No autorizado" }, { status: 403 })
-    }
+
 
     const { id } = params
 
@@ -36,6 +34,11 @@ export async function GET(request, props) {
 
     if (error || !empleado) {
       return NextResponse.json({ message: "Empleado no encontrado" }, { status: 404 })
+    }
+
+    // Allow access if user has management permissions OR if they are requesting their own data
+    if (!user || (!canManageEmployees(user.rol) && user.id !== id)) {
+      return NextResponse.json({ message: "No autorizado" }, { status: 403 })
     }
 
     // Si es coordinador, solo puede ver empleados de su área

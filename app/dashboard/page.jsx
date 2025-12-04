@@ -22,7 +22,7 @@ function AppNavigator() {
       const roleRoutes = {
         JEFE: "/dashboard/jefe",
         TALENTO_HUMANO: "/dashboard/talento-humano",
-        ASISTENTE_GERENCIA: "/dashboard/asistente-gerencia",
+        ASISTENTE_GERENCIA: "/dashboard/talento-humano",
         COORDINADOR: "/dashboard/coordinador",
         OPERARIO: "/dashboard/operario",
       }

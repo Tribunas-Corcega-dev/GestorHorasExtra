@@ -15,7 +15,8 @@ const AREA_MAPPING = {
     "Aseo": "h_aseo",
     "Operario Bocatoma": "h_op_bocatoma",
     "Administrativo": "h_admin",
-    "Planta Tratamiento": "h_planta_tratamiento"
+    "Planta Tratamiento": "h_planta_tratamiento",
+    "Planta Tratamiento Nocturna": "h_planta_nocturna"
 }
 
 export default function HorariosPage() {

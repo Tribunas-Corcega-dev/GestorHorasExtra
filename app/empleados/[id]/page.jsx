@@ -42,7 +42,8 @@ function EditarEmpleadoContent() {
     "Aseo": "h_aseo",
     "Operario Bocatoma": "h_op_bocatoma",
     "Administrativo": "h_admin",
-    "Planta Tratamiento": "h_planta_tratamiento"
+    "Planta Tratamiento": "h_planta_tratamiento",
+    "Planta Tratamiento Nocturna": "h_planta_nocturna"
   }
 
   const [formData, setFormData] = useState({
@@ -63,6 +64,10 @@ function EditarEmpleadoContent() {
   useEffect(() => {
     if (user && !canManageEmployees(user.rol)) {
       router.push("/dashboard")
+    }
+    // Coordinators cannot edit employees, only view details
+    if (user && isCoordinator(user.rol)) {
+      router.push("/empleados")
     }
     if (params?.id) {
       fetchEmpleado()
