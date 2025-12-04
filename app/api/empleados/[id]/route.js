@@ -4,7 +4,7 @@ import bcrypt from "bcryptjs"
 import { supabase } from "@/lib/supabaseClient"
 import { supabaseAdmin } from "@/lib/supabaseAdmin"
 import { canManageEmployees, isCoordinator } from "@/lib/permissions"
-import { calculateEmployeeWorkValues } from "@/lib/calculations"
+import { calculateEmployeeWorkValues, calculateScheduleSurcharges } from "@/lib/calculations"
 
 const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key-change-in-production"
 
@@ -97,14 +97,29 @@ export async function PUT(request, props) {
     }
     if (body.rol !== undefined) updateData.rol = body.rol
     if (body.salario_base !== undefined) updateData.salario_base = body.salario_base
-    if (body.jornada_fija_hhmm !== undefined) updateData.jornada_fija_hhmm = body.jornada_fija_hhmm
+
+    // Handle Schedule Update with Surcharges
+    if (body.jornada_fija_hhmm !== undefined) {
+      let enrichedSchedule = body.jornada_fija_hhmm
+      if (enrichedSchedule) {
+        // Fetch Night Shift Parameters
+        let nightShiftRange = { start: "21:00", end: "06:00" } // Default
+        const { data: params } = await supabase.from("parametros").select("jornada_nocturna").single()
+        if (params && params.jornada_nocturna) {
+          nightShiftRange = params.jornada_nocturna
+        }
+        enrichedSchedule = calculateScheduleSurcharges(body.jornada_fija_hhmm, nightShiftRange)
+      }
+      updateData.jornada_fija_hhmm = enrichedSchedule
+    }
+
     if (body.foto_url !== undefined) updateData.foto_url = body.foto_url
 
     // Note: 'cc' is read-only, so we don't update it here.
 
     // Recalculate work values if schedule or salary changes
     if (body.jornada_fija_hhmm !== undefined || body.salario_base !== undefined) {
-      const scheduleToUse = body.jornada_fija_hhmm !== undefined ? body.jornada_fija_hhmm : currentEmpleado.jornada_fija_hhmm
+      const scheduleToUse = updateData.jornada_fija_hhmm !== undefined ? updateData.jornada_fija_hhmm : currentEmpleado.jornada_fija_hhmm
       const salaryToUse = body.salario_base !== undefined ? body.salario_base : currentEmpleado.salario_base
 
       const { horas_semanales, horas_mensuales, valor_hora } = calculateEmployeeWorkValues(scheduleToUse, salaryToUse)

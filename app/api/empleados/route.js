@@ -3,7 +3,7 @@ import jwt from "jsonwebtoken"
 import bcrypt from "bcryptjs"
 import { supabase } from "@/lib/supabaseClient"
 import { canManageEmployees, isCoordinator } from "@/lib/permissions"
-import { calculateEmployeeWorkValues } from "@/lib/calculations"
+import { calculateEmployeeWorkValues, calculateScheduleSurcharges } from "@/lib/calculations"
 
 const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key-change-in-production"
 
@@ -111,8 +111,20 @@ export async function POST(request) {
     // Generar hash de la contraseña
     const password_hash = await bcrypt.hash(password, 10)
 
+    // Calculate Schedule Surcharges
+    let enrichedSchedule = jornada_fija_hhmm
+    if (jornada_fija_hhmm) {
+      // Fetch Night Shift Parameters
+      let nightShiftRange = { start: "21:00", end: "06:00" } // Default
+      const { data: params } = await supabase.from("parametros").select("jornada_nocturna").single()
+      if (params && params.jornada_nocturna) {
+        nightShiftRange = params.jornada_nocturna
+      }
+      enrichedSchedule = calculateScheduleSurcharges(jornada_fija_hhmm, nightShiftRange)
+    }
+
     // Calculate work values
-    const { horas_semanales, horas_mensuales, valor_hora } = calculateEmployeeWorkValues(jornada_fija_hhmm, salario_base)
+    const { horas_semanales, horas_mensuales, valor_hora } = calculateEmployeeWorkValues(enrichedSchedule, salario_base)
 
     // Insertar nuevo usuario
     const { data: newUser, error } = await supabase
@@ -127,7 +139,7 @@ export async function POST(request) {
           area: area || null,
           rol: rol || "OPERARIO",
           salario_base: salario_base || null,
-          jornada_fija_hhmm: jornada_fija_hhmm || null,
+          jornada_fija_hhmm: enrichedSchedule || null,
           horas_semanales,
           horas_mensuales,
           valor_hora
