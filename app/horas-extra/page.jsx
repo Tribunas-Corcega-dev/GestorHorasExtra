@@ -29,6 +29,7 @@ function HorasExtraContent() {
     const [rolFilter, setRolFilter] = useState("")
     const [roles, setRoles] = useState([])
     const [areas, setAreas] = useState([])
+    const [sortOrder, setSortOrder] = useState("asc")
 
     useEffect(() => {
         if (user) {
@@ -139,6 +140,15 @@ function HorasExtraContent() {
                         </option>
                     ))}
                 </select>
+
+                <select
+                    value={sortOrder}
+                    onChange={(e) => setSortOrder(e.target.value)}
+                    className="px-3 py-2 border border-input bg-background text-foreground rounded-md focus:outline-none focus:ring-2 focus:ring-ring"
+                >
+                    <option value="asc">Nombre (A-Z)</option>
+                    <option value="desc">Nombre (Z-A)</option>
+                </select>
             </div>
 
             {loading ? (
@@ -147,48 +157,56 @@ function HorasExtraContent() {
                 <div className="text-center py-8 text-muted-foreground">No se encontraron empleados</div>
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {empleados.map((empleado) => (
-                        <div key={empleado.id} className="bg-card border border-border rounded-lg shadow-sm hover:shadow-md transition-shadow p-6 flex flex-col items-center text-center">
-                            <div className="h-20 w-20 rounded-full bg-primary/10 flex items-center justify-center mb-4 overflow-hidden relative">
-                                {empleado.foto_url ? (
-                                    <img
-                                        src={empleado.foto_url}
-                                        alt={`Foto de ${empleado.nombre || empleado.username}`}
-                                        className="h-full w-full object-cover"
-                                    />
-                                ) : (
-                                    <span className="text-2xl font-bold text-primary">
-                                        {(empleado.nombre || empleado.username || "?").charAt(0).toUpperCase()}
-                                    </span>
-                                )}
-                            </div>
+                    {empleados
+                        .sort((a, b) => {
+                            const nameA = (a.nombre || a.username || "").trim().toLowerCase()
+                            const nameB = (b.nombre || b.username || "").trim().toLowerCase()
+                            return sortOrder === "asc"
+                                ? nameA.localeCompare(nameB, 'es', { sensitivity: 'base' })
+                                : nameB.localeCompare(nameA, 'es', { sensitivity: 'base' })
+                        })
+                        .map((empleado) => (
+                            <div key={empleado.id} className="bg-card border border-border rounded-lg shadow-sm hover:shadow-md transition-shadow p-6 flex flex-col items-center text-center">
+                                <div className="h-20 w-20 rounded-full bg-primary/10 flex items-center justify-center mb-4 overflow-hidden relative">
+                                    {empleado.foto_url ? (
+                                        <img
+                                            src={empleado.foto_url}
+                                            alt={`Foto de ${empleado.nombre || empleado.username}`}
+                                            className="h-full w-full object-cover"
+                                        />
+                                    ) : (
+                                        <span className="text-2xl font-bold text-primary">
+                                            {(empleado.nombre || empleado.username || "?").charAt(0).toUpperCase()}
+                                        </span>
+                                    )}
+                                </div>
 
-                            <h3 className="font-semibold text-lg text-foreground mb-1">
-                                {empleado.nombre || empleado.username}
-                            </h3>
+                                <h3 className="font-semibold text-lg text-foreground mb-1">
+                                    {empleado.nombre || empleado.username}
+                                </h3>
 
-                            <div className="text-sm text-muted-foreground mb-4 space-y-1">
-                                <p className="text-xs bg-muted px-2 py-1 rounded-full inline-block">
-                                    {empleado.area || "Sin área"}
-                                </p>
-                            </div>
+                                <div className="text-sm text-muted-foreground mb-4 space-y-1">
+                                    <p className="text-xs bg-muted px-2 py-1 rounded-full inline-block">
+                                        {empleado.area || "Sin área"}
+                                    </p>
+                                </div>
 
-                            <div className="mt-auto w-full space-y-2">
-                                <button
-                                    onClick={() => handleRegistrarHoras(empleado)}
-                                    className="w-full bg-primary text-primary-foreground px-4 py-2 rounded-md text-sm font-medium hover:opacity-90 transition-opacity"
-                                >
-                                    Registrar horas extra
-                                </button>
-                                <button
-                                    onClick={() => router.push(`/horas-extra/${empleado.id}/historial`)}
-                                    className="w-full bg-secondary text-secondary-foreground px-4 py-2 rounded-md text-sm font-medium hover:opacity-90 transition-opacity border border-border"
-                                >
-                                    Ver historial
-                                </button>
+                                <div className="mt-auto w-full space-y-2">
+                                    <button
+                                        onClick={() => handleRegistrarHoras(empleado)}
+                                        className="w-full bg-primary text-primary-foreground px-4 py-2 rounded-md text-sm font-medium hover:opacity-90 transition-opacity"
+                                    >
+                                        Registrar horas extra
+                                    </button>
+                                    <button
+                                        onClick={() => router.push(`/horas-extra/${empleado.id}/historial`)}
+                                        className="w-full bg-secondary text-secondary-foreground px-4 py-2 rounded-md text-sm font-medium hover:opacity-90 transition-opacity border border-border"
+                                    >
+                                        Ver historial
+                                    </button>
+                                </div>
                             </div>
-                        </div>
-                    ))}
+                        ))}
                 </div>
             )}
         </div>

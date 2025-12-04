@@ -15,6 +15,7 @@ export function EmpleadosManager() {
     const [rolFilter, setRolFilter] = useState("")
     const [roles, setRoles] = useState([])
     const [areas, setAreas] = useState([])
+    const [sortOrder, setSortOrder] = useState("asc")
 
     useEffect(() => {
         fetchEmpleados()
@@ -103,6 +104,15 @@ export function EmpleadosManager() {
                         </option>
                     ))}
                 </select>
+
+                <select
+                    value={sortOrder}
+                    onChange={(e) => setSortOrder(e.target.value)}
+                    className="px-3 py-2 border border-input bg-background text-foreground rounded-md focus:outline-none focus:ring-2 focus:ring-ring"
+                >
+                    <option value="asc">Nombre (A-Z)</option>
+                    <option value="desc">Nombre (Z-A)</option>
+                </select>
             </div>
 
             {/* Tabla */}
@@ -112,58 +122,66 @@ export function EmpleadosManager() {
                 <div className="text-center py-8 text-muted-foreground">No se encontraron empleados</div>
             ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {empleados.map((empleado) => (
-                        <div key={empleado.id} className="bg-card border border-border rounded-lg shadow-sm hover:shadow-md transition-shadow p-6 flex flex-col">
-                            <div className="flex items-center gap-4 mb-4">
-                                <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 overflow-hidden">
-                                    {empleado.foto_url ? (
-                                        <img src={empleado.foto_url} alt={empleado.nombre} className="h-full w-full object-cover" />
-                                    ) : (
-                                        <span className="text-xl font-bold text-primary">
-                                            {(empleado.nombre || empleado.username || "?").charAt(0).toUpperCase()}
+                    {empleados
+                        .sort((a, b) => {
+                            const nameA = (a.nombre || a.username || "").trim().toLowerCase()
+                            const nameB = (b.nombre || b.username || "").trim().toLowerCase()
+                            return sortOrder === "asc"
+                                ? nameA.localeCompare(nameB, 'es', { sensitivity: 'base' })
+                                : nameB.localeCompare(nameA, 'es', { sensitivity: 'base' })
+                        })
+                        .map((empleado) => (
+                            <div key={empleado.id} className="bg-card border border-border rounded-lg shadow-sm hover:shadow-md transition-shadow p-6 flex flex-col">
+                                <div className="flex items-center gap-4 mb-4">
+                                    <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 overflow-hidden">
+                                        {empleado.foto_url ? (
+                                            <img src={empleado.foto_url} alt={empleado.nombre} className="h-full w-full object-cover" />
+                                        ) : (
+                                            <span className="text-xl font-bold text-primary">
+                                                {(empleado.nombre || empleado.username || "?").charAt(0).toUpperCase()}
+                                            </span>
+                                        )}
+                                    </div>
+                                    <div>
+                                        <h3 className="font-semibold text-lg text-foreground line-clamp-1">
+                                            {empleado.nombre || empleado.username}
+                                        </h3>
+                                        <p className="text-sm text-muted-foreground">@{empleado.username}</p>
+                                        {empleado.cc && (
+                                            <p className="text-xs text-muted-foreground mt-0.5">CC: {empleado.cc}</p>
+                                        )}
+                                    </div>
+                                </div>
+
+                                <div className="space-y-2 mb-6 flex-1">
+                                    <div className="flex justify-between text-sm">
+                                        <span className="text-muted-foreground">Área:</span>
+                                        <span className="font-medium text-foreground text-right">{empleado.area || "-"}</span>
+                                    </div>
+                                    <div className="flex justify-between text-sm">
+                                        <span className="text-muted-foreground">Rol:</span>
+                                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-secondary text-secondary-foreground">
+                                            {empleado.rol}
                                         </span>
-                                    )}
+                                    </div>
                                 </div>
-                                <div>
-                                    <h3 className="font-semibold text-lg text-foreground line-clamp-1">
-                                        {empleado.nombre || empleado.username}
-                                    </h3>
-                                    <p className="text-sm text-muted-foreground">@{empleado.username}</p>
-                                    {empleado.cc && (
-                                        <p className="text-xs text-muted-foreground mt-0.5">CC: {empleado.cc}</p>
-                                    )}
-                                </div>
-                            </div>
 
-                            <div className="space-y-2 mb-6 flex-1">
-                                <div className="flex justify-between text-sm">
-                                    <span className="text-muted-foreground">Área:</span>
-                                    <span className="font-medium text-foreground text-right">{empleado.area || "-"}</span>
-                                </div>
-                                <div className="flex justify-between text-sm">
-                                    <span className="text-muted-foreground">Rol:</span>
-                                    <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-secondary text-secondary-foreground">
-                                        {empleado.rol}
-                                    </span>
+                                <div className="grid grid-cols-2 gap-3 mt-auto">
+                                    <Link
+                                        href={`/empleados/${empleado.id}/detalles`}
+                                        className="flex items-center justify-center px-4 py-2 border border-border rounded-md text-sm font-medium hover:bg-accent transition-colors"
+                                    >
+                                        Ver Detalles
+                                    </Link>
+                                    <Link
+                                        href={`/empleados/${empleado.id}`}
+                                        className="flex items-center justify-center px-4 py-2 bg-primary text-primary-foreground rounded-md text-sm font-medium hover:opacity-90 transition-opacity"
+                                    >
+                                        Editar
+                                    </Link>
                                 </div>
                             </div>
-
-                            <div className="grid grid-cols-2 gap-3 mt-auto">
-                                <Link
-                                    href={`/empleados/${empleado.id}/detalles`}
-                                    className="flex items-center justify-center px-4 py-2 border border-border rounded-md text-sm font-medium hover:bg-accent transition-colors"
-                                >
-                                    Ver Detalles
-                                </Link>
-                                <Link
-                                    href={`/empleados/${empleado.id}`}
-                                    className="flex items-center justify-center px-4 py-2 bg-primary text-primary-foreground rounded-md text-sm font-medium hover:opacity-90 transition-opacity"
-                                >
-                                    Editar
-                                </Link>
-                            </div>
-                        </div>
-                    ))}
+                        ))}
                 </div>
             )}
         </div>
