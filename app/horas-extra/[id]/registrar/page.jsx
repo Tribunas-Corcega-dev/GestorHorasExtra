@@ -89,7 +89,10 @@ function RegistrarHorasExtraContent() {
             // Calculate overtime
             let overtimeResults = {
                 totalMinutes: 0,
-                breakdown: {}
+                overtimeMinutes: 0,
+                surchargeMinutes: 0,
+                breakdown: { overtime: {}, surcharges: {} },
+                flatBreakdown: {}
             }
 
             if (empleado && empleado.jornada_fija_hhmm) {
@@ -128,8 +131,11 @@ function RegistrarHorasExtraContent() {
                     es_festivo: jornada.es_festivo,
                     horas_extra_hhmm: {
                         minutes: overtimeResults.totalMinutes,
+                        overtimeMinutes: overtimeResults.overtimeMinutes,
+                        surchargeMinutes: overtimeResults.surchargeMinutes,
                         formatted: formatMinutesToHHMM(overtimeResults.totalMinutes),
-                        breakdown: overtimeResults.breakdown
+                        breakdown: overtimeResults.breakdown,
+                        flatBreakdown: overtimeResults.flatBreakdown
                     }
                 }),
             })

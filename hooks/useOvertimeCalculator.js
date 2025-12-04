@@ -74,20 +74,49 @@ export function useOvertimeCalculator(employeeId) {
 
             // 5. Summarize
             const totalMinutes = results.reduce((acc, curr) => acc + curr.totalMinutes, 0)
+            const totalOvertimeMinutes = results.reduce((acc, curr) => acc + (curr.overtimeMinutes || 0), 0)
+            const totalSurchargeMinutes = results.reduce((acc, curr) => acc + (curr.surchargeMinutes || 0), 0)
 
             // Aggregate breakdown
-            const aggregatedBreakdown = {}
+            const aggregatedBreakdown = {
+                overtime: {},
+                surcharges: {}
+            }
+
+            // Also keep flat for legacy
+            const aggregatedFlatBreakdown = {}
+
             results.forEach(r => {
-                Object.entries(r.breakdown).forEach(([key, val]) => {
-                    aggregatedBreakdown[key] = (aggregatedBreakdown[key] || 0) + val
-                })
+                // Aggregate structured
+                if (r.breakdown?.overtime) {
+                    Object.entries(r.breakdown.overtime).forEach(([key, val]) => {
+                        aggregatedBreakdown.overtime[key] = (aggregatedBreakdown.overtime[key] || 0) + val
+                        aggregatedFlatBreakdown[key] = (aggregatedFlatBreakdown[key] || 0) + val
+                    })
+                }
+                if (r.breakdown?.surcharges) {
+                    Object.entries(r.breakdown.surcharges).forEach(([key, val]) => {
+                        aggregatedBreakdown.surcharges[key] = (aggregatedBreakdown.surcharges[key] || 0) + val
+                        aggregatedFlatBreakdown[key] = (aggregatedFlatBreakdown[key] || 0) + val
+                    })
+                }
+
+                // Fallback for legacy records if they don't have structured breakdown but have flat breakdown
+                if (!r.breakdown?.overtime && !r.breakdown?.surcharges && r.breakdown) {
+                    Object.entries(r.breakdown).forEach(([key, val]) => {
+                        aggregatedFlatBreakdown[key] = (aggregatedFlatBreakdown[key] || 0) + val
+                    })
+                }
             })
 
             setCalculations(results)
             setSummary({
-                totalOvertimeMinutes: totalMinutes,
-                totalOvertimeHours: formatMinutesToHHMM(totalMinutes),
-                breakdown: aggregatedBreakdown
+                totalMinutes,
+                totalOvertimeMinutes,
+                totalSurchargeMinutes,
+                totalHours: formatMinutesToHHMM(totalMinutes),
+                breakdown: aggregatedBreakdown,
+                flatBreakdown: aggregatedFlatBreakdown
             })
 
         } catch (err) {
@@ -122,16 +151,6 @@ export function calculateOvertimeForDay(recordedSchedule, fixedScheduleDay, nigh
     const extraIntervals = subtractIntervalsList(recordedIntervals, fixedIntervals)
 
     // 4. Classify Hours
-    const breakdown = {
-        extra_diurna: 0,
-        extra_nocturna: 0,
-        extra_diurna_festivo: 0,
-        extra_nocturna_festivo: 0,
-        recargo_nocturno: 0,
-        dominical_festivo: 0,
-        recargo_nocturno_festivo: 0
-    }
-
     // --- Classify Extra Hours ---
     // Extra Night = Intersection(Extra, Night)
     const extraNightIntervals = intersectIntervalsList(extraIntervals, nightIntervals)
@@ -140,14 +159,6 @@ export function calculateOvertimeForDay(recordedSchedule, fixedScheduleDay, nigh
     // Extra Day = Extra - Night
     const extraDayIntervals = subtractIntervalsList(extraIntervals, nightIntervals)
     const extraDayMinutes = calculateTotalMinutes(extraDayIntervals)
-
-    if (isFestivo) {
-        breakdown.extra_diurna_festivo = extraDayMinutes
-        breakdown.extra_nocturna_festivo = extraNightMinutes
-    } else {
-        breakdown.extra_diurna = extraDayMinutes
-        breakdown.extra_nocturna = extraNightMinutes
-    }
 
     // --- Classify Ordinary Hours ---
     // Ordinary Night = Intersection(Ordinary, Night)
@@ -158,30 +169,53 @@ export function calculateOvertimeForDay(recordedSchedule, fixedScheduleDay, nigh
     const ordinaryDayIntervals = subtractIntervalsList(ordinaryIntervals, nightIntervals)
     const ordinaryDayMinutes = calculateTotalMinutes(ordinaryDayIntervals)
 
-    if (isFestivo) {
-        // All ordinary hours on a holiday are "Dominical/Festivo" related
-        // "Dominical/Festivo" usually refers to the base pay or surcharge for working on a holiday during the day
-        // "Nocturno Dom/Fest" refers to the surcharge for working on a holiday at night
-
-        // Based on user table:
-        // dominical/festivo: extra=0, dom/fest=1 (Implies Day)
-        // nocturno dominical/festivo: extra=0, nocturna=1, dom/fest=1
-
-        breakdown.dominical_festivo = ordinaryDayMinutes
-        breakdown.recargo_nocturno_festivo = ordinaryNightMinutes
-    } else {
-        // Normal Day
-        // recargo nocturno: extra=0, nocturna=1
-        breakdown.recargo_nocturno = ordinaryNightMinutes
-        // Ordinary Day hours are just normal salary, usually not tracked as "overtime/surcharge"
+    const overtimeBreakdown = {
+        extra_diurna: 0,
+        extra_nocturna: 0,
+        extra_diurna_festivo: 0,
+        extra_nocturna_festivo: 0
     }
 
-    // Calculate total "payable" minutes (sum of all categories)
-    const totalMinutes = Object.values(breakdown).reduce((a, b) => a + b, 0)
+    const surchargesBreakdown = {
+        recargo_nocturno: 0,
+        dominical_festivo: 0,
+        recargo_nocturno_festivo: 0
+    }
+
+    if (isFestivo) {
+        overtimeBreakdown.extra_diurna_festivo = extraDayMinutes
+        overtimeBreakdown.extra_nocturna_festivo = extraNightMinutes
+
+        // All ordinary hours on a holiday are "Dominical/Festivo" related
+        surchargesBreakdown.dominical_festivo = ordinaryDayMinutes
+        surchargesBreakdown.recargo_nocturno_festivo = ordinaryNightMinutes
+    } else {
+        overtimeBreakdown.extra_diurna = extraDayMinutes
+        overtimeBreakdown.extra_nocturna = extraNightMinutes
+
+        // Normal Day
+        surchargesBreakdown.recargo_nocturno = ordinaryNightMinutes
+    }
+
+    // Calculate totals
+    const overtimeMinutes = Object.values(overtimeBreakdown).reduce((a, b) => a + b, 0)
+    const surchargeMinutes = Object.values(surchargesBreakdown).reduce((a, b) => a + b, 0)
+    const totalMinutes = overtimeMinutes + surchargeMinutes
+
+    // Legacy flat breakdown for backward compatibility if needed, 
+    // but we prefer the structured one.
+    const flatBreakdown = { ...overtimeBreakdown, ...surchargesBreakdown }
 
     return {
         totalMinutes,
-        breakdown
+        overtimeMinutes,
+        surchargeMinutes,
+        breakdown: {
+            overtime: overtimeBreakdown,
+            surcharges: surchargesBreakdown
+        },
+        // Keep flat breakdown for legacy support in some views if they just iterate keys
+        flatBreakdown
     }
 }
 

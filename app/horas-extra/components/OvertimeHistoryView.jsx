@@ -101,11 +101,15 @@ export function OvertimeHistoryView({ employeeId, showBackButton = true }) {
                 // Calculate summary from stored values
                 let totalMinutes = 0
                 let totalValue = 0
-                const breakdownTotals = {
+
+                const overtimeTotals = {
                     extra_diurna: 0,
                     extra_nocturna: 0,
                     extra_diurna_festivo: 0,
-                    extra_nocturna_festivo: 0,
+                    extra_nocturna_festivo: 0
+                }
+
+                const surchargeTotals = {
                     recargo_nocturno: 0,
                     dominical_festivo: 0,
                     recargo_nocturno_festivo: 0
@@ -115,22 +119,34 @@ export function OvertimeHistoryView({ employeeId, showBackButton = true }) {
                     if (jornada.horas_extra_hhmm) {
                         totalMinutes += jornada.horas_extra_hhmm.minutes || 0
 
-                        if (jornada.horas_extra_hhmm.breakdown) {
-                            // Accumulate minutes
-                            Object.entries(jornada.horas_extra_hhmm.breakdown).forEach(([key, val]) => {
-                                if (breakdownTotals[key] !== undefined) {
-                                    breakdownTotals[key] += val
-                                }
+                        // Handle new structured breakdown
+                        if (jornada.horas_extra_hhmm.breakdown?.overtime) {
+                            Object.entries(jornada.horas_extra_hhmm.breakdown.overtime).forEach(([key, val]) => {
+                                if (overtimeTotals[key] !== undefined) overtimeTotals[key] += val
                             })
+                        }
+                        if (jornada.horas_extra_hhmm.breakdown?.surcharges) {
+                            Object.entries(jornada.horas_extra_hhmm.breakdown.surcharges).forEach(([key, val]) => {
+                                if (surchargeTotals[key] !== undefined) surchargeTotals[key] += val
+                            })
+                        }
 
-                            // Calculate value for this day
-                            if (empData && empData.valor_hora) {
-                                totalValue += calculateTotalOvertimeValue(
-                                    jornada.horas_extra_hhmm.breakdown,
-                                    empData.valor_hora,
-                                    recargosData
-                                )
-                            }
+                        // Handle legacy flat breakdown (if no structured breakdown exists)
+                        if (!jornada.horas_extra_hhmm.breakdown?.overtime && !jornada.horas_extra_hhmm.breakdown?.surcharges && jornada.horas_extra_hhmm.breakdown) {
+                            Object.entries(jornada.horas_extra_hhmm.breakdown).forEach(([key, val]) => {
+                                if (overtimeTotals[key] !== undefined) overtimeTotals[key] += val
+                                if (surchargeTotals[key] !== undefined) surchargeTotals[key] += val
+                            })
+                        }
+
+                        // Calculate value using flat breakdown (available in both new and old via fallback or explicit field)
+                        const flatBreakdown = jornada.horas_extra_hhmm.flatBreakdown || jornada.horas_extra_hhmm.breakdown || {}
+                        if (empData && empData.valor_hora) {
+                            totalValue += calculateTotalOvertimeValue(
+                                flatBreakdown,
+                                empData.valor_hora,
+                                recargosData
+                            )
                         }
                     }
                 })
@@ -139,7 +155,8 @@ export function OvertimeHistoryView({ employeeId, showBackButton = true }) {
                     totalOvertimeHours: formatMinutesToHHMM(totalMinutes),
                     totalOvertimeMinutes: totalMinutes,
                     totalValue: totalValue,
-                    breakdown: breakdownTotals
+                    overtimeTotals,
+                    surchargeTotals
                 })
             }
         } catch (error) {
@@ -196,40 +213,76 @@ export function OvertimeHistoryView({ employeeId, showBackButton = true }) {
             </div>
 
             {/* Summary Grid */}
-            <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-4 mb-8">
-                <div className="bg-primary/10 border border-primary/20 rounded-lg p-4 shadow-sm col-span-2 md:col-span-4 lg:col-span-1 flex flex-col justify-center">
-                    <h3 className="text-xs font-bold text-primary uppercase tracking-wider mb-1">Total General</h3>
-                    <div className="text-2xl font-bold text-primary">
-                        {formatMinutesToFloat(summary.totalOvertimeMinutes)}
-                    </div>
-                    <div className="text-lg font-semibold text-green-600 dark:text-green-400 mt-1">
-                        {formatCurrency(summary.totalValue)}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                {/* Overtime Section */}
+                <div className="space-y-4">
+                    <h3 className="text-lg font-semibold text-foreground border-b border-border pb-2">Horas Extra</h3>
+                    <div className="grid grid-cols-2 gap-4">
+                        {Object.entries(summary.overtimeTotals || {}).map(([key, minutes]) => {
+                            if (minutes === 0) return null
+                            let value = 0
+                            if (empleado && empleado.valor_hora && recargos.length > 0) {
+                                value = calculateTotalOvertimeValue({ [key]: minutes }, empleado.valor_hora, recargos)
+                            }
+                            return (
+                                <div key={key} className="bg-card border border-border rounded-lg p-4 shadow-sm">
+                                    <h3 className="text-xs font-medium text-muted-foreground mb-1 truncate" title={LABELS[key]}>
+                                        {LABELS[key]}
+                                    </h3>
+                                    <div className="text-xl font-semibold text-foreground">
+                                        {formatMinutesToFloat(minutes)}
+                                    </div>
+                                    <div className="text-sm font-medium text-green-600 dark:text-green-400">
+                                        {formatCurrency(value)}
+                                    </div>
+                                </div>
+                            )
+                        })}
                     </div>
                 </div>
 
-                {Object.entries(summary.breakdown).map(([key, minutes]) => {
-                    if (minutes === 0) return null
+                {/* Surcharges Section */}
+                <div className="space-y-4">
+                    <h3 className="text-lg font-semibold text-foreground border-b border-border pb-2">Recargos</h3>
+                    <div className="grid grid-cols-2 gap-4">
+                        {Object.entries(summary.surchargeTotals || {}).map(([key, minutes]) => {
+                            if (minutes === 0) return null
+                            let value = 0
+                            if (empleado && empleado.valor_hora && recargos.length > 0) {
+                                value = calculateTotalOvertimeValue({ [key]: minutes }, empleado.valor_hora, recargos)
+                            }
+                            return (
+                                <div key={key} className="bg-card border border-border rounded-lg p-4 shadow-sm">
+                                    <h3 className="text-xs font-medium text-muted-foreground mb-1 truncate" title={LABELS[key]}>
+                                        {LABELS[key]}
+                                    </h3>
+                                    <div className="text-xl font-semibold text-foreground">
+                                        {formatMinutesToFloat(minutes)}
+                                    </div>
+                                    <div className="text-sm font-medium text-green-600 dark:text-green-400">
+                                        {formatCurrency(value)}
+                                    </div>
+                                </div>
+                            )
+                        })}
+                    </div>
+                </div>
+            </div>
 
-                    let value = 0
-                    if (empleado && empleado.valor_hora && recargos.length > 0) {
-                        const breakdownObj = { [key]: minutes }
-                        value = calculateTotalOvertimeValue(breakdownObj, empleado.valor_hora, recargos)
-                    }
-
-                    return (
-                        <div key={key} className="bg-card border border-border rounded-lg p-4 shadow-sm">
-                            <h3 className="text-xs font-medium text-muted-foreground mb-1 truncate" title={LABELS[key]}>
-                                {LABELS[key]}
-                            </h3>
-                            <div className="text-xl font-semibold text-foreground">
-                                {formatMinutesToFloat(minutes)}
-                            </div>
-                            <div className="text-sm font-medium text-green-600 dark:text-green-400">
-                                {formatCurrency(value)}
-                            </div>
-                        </div>
-                    )
-                })}
+            {/* Total Summary */}
+            <div className="bg-primary/10 border border-primary/20 rounded-lg p-6 shadow-sm mb-8 flex flex-col md:flex-row items-center justify-between gap-4">
+                <div>
+                    <h3 className="text-lg font-bold text-primary uppercase tracking-wider">Total General a Pagar</h3>
+                    <p className="text-sm text-muted-foreground">Suma de todas las horas extra y recargos</p>
+                </div>
+                <div className="text-right">
+                    <div className="text-3xl font-bold text-primary">
+                        {formatMinutesToFloat(summary.totalOvertimeMinutes)}
+                    </div>
+                    <div className="text-xl font-semibold text-green-600 dark:text-green-400 mt-1">
+                        {formatCurrency(summary.totalValue)}
+                    </div>
+                </div>
             </div>
 
             {jornadas.length === 0 ? (
@@ -246,7 +299,8 @@ export function OvertimeHistoryView({ employeeId, showBackButton = true }) {
                                     <th className="px-4 py-3 text-left text-sm font-medium text-foreground">Día</th>
                                     <th className="px-4 py-3 text-left text-sm font-medium text-foreground">Tipo</th>
                                     <th className="px-4 py-3 text-left text-sm font-medium text-foreground">Horario</th>
-                                    <th className="px-4 py-3 text-left text-sm font-medium text-foreground">Detalle Horas Extra</th>
+                                    <th className="px-4 py-3 text-left text-sm font-medium text-foreground">Horas Extra</th>
+                                    <th className="px-4 py-3 text-left text-sm font-medium text-foreground">Recargos</th>
                                     <th className="px-4 py-3 text-right text-sm font-medium text-foreground">Valor</th>
                                     <th className="px-4 py-3 text-right text-sm font-medium text-foreground">Total</th>
                                     <th className="px-4 py-3 text-center text-sm font-medium text-foreground">Acciones</th>
@@ -258,12 +312,34 @@ export function OvertimeHistoryView({ employeeId, showBackButton = true }) {
                                     const dayName = jornada.jornada_base_calcular?.dayOfWeek || ""
                                     const overtimeFormatted = jornada.horas_extra_hhmm?.formatted || "-"
                                     const overtimeMinutes = jornada.horas_extra_hhmm?.minutes || 0
+
+                                    // Determine structured breakdown
                                     const breakdown = jornada.horas_extra_hhmm?.breakdown || {}
-                                    const hasBreakdown = Object.values(breakdown).some(v => v > 0)
+                                    const flatBreakdown = jornada.horas_extra_hhmm?.flatBreakdown || breakdown
+
+                                    let overtimeBreakdown = {}
+                                    let surchargeBreakdown = {}
+
+                                    if (breakdown.overtime || breakdown.surcharges) {
+                                        overtimeBreakdown = breakdown.overtime || {}
+                                        surchargeBreakdown = breakdown.surcharges || {}
+                                    } else {
+                                        // Legacy: split manually
+                                        Object.entries(breakdown).forEach(([key, val]) => {
+                                            if (['extra_diurna', 'extra_nocturna', 'extra_diurna_festivo', 'extra_nocturna_festivo'].includes(key)) {
+                                                overtimeBreakdown[key] = val
+                                            } else {
+                                                surchargeBreakdown[key] = val
+                                            }
+                                        })
+                                    }
+
+                                    const hasOvertime = Object.values(overtimeBreakdown).some(v => v > 0)
+                                    const hasSurcharges = Object.values(surchargeBreakdown).some(v => v > 0)
 
                                     let dayValue = 0
                                     if (empleado && empleado.valor_hora && recargos.length > 0) {
-                                        dayValue = calculateTotalOvertimeValue(breakdown, empleado.valor_hora, recargos)
+                                        dayValue = calculateTotalOvertimeValue(flatBreakdown, empleado.valor_hora, recargos)
                                     }
 
                                     return (
@@ -297,19 +373,28 @@ export function OvertimeHistoryView({ employeeId, showBackButton = true }) {
                                                 </div>
                                             </td>
                                             <td className="px-4 py-3 text-sm">
-                                                {hasBreakdown ? (
+                                                {hasOvertime ? (
                                                     <div className="flex flex-wrap gap-1">
-                                                        {Object.entries(breakdown).map(([key, minutes]) => {
+                                                        {Object.entries(overtimeBreakdown).map(([key, minutes]) => {
                                                             if (minutes <= 0) return null
-                                                            // Calculate individual value
-                                                            let itemValue = 0
-                                                            if (empleado && empleado.valor_hora && recargos.length > 0) {
-                                                                const breakdownObj = { [key]: minutes }
-                                                                itemValue = calculateTotalOvertimeValue(breakdownObj, empleado.valor_hora, recargos)
-                                                            }
-
                                                             return (
-                                                                <span key={key} className="inline-flex items-center px-2 py-0.5 rounded text-xs bg-secondary text-secondary-foreground border border-border mr-1 mb-1" title={`${LABELS[key]}: ${formatCurrency(itemValue)}`}>
+                                                                <span key={key} className="inline-flex items-center px-2 py-0.5 rounded text-xs bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400 border border-blue-200 dark:border-blue-800 mr-1 mb-1" title={LABELS[key]}>
+                                                                    {LABELS[key]}: {formatMinutesToFloat(minutes)}
+                                                                </span>
+                                                            )
+                                                        })}
+                                                    </div>
+                                                ) : (
+                                                    <span className="text-muted-foreground text-xs">-</span>
+                                                )}
+                                            </td>
+                                            <td className="px-4 py-3 text-sm">
+                                                {hasSurcharges ? (
+                                                    <div className="flex flex-wrap gap-1">
+                                                        {Object.entries(surchargeBreakdown).map(([key, minutes]) => {
+                                                            if (minutes <= 0) return null
+                                                            return (
+                                                                <span key={key} className="inline-flex items-center px-2 py-0.5 rounded text-xs bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400 border border-orange-200 dark:border-orange-800 mr-1 mb-1" title={LABELS[key]}>
                                                                     {LABELS[key]}: {formatMinutesToFloat(minutes)}
                                                                 </span>
                                                             )
