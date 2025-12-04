@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import jwt from "jsonwebtoken"
 import { supabase } from "@/lib/supabaseClient"
 import { canManageOvertime } from "@/lib/permissions"
+import { calculateScheduleSurcharges } from "@/lib/calculations"
 
 const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key-change-in-production"
 
@@ -75,12 +76,22 @@ export async function POST(request) {
             return NextResponse.json({ message: "Área no válida" }, { status: 400 })
         }
 
+        // Fetch Night Shift Parameters
+        let nightShiftRange = { start: "21:00", end: "06:00" } // Default
+        const { data: params } = await supabase.from("parametros").select("jornada_nocturna").single()
+        if (params && params.jornada_nocturna) {
+            nightShiftRange = params.jornada_nocturna
+        }
+
+        // Calculate Surcharges for the schedule
+        const enrichedSchedule = calculateScheduleSurcharges(schedule, nightShiftRange)
+
         let result
         if (id) {
             // Update existing
             result = await supabase
                 .from("horarios_base")
-                .update({ [areaColumn]: schedule })
+                .update({ [areaColumn]: enrichedSchedule })
                 .eq("id", id)
                 .select()
                 .single()
@@ -91,14 +102,14 @@ export async function POST(request) {
             if (existing) {
                 result = await supabase
                     .from("horarios_base")
-                    .update({ [areaColumn]: schedule })
+                    .update({ [areaColumn]: enrichedSchedule })
                     .eq("id", existing.id)
                     .select()
                     .single()
             } else {
                 result = await supabase
                     .from("horarios_base")
-                    .insert([{ [areaColumn]: schedule }])
+                    .insert([{ [areaColumn]: enrichedSchedule }])
                     .select()
                     .single()
             }
