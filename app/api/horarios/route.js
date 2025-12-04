@@ -67,7 +67,8 @@ export async function POST(request) {
             "h_aseo",
             "h_op_bocatoma",
             "h_admin",
-            "h_planta_tratamiento"
+            "h_planta_tratamiento",
+            "h_planta_nocturna"
         ]
 
         if (!allowedColumns.includes(areaColumn)) {
