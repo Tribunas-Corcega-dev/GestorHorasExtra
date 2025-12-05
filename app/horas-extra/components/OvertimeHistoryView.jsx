@@ -317,7 +317,7 @@ export function OvertimeHistoryView({ employeeId, showBackButton = true }) {
                         <span>Nómina Fija</span>
                         {selectedPeriod === 'all' && <span className="text-xs font-normal text-muted-foreground">(Selecciona periodo)</span>}
                     </h3>
-                    <div className="bg-blue-50/50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-900 rounded-lg p-4 shadow-sm h-full">
+                    <div className="bg-blue-50/50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-900 rounded-lg p-4 shadow-sm">
                         {selectedPeriod !== 'all' ? (
                             loadingFixed ? (
                                 <div className="flex flex-col items-center justify-center h-full text-center p-4">
@@ -350,12 +350,12 @@ export function OvertimeHistoryView({ employeeId, showBackButton = true }) {
                                     </div>
                                 </>
                             ) : (
-                                <div className="flex flex-col items-center justify-center h-full text-center p-4 text-muted-foreground text-sm">
+                                <div className="flex flex-col items-center justify-center h-full text-center p-2 text-muted-foreground text-sm">
                                     <p>No hay datos disponibles para este periodo.</p>
                                 </div>
                             )
                         ) : (
-                            <div className="flex flex-col items-center justify-center h-full text-center p-4 text-muted-foreground text-sm">
+                            <div className="flex flex-col items-center justify-center h-full text-center p-2 text-muted-foreground text-sm">
                                 <p>Selecciona una quincena para ver los recargos fijos calculados.</p>
                             </div>
                         )}
