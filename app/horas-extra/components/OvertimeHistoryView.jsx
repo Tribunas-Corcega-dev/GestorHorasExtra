@@ -173,6 +173,9 @@ export function OvertimeHistoryView({ employeeId, showBackButton = true }) {
         const overtimeTotals = { extra_diurna: 0, extra_nocturna: 0, extra_diurna_festivo: 0, extra_nocturna_festivo: 0 }
         const surchargeTotals = { recargo_nocturno: 0, dominical_festivo: 0, recargo_nocturno_festivo: 0 }
 
+        const overtimeValues = { extra_diurna: 0, extra_nocturna: 0, extra_diurna_festivo: 0, extra_nocturna_festivo: 0 }
+        const surchargeValues = { recargo_nocturno: 0, dominical_festivo: 0, recargo_nocturno_festivo: 0 }
+
         filteredJornadas.forEach(jornada => {
             if (jornada.horas_extra_hhmm) {
                 totalMinutes += jornada.horas_extra_hhmm.minutes || 0
@@ -199,11 +202,44 @@ export function OvertimeHistoryView({ employeeId, showBackButton = true }) {
 
                 if (empleado && empleado.valor_hora) {
                     totalValue += calculateTotalOvertimeValue(flatBreakdown, empleado.valor_hora, recargos)
+
+                    // Calculate individual values
+                    if (recargos.length > 0) {
+                        Object.entries(flatBreakdown).forEach(([type, minutes]) => {
+                            if (minutes > 0) {
+                                const surcharge = recargos.find(r => {
+                                    const dbType = r.tipo_hora_extra
+                                    const map = {
+                                        "Extra diurno": "extra_diurna", "Extra Diurna": "extra_diurna",
+                                        "Trabajo extra nocturno": "extra_nocturna", "Extra Nocturna": "extra_nocturna",
+                                        "Trabajo extra diurno dominical y festivo": "extra_diurna_festivo", "Extra Diurna Festivo": "extra_diurna_festivo",
+                                        "Trabajo extra nocturno en domingos y festivos": "extra_nocturna_festivo", "Extra Nocturna Festivo": "extra_nocturna_festivo",
+                                        "Recargo Nocturno": "recargo_nocturno", "Trabajo nocturno": "recargo_nocturno",
+                                        "Trabajo dominical y festivo": "dominical_festivo", "Dominical/Festivo": "dominical_festivo",
+                                        "Trabajo nocturno en dominical y festivo": "recargo_nocturno_festivo", "Recargo Nocturno Festivo": "recargo_nocturno_festivo"
+                                    }
+                                    return (map[dbType] || dbType) === type
+                                })
+
+                                const percentage = surcharge ? surcharge.recargo : 0
+                                const hours = minutes / 60
+                                const p = percentage > 2 ? percentage / 100 : percentage
+                                const factor = 1 + p
+                                const value = hours * empleado.valor_hora * factor
+
+                                if (overtimeValues[type] !== undefined) {
+                                    overtimeValues[type] += value
+                                } else if (surchargeValues[type] !== undefined) {
+                                    surchargeValues[type] += value
+                                }
+                            }
+                        })
+                    }
                 }
             }
         })
 
-        return { totalMinutes, totalValue, overtimeTotals, surchargeTotals }
+        return { totalMinutes, totalValue, overtimeTotals, surchargeTotals, overtimeValues, surchargeValues }
     })()
 
     // Use fetched data instead of mock
@@ -339,10 +375,14 @@ export function OvertimeHistoryView({ employeeId, showBackButton = true }) {
                             <div className="space-y-2">
                                 {Object.entries(filteredSummary.overtimeTotals).map(([key, minutes]) => {
                                     if (minutes === 0) return null
+                                    const value = filteredSummary.overtimeValues[key] || 0
                                     return (
                                         <div key={key} className="flex justify-between text-sm">
                                             <span className="text-muted-foreground truncate pr-2" title={LABELS[key]}>{LABELS[key]}</span>
-                                            <span className="font-medium">{formatMinutesToFloat(minutes)}</span>
+                                            <div className="text-right">
+                                                <span className="font-medium block">{formatMinutesToFloat(minutes)}</span>
+                                                <span className="text-xs text-green-600 dark:text-green-400 font-semibold">{formatCurrency(value)}</span>
+                                            </div>
                                         </div>
                                     )
                                 })}
@@ -358,10 +398,14 @@ export function OvertimeHistoryView({ employeeId, showBackButton = true }) {
                             <div className="space-y-2">
                                 {Object.entries(filteredSummary.surchargeTotals).map(([key, minutes]) => {
                                     if (minutes === 0) return null
+                                    const value = filteredSummary.surchargeValues[key] || 0
                                     return (
                                         <div key={key} className="flex justify-between text-sm">
                                             <span className="text-muted-foreground truncate pr-2" title={LABELS[key]}>{LABELS[key]}</span>
-                                            <span className="font-medium">{formatMinutesToFloat(minutes)}</span>
+                                            <div className="text-right">
+                                                <span className="font-medium block">{formatMinutesToFloat(minutes)}</span>
+                                                <span className="text-xs text-green-600 dark:text-green-400 font-semibold">{formatCurrency(value)}</span>
+                                            </div>
                                         </div>
                                     )
                                 })}
