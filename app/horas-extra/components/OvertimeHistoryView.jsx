@@ -54,6 +54,52 @@ export function OvertimeHistoryView({ employeeId, showBackButton = true }) {
     const [appealDescription, setAppealDescription] = useState("")
     const [appealFiles, setAppealFiles] = useState([])
 
+    // --- Bi-weekly Period Mockup State ---
+    const [selectedPeriod, setSelectedPeriod] = useState("all") // 'all' or '2025-12-1', '2025-12-2', etc.
+    const [periods, setPeriods] = useState([])
+    const [fixedSurchargesData, setFixedSurchargesData] = useState(null)
+    const [loadingFixed, setLoadingFixed] = useState(false)
+
+    useEffect(() => {
+        // Generate mock periods for the last 3 months
+        const mockPeriods = []
+        const today = new Date()
+        for (let i = 0; i < 3; i++) {
+            const date = new Date(today.getFullYear(), today.getMonth() - i, 1)
+            const year = date.getFullYear()
+            const month = date.getMonth()
+            const monthName = date.toLocaleString('es-CO', { month: 'long' })
+
+            mockPeriods.push({ id: `${year}-${month}-2`, label: `2ª Quincena ${monthName} ${year} (16-End)` })
+            mockPeriods.push({ id: `${year}-${month}-1`, label: `1ª Quincena ${monthName} ${year} (01-15)` })
+        }
+        setPeriods(mockPeriods)
+    }, [])
+
+    // Fetch fixed surcharges when period changes
+    useEffect(() => {
+        if (selectedPeriod !== 'all' && employeeId) {
+            fetchFixedSurcharges()
+        } else {
+            setFixedSurchargesData(null)
+        }
+    }, [selectedPeriod, employeeId])
+
+    async function fetchFixedSurcharges() {
+        setLoadingFixed(true)
+        try {
+            const res = await fetch(`/api/cierres/calcular?empleado_id=${employeeId}&periodo=${selectedPeriod}`)
+            if (res.ok) {
+                const data = await res.json()
+                setFixedSurchargesData(data)
+            }
+        } catch (error) {
+            console.error("Error fetching fixed surcharges:", error)
+        } finally {
+            setLoadingFixed(false)
+        }
+    }
+
     useEffect(() => {
         // Redirect if user is not authorized to view THIS employee's history
         // Allow if:
@@ -97,67 +143,7 @@ export function OvertimeHistoryView({ employeeId, showBackButton = true }) {
             if (histRes.ok) {
                 const histData = await histRes.json()
                 setJornadas(histData)
-
-                // Calculate summary from stored values
-                let totalMinutes = 0
-                let totalValue = 0
-
-                const overtimeTotals = {
-                    extra_diurna: 0,
-                    extra_nocturna: 0,
-                    extra_diurna_festivo: 0,
-                    extra_nocturna_festivo: 0
-                }
-
-                const surchargeTotals = {
-                    recargo_nocturno: 0,
-                    dominical_festivo: 0,
-                    recargo_nocturno_festivo: 0
-                }
-
-                histData.forEach(jornada => {
-                    if (jornada.horas_extra_hhmm) {
-                        totalMinutes += jornada.horas_extra_hhmm.minutes || 0
-
-                        // Handle new structured breakdown
-                        if (jornada.horas_extra_hhmm.breakdown?.overtime) {
-                            Object.entries(jornada.horas_extra_hhmm.breakdown.overtime).forEach(([key, val]) => {
-                                if (overtimeTotals[key] !== undefined) overtimeTotals[key] += val
-                            })
-                        }
-                        if (jornada.horas_extra_hhmm.breakdown?.surcharges) {
-                            Object.entries(jornada.horas_extra_hhmm.breakdown.surcharges).forEach(([key, val]) => {
-                                if (surchargeTotals[key] !== undefined) surchargeTotals[key] += val
-                            })
-                        }
-
-                        // Handle legacy flat breakdown (if no structured breakdown exists)
-                        if (!jornada.horas_extra_hhmm.breakdown?.overtime && !jornada.horas_extra_hhmm.breakdown?.surcharges && jornada.horas_extra_hhmm.breakdown) {
-                            Object.entries(jornada.horas_extra_hhmm.breakdown).forEach(([key, val]) => {
-                                if (overtimeTotals[key] !== undefined) overtimeTotals[key] += val
-                                if (surchargeTotals[key] !== undefined) surchargeTotals[key] += val
-                            })
-                        }
-
-                        // Calculate value using flat breakdown (available in both new and old via fallback or explicit field)
-                        const flatBreakdown = jornada.horas_extra_hhmm.flatBreakdown || jornada.horas_extra_hhmm.breakdown || {}
-                        if (empData && empData.valor_hora) {
-                            totalValue += calculateTotalOvertimeValue(
-                                flatBreakdown,
-                                empData.valor_hora,
-                                recargosData
-                            )
-                        }
-                    }
-                })
-
-                setSummary({
-                    totalOvertimeHours: formatMinutesToHHMM(totalMinutes),
-                    totalOvertimeMinutes: totalMinutes,
-                    totalValue: totalValue,
-                    overtimeTotals,
-                    surchargeTotals
-                })
+                // Initial summary calculation is handled by filteredSummary derived state now
             }
         } catch (error) {
             console.error("Error fetching data:", error)
@@ -165,6 +151,67 @@ export function OvertimeHistoryView({ employeeId, showBackButton = true }) {
             setLoading(false)
         }
     }
+
+    // Filter jornadas based on period
+    const filteredJornadas = jornadas.filter(j => {
+        if (selectedPeriod === "all") return true
+        const jDate = new Date(j.fecha)
+        const [year, month, quincena] = selectedPeriod.split('-').map(Number)
+
+        if (jDate.getFullYear() !== year || jDate.getMonth() !== month) return false
+
+        const day = jDate.getDate()
+        if (quincena === 1) return day <= 15
+        if (quincena === 2) return day > 15
+        return true
+    })
+
+    // Recalculate summary for filtered jornadas
+    const filteredSummary = (() => {
+        let totalMinutes = 0
+        let totalValue = 0
+        const overtimeTotals = { extra_diurna: 0, extra_nocturna: 0, extra_diurna_festivo: 0, extra_nocturna_festivo: 0 }
+        const surchargeTotals = { recargo_nocturno: 0, dominical_festivo: 0, recargo_nocturno_festivo: 0 }
+
+        filteredJornadas.forEach(jornada => {
+            if (jornada.horas_extra_hhmm) {
+                totalMinutes += jornada.horas_extra_hhmm.minutes || 0
+
+                const breakdown = jornada.horas_extra_hhmm.breakdown || {}
+                const flatBreakdown = jornada.horas_extra_hhmm.flatBreakdown || breakdown
+
+                // Aggregate
+                if (breakdown.overtime) {
+                    Object.entries(breakdown.overtime).forEach(([k, v]) => overtimeTotals[k] = (overtimeTotals[k] || 0) + v)
+                } else {
+                    Object.entries(flatBreakdown).forEach(([k, v]) => {
+                        if (overtimeTotals[k] !== undefined) overtimeTotals[k] += v
+                    })
+                }
+
+                if (breakdown.surcharges) {
+                    Object.entries(breakdown.surcharges).forEach(([k, v]) => surchargeTotals[k] = (surchargeTotals[k] || 0) + v)
+                } else {
+                    Object.entries(flatBreakdown).forEach(([k, v]) => {
+                        if (surchargeTotals[k] !== undefined) surchargeTotals[k] += v
+                    })
+                }
+
+                if (empleado && empleado.valor_hora) {
+                    totalValue += calculateTotalOvertimeValue(flatBreakdown, empleado.valor_hora, recargos)
+                }
+            }
+        })
+
+        return { totalMinutes, totalValue, overtimeTotals, surchargeTotals }
+    })()
+
+    // Use fetched data instead of mock
+    const mockFixedSurcharges = fixedSurchargesData ? {
+        recargo_nocturno: fixedSurchargesData.fixedSurcharges.recargo_nocturno || 0,
+        dominical_festivo: fixedSurchargesData.fixedSurcharges.dominical_festivo || 0,
+        value: fixedSurchargesData.totalValue || 0
+    } : null
 
     if (loading) {
         return <div className="text-center py-8">Cargando...</div>
@@ -202,69 +249,127 @@ export function OvertimeHistoryView({ employeeId, showBackButton = true }) {
                         </div>
                     )}
                 </div>
-                {showBackButton && (
-                    <button
-                        onClick={() => router.back()}
-                        className="px-4 py-2 border border-border rounded-md hover:bg-accent transition-colors text-foreground text-sm font-medium"
+                <div className="flex gap-2">
+                    {/* Period Selector */}
+                    <select
+                        value={selectedPeriod}
+                        onChange={(e) => setSelectedPeriod(e.target.value)}
+                        className="px-3 py-2 border border-input bg-background text-foreground rounded-md focus:outline-none focus:ring-2 focus:ring-ring"
                     >
-                        Volver
-                    </button>
-                )}
+                        <option value="all">Ver Todo el Historial</option>
+                        {periods.map(p => (
+                            <option key={p.id} value={p.id}>{p.label}</option>
+                        ))}
+                    </select>
+
+                    {showBackButton && (
+                        <button
+                            onClick={() => router.back()}
+                            className="px-4 py-2 border border-border rounded-md hover:bg-accent transition-colors text-foreground text-sm font-medium"
+                        >
+                            Volver
+                        </button>
+                    )}
+                </div>
             </div>
 
             {/* Summary Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-                {/* Overtime Section */}
-                <div className="space-y-4">
-                    <h3 className="text-lg font-semibold text-foreground border-b border-border pb-2">Horas Extra</h3>
-                    <div className="grid grid-cols-2 gap-4">
-                        {Object.entries(summary.overtimeTotals || {}).map(([key, minutes]) => {
-                            if (minutes === 0) return null
-                            let value = 0
-                            if (empleado && empleado.valor_hora && recargos.length > 0) {
-                                value = calculateTotalOvertimeValue({ [key]: minutes }, empleado.valor_hora, recargos)
-                            }
-                            return (
-                                <div key={key} className="bg-card border border-border rounded-lg p-4 shadow-sm">
-                                    <h3 className="text-xs font-medium text-muted-foreground mb-1 truncate" title={LABELS[key]}>
-                                        {LABELS[key]}
-                                    </h3>
-                                    <div className="text-xl font-semibold text-foreground">
-                                        {formatMinutesToFloat(minutes)}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                {/* Fixed Surcharges Section (From DB Table) */}
+                <div className={`space-y-4 ${selectedPeriod === 'all' ? 'opacity-50 grayscale' : ''}`}>
+                    <h3 className="text-lg font-semibold text-foreground border-b border-border pb-2 flex items-center justify-between">
+                        <span>Nómina Fija</span>
+                        {selectedPeriod === 'all' && <span className="text-xs font-normal text-muted-foreground">(Selecciona periodo)</span>}
+                    </h3>
+                    <div className="bg-blue-50/50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-900 rounded-lg p-4 shadow-sm h-full">
+                        {selectedPeriod !== 'all' ? (
+                            loadingFixed ? (
+                                <div className="flex flex-col items-center justify-center h-full text-center p-4">
+                                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary mb-2"></div>
+                                    <p className="text-xs text-muted-foreground">Calculando...</p>
+                                </div>
+                            ) : mockFixedSurcharges ? (
+                                <>
+                                    <div className="flex items-center gap-2 mb-3">
+                                        <span className="text-xs font-bold bg-blue-100 text-blue-700 px-2 py-0.5 rounded">Automático</span>
+                                        <span className="text-xs text-muted-foreground">Calculado por turno fijo</span>
                                     </div>
-                                    <div className="text-sm font-medium text-green-600 dark:text-green-400">
-                                        {formatCurrency(value)}
+                                    <div className="space-y-3">
+                                        <div className="flex justify-between text-sm">
+                                            <span className="text-muted-foreground">Recargo Nocturno:</span>
+                                            <span className="font-medium">{formatMinutesToFloat(mockFixedSurcharges.recargo_nocturno)}</span>
+                                        </div>
+                                        <div className="flex justify-between text-sm">
+                                            <span className="text-muted-foreground">Dominical/Festivo:</span>
+                                            <span className="font-medium">{formatMinutesToFloat(mockFixedSurcharges.dominical_festivo)}</span>
+                                        </div>
+                                        <div className="pt-3 border-t border-blue-200 dark:border-blue-800 mt-2">
+                                            <div className="flex justify-between items-end">
+                                                <span className="text-sm font-medium text-foreground">Total Fijo:</span>
+                                                <span className="text-lg font-bold text-blue-600 dark:text-blue-400">
+                                                    {formatCurrency(mockFixedSurcharges.value)}
+                                                </span>
+                                            </div>
+                                        </div>
                                     </div>
+                                </>
+                            ) : (
+                                <div className="flex flex-col items-center justify-center h-full text-center p-4 text-muted-foreground text-sm">
+                                    <p>No hay datos disponibles para este periodo.</p>
                                 </div>
                             )
-                        })}
+                        ) : (
+                            <div className="flex flex-col items-center justify-center h-full text-center p-4 text-muted-foreground text-sm">
+                                <p>Selecciona una quincena para ver los recargos fijos calculados.</p>
+                            </div>
+                        )}
                     </div>
                 </div>
 
-                {/* Surcharges Section */}
-                <div className="space-y-4">
-                    <h3 className="text-lg font-semibold text-foreground border-b border-border pb-2">Recargos</h3>
-                    <div className="grid grid-cols-2 gap-4">
-                        {Object.entries(summary.surchargeTotals || {}).map(([key, minutes]) => {
-                            if (minutes === 0) return null
-                            let value = 0
-                            if (empleado && empleado.valor_hora && recargos.length > 0) {
-                                value = calculateTotalOvertimeValue({ [key]: minutes }, empleado.valor_hora, recargos)
-                            }
-                            return (
-                                <div key={key} className="bg-card border border-border rounded-lg p-4 shadow-sm">
-                                    <h3 className="text-xs font-medium text-muted-foreground mb-1 truncate" title={LABELS[key]}>
-                                        {LABELS[key]}
-                                    </h3>
-                                    <div className="text-xl font-semibold text-foreground">
-                                        {formatMinutesToFloat(minutes)}
-                                    </div>
-                                    <div className="text-sm font-medium text-green-600 dark:text-green-400">
-                                        {formatCurrency(value)}
-                                    </div>
-                                </div>
-                            )
-                        })}
+                {/* Reported Overtime Section (Variable) */}
+                <div className="md:col-span-2 space-y-4">
+                    <h3 className="text-lg font-semibold text-foreground border-b border-border pb-2 flex items-center justify-between">
+                        <span>Nómina Variable (Reportada)</span>
+                        <span className="text-xs font-normal text-muted-foreground">Basado en {filteredJornadas.length} registros</span>
+                    </h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        {/* Overtime */}
+                        <div className="bg-card border border-border rounded-lg p-4 shadow-sm">
+                            <h4 className="text-xs font-bold text-muted-foreground uppercase mb-3">Horas Extra</h4>
+                            <div className="space-y-2">
+                                {Object.entries(filteredSummary.overtimeTotals).map(([key, minutes]) => {
+                                    if (minutes === 0) return null
+                                    return (
+                                        <div key={key} className="flex justify-between text-sm">
+                                            <span className="text-muted-foreground truncate pr-2" title={LABELS[key]}>{LABELS[key]}</span>
+                                            <span className="font-medium">{formatMinutesToFloat(minutes)}</span>
+                                        </div>
+                                    )
+                                })}
+                                {Object.values(filteredSummary.overtimeTotals).every(v => v === 0) && (
+                                    <p className="text-sm text-muted-foreground italic">- Sin registros -</p>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Surcharges */}
+                        <div className="bg-card border border-border rounded-lg p-4 shadow-sm">
+                            <h4 className="text-xs font-bold text-muted-foreground uppercase mb-3">Recargos Variables</h4>
+                            <div className="space-y-2">
+                                {Object.entries(filteredSummary.surchargeTotals).map(([key, minutes]) => {
+                                    if (minutes === 0) return null
+                                    return (
+                                        <div key={key} className="flex justify-between text-sm">
+                                            <span className="text-muted-foreground truncate pr-2" title={LABELS[key]}>{LABELS[key]}</span>
+                                            <span className="font-medium">{formatMinutesToFloat(minutes)}</span>
+                                        </div>
+                                    )
+                                })}
+                                {Object.values(filteredSummary.surchargeTotals).every(v => v === 0) && (
+                                    <p className="text-sm text-muted-foreground italic">- Sin registros -</p>
+                                )}
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -273,21 +378,27 @@ export function OvertimeHistoryView({ employeeId, showBackButton = true }) {
             <div className="bg-primary/10 border border-primary/20 rounded-lg p-6 shadow-sm mb-8 flex flex-col md:flex-row items-center justify-between gap-4">
                 <div>
                     <h3 className="text-lg font-bold text-primary uppercase tracking-wider">Total General a Pagar</h3>
-                    <p className="text-sm text-muted-foreground">Suma de todas las horas extra y recargos</p>
+                    <p className="text-sm text-muted-foreground">
+                        {selectedPeriod !== 'all'
+                            ? "Suma de Nómina Fija + Nómina Variable (Reportada)"
+                            : "Suma de todas las horas extra reportadas (Selecciona periodo para ver total real)"}
+                    </p>
                 </div>
                 <div className="text-right">
                     <div className="text-3xl font-bold text-primary">
-                        {formatMinutesToFloat(summary.totalOvertimeMinutes)}
+                        {formatCurrency(filteredSummary.totalValue + (mockFixedSurcharges?.value || 0))}
                     </div>
-                    <div className="text-xl font-semibold text-green-600 dark:text-green-400 mt-1">
-                        {formatCurrency(summary.totalValue)}
-                    </div>
+                    {selectedPeriod !== 'all' && (
+                        <div className="text-xs text-muted-foreground mt-1">
+                            Variable: {formatCurrency(filteredSummary.totalValue)} + Fijo: {formatCurrency(mockFixedSurcharges?.value || 0)}
+                        </div>
+                    )}
                 </div>
             </div>
 
-            {jornadas.length === 0 ? (
+            {filteredJornadas.length === 0 ? (
                 <div className="text-center py-12 bg-card border border-border rounded-lg">
-                    <p className="text-muted-foreground">No hay registros de horas extra para este empleado.</p>
+                    <p className="text-muted-foreground">No hay registros de horas extra para este periodo.</p>
                 </div>
             ) : (
                 <div className="bg-card border border-border rounded-lg shadow-sm overflow-hidden">
@@ -307,7 +418,7 @@ export function OvertimeHistoryView({ employeeId, showBackButton = true }) {
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-border">
-                                {jornadas.map((jornada) => {
+                                {filteredJornadas.map((jornada) => {
                                     const schedule = jornada.jornada_base_calcular
                                     const dayName = jornada.jornada_base_calcular?.dayOfWeek || ""
                                     const overtimeFormatted = jornada.horas_extra_hhmm?.formatted || "-"
