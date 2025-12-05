@@ -7,6 +7,7 @@ import { formatDateForDisplay } from "@/lib/utils"
 import { useRouter } from "next/navigation"
 import { formatMinutesToHHMM } from "@/hooks/useOvertimeCalculator"
 import { calculateTotalOvertimeValue } from "@/lib/calculations"
+import { supabase } from "@/lib/supabaseClient"
 
 const LABELS = {
     extra_diurna: "Extra Diurna",
@@ -59,6 +60,7 @@ export function OvertimeHistoryView({ employeeId, showBackButton = true }) {
     const [periods, setPeriods] = useState([])
     const [fixedSurchargesData, setFixedSurchargesData] = useState(null)
     const [loadingFixed, setLoadingFixed] = useState(false)
+    const [isCoordinator, setIsCoordinator] = useState(false)
 
     useEffect(() => {
         // Generate mock periods for the last 3 months
@@ -113,12 +115,95 @@ export function OvertimeHistoryView({ employeeId, showBackButton = true }) {
                 router.push("/dashboard")
                 return
             }
+            setIsCoordinator(isManager)
         }
 
         if (employeeId) {
             fetchData()
         }
     }, [user, router, employeeId])
+
+    const [closingRecord, setClosingRecord] = useState(null)
+    const [loadingClosing, setLoadingClosing] = useState(false)
+
+    // Fetch fixed surcharges and closing record when period changes
+    useEffect(() => {
+        if (selectedPeriod !== 'all' && employeeId) {
+            fetchFixedSurcharges()
+            fetchClosingRecord()
+        } else {
+            setFixedSurchargesData(null)
+            setClosingRecord(null)
+        }
+    }, [selectedPeriod, employeeId])
+
+    async function fetchFixedSurcharges() {
+        setLoadingFixed(true)
+        try {
+            const res = await fetch(`/api/cierres/calcular?empleado_id=${employeeId}&periodo=${selectedPeriod}`)
+            if (res.ok) {
+                const data = await res.json()
+                setFixedSurchargesData(data)
+            }
+        } catch (error) {
+            console.error("Error fetching fixed surcharges:", error)
+        } finally {
+            setLoadingFixed(false)
+        }
+    }
+
+    async function fetchClosingRecord() {
+        setLoadingClosing(true)
+        try {
+            const [year, month, quincena] = selectedPeriod.split('-')
+            const { data, error } = await supabase
+                .from("cierres_quincenales")
+                .select("*")
+                .eq("empleado_id", employeeId)
+                .eq("periodo_anio", year)
+                .eq("periodo_mes", month)
+                .eq("periodo_quincena", quincena)
+                .single()
+
+            if (data) {
+                setClosingRecord(data)
+            } else {
+                setClosingRecord(null)
+            }
+        } catch (error) {
+            console.error("Error fetching closing record:", error)
+            setClosingRecord(null)
+        } finally {
+            setLoadingClosing(false)
+        }
+    }
+
+    async function handleClosePeriod() {
+        if (!confirm("¿Estás seguro de cerrar esta quincena? Esto generará un registro oficial de nómina.")) return
+
+        try {
+            const res = await fetch("/api/cierres", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    empleado_id: employeeId,
+                    periodo: selectedPeriod
+                })
+            })
+
+            if (res.ok) {
+                const data = await res.json()
+                setClosingRecord(data)
+                alert("Quincena cerrada exitosamente.")
+            } else {
+                const err = await res.json()
+                alert("Error al cerrar quincena: " + err.message)
+            }
+        } catch (error) {
+            console.error("Error closing period:", error)
+            alert("Error al cerrar quincena")
+        }
+    }
 
     async function fetchData() {
         try {
@@ -298,6 +383,24 @@ export function OvertimeHistoryView({ employeeId, showBackButton = true }) {
                         ))}
                     </select>
 
+                    {/* Close Period Button */}
+                    {isCoordinator && selectedPeriod !== 'all' && !closingRecord && (
+                        <button
+                            onClick={handleClosePeriod}
+                            disabled={loadingClosing}
+                            className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center gap-2 disabled:opacity-50"
+                        >
+                            {loadingClosing ? (
+                                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
+                            ) : (
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                            )}
+                            Cerrar Quincena
+                        </button>
+                    )}
+
                     {showBackButton && (
                         <button
                             onClick={() => router.back()}
@@ -309,136 +412,197 @@ export function OvertimeHistoryView({ employeeId, showBackButton = true }) {
                 </div>
             </div>
 
-            {/* Summary Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                {/* Fixed Surcharges Section (From DB Table) */}
-                <div className={`space-y-4 ${selectedPeriod === 'all' ? 'opacity-50 grayscale' : ''}`}>
-                    <h3 className="text-lg font-semibold text-foreground border-b border-border pb-2 flex items-center justify-between">
-                        <span>Nómina Fija</span>
-                        {selectedPeriod === 'all' && <span className="text-xs font-normal text-muted-foreground">(Selecciona periodo)</span>}
-                    </h3>
-                    <div className="bg-blue-50/50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-900 rounded-lg p-4 shadow-sm">
-                        {selectedPeriod !== 'all' ? (
-                            loadingFixed ? (
-                                <div className="flex flex-col items-center justify-center h-full text-center p-4">
-                                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary mb-2"></div>
-                                    <p className="text-xs text-muted-foreground">Calculando...</p>
-                                </div>
-                            ) : mockFixedSurcharges ? (
-                                <>
-                                    <div className="flex items-center gap-2 mb-3">
-                                        <span className="text-xs font-bold bg-blue-100 text-blue-700 px-2 py-0.5 rounded">Automático</span>
-                                        <span className="text-xs text-muted-foreground">Calculado por turno fijo</span>
-                                    </div>
-                                    <div className="space-y-3">
-                                        <div className="flex justify-between text-sm">
-                                            <span className="text-muted-foreground">Recargo Nocturno:</span>
-                                            <span className="font-medium">{formatMinutesToFloat(mockFixedSurcharges.recargo_nocturno)}</span>
-                                        </div>
-                                        <div className="flex justify-between text-sm">
-                                            <span className="text-muted-foreground">Dominical/Festivo:</span>
-                                            <span className="font-medium">{formatMinutesToFloat(mockFixedSurcharges.dominical_festivo)}</span>
-                                        </div>
-                                        <div className="pt-3 border-t border-blue-200 dark:border-blue-800 mt-2">
-                                            <div className="flex justify-between items-end">
-                                                <span className="text-sm font-medium text-foreground">Total Fijo:</span>
-                                                <span className="text-lg font-bold text-blue-600 dark:text-blue-400">
-                                                    {formatCurrency(mockFixedSurcharges.value)}
-                                                </span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </>
-                            ) : (
-                                <div className="flex flex-col items-center justify-center h-full text-center p-2 text-muted-foreground text-sm">
-                                    <p>No hay datos disponibles para este periodo.</p>
-                                </div>
-                            )
-                        ) : (
-                            <div className="flex flex-col items-center justify-center h-full text-center p-2 text-muted-foreground text-sm">
-                                <p>Selecciona una quincena para ver los recargos fijos calculados.</p>
-                            </div>
-                        )}
+            {/* Closing Record View (Read-Only) */}
+            {closingRecord ? (
+                <div className="bg-card border border-border rounded-lg p-6 shadow-sm mb-8">
+                    <div className="flex items-center justify-between mb-4">
+                        <h2 className="text-xl font-bold text-foreground flex items-center gap-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            Nómina Cerrada - {periods.find(p => p.value === selectedPeriod)?.label}
+                        </h2>
+                        <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-xs font-bold uppercase">
+                            {closingRecord.estado}
+                        </span>
                     </div>
-                </div>
 
-                {/* Reported Overtime Section (Variable) */}
-                <div className="md:col-span-2 space-y-4">
-                    <h3 className="text-lg font-semibold text-foreground border-b border-border pb-2 flex items-center justify-between">
-                        <span>Nómina Variable (Reportada)</span>
-                        <span className="text-xs font-normal text-muted-foreground">Basado en {filteredJornadas.length} registros</span>
-                    </h3>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        {/* Overtime */}
-                        <div className="bg-card border border-border rounded-lg p-4 shadow-sm">
-                            <h4 className="text-xs font-bold text-muted-foreground uppercase mb-3">Horas Extra</h4>
-                            <div className="space-y-2">
-                                {Object.entries(filteredSummary.overtimeTotals).map(([key, minutes]) => {
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        {/* Fixed Surcharges */}
+                        <div className="space-y-2">
+                            <h3 className="font-semibold text-muted-foreground text-sm uppercase">Nómina Fija</h3>
+                            <div className="bg-muted/50 p-3 rounded-md space-y-2">
+                                <div className="flex justify-between text-sm">
+                                    <span>Recargo Nocturno:</span>
+                                    <span className="font-medium">{formatMinutesToFloat(closingRecord.recargos_fijos?.recargo_nocturno || 0)}</span>
+                                </div>
+                                <div className="flex justify-between text-sm">
+                                    <span>Dominical/Festivo:</span>
+                                    <span className="font-medium">{formatMinutesToFloat(closingRecord.recargos_fijos?.dominical_festivo || 0)}</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Reported Overtime */}
+                        <div className="space-y-2">
+                            <h3 className="font-semibold text-muted-foreground text-sm uppercase">Nómina Variable</h3>
+                            <div className="bg-muted/50 p-3 rounded-md space-y-2">
+                                {Object.entries(closingRecord.horas_extra_reportadas || {}).map(([key, minutes]) => {
                                     if (minutes === 0) return null
-                                    const value = filteredSummary.overtimeValues[key] || 0
                                     return (
                                         <div key={key} className="flex justify-between text-sm">
-                                            <span className="text-muted-foreground truncate pr-2" title={LABELS[key]}>{LABELS[key]}</span>
-                                            <div className="text-right">
-                                                <span className="font-medium block">{formatMinutesToFloat(minutes)}</span>
-                                                <span className="text-xs text-green-600 dark:text-green-400 font-semibold">{formatCurrency(value)}</span>
-                                            </div>
+                                            <span className="truncate pr-2" title={LABELS[key]}>{LABELS[key]}</span>
+                                            <span className="font-medium">{formatMinutesToFloat(minutes)}</span>
                                         </div>
                                     )
                                 })}
-                                {Object.values(filteredSummary.overtimeTotals).every(v => v === 0) && (
-                                    <p className="text-sm text-muted-foreground italic">- Sin registros -</p>
+                            </div>
+                        </div>
+
+                        {/* Total */}
+                        <div className="flex flex-col justify-center items-center bg-primary/5 rounded-lg p-4 border border-primary/10">
+                            <span className="text-sm text-muted-foreground mb-1">Total a Pagar</span>
+                            <span className="text-3xl font-bold text-primary">{formatCurrency(closingRecord.valor_total)}</span>
+                            <p className="text-xs text-muted-foreground mt-2 text-center">
+                                Cierre generado el {new Date(closingRecord.created_at).toLocaleDateString()}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            ) : (
+                /* Live Preview (Existing View) */
+                <>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                        {/* Fixed Surcharges Section (From DB Table) */}
+                        <div className={`space-y-4 ${selectedPeriod === 'all' ? 'opacity-50 grayscale' : ''}`}>
+                            <h3 className="text-lg font-semibold text-foreground border-b border-border pb-2 flex items-center justify-between">
+                                <span>Nómina Fija</span>
+                                {selectedPeriod === 'all' && <span className="text-xs font-normal text-muted-foreground">(Selecciona periodo)</span>}
+                            </h3>
+                            <div className="bg-blue-50/50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-900 rounded-lg p-4 shadow-sm">
+                                {selectedPeriod !== 'all' ? (
+                                    loadingFixed ? (
+                                        <div className="flex flex-col items-center justify-center h-full text-center p-4">
+                                            <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary mb-2"></div>
+                                            <p className="text-xs text-muted-foreground">Calculando...</p>
+                                        </div>
+                                    ) : mockFixedSurcharges ? (
+                                        <>
+                                            <div className="flex items-center gap-2 mb-3">
+                                                <span className="text-xs font-bold bg-blue-100 text-blue-700 px-2 py-0.5 rounded">Automático</span>
+                                                <span className="text-xs text-muted-foreground">Calculado por turno fijo</span>
+                                            </div>
+                                            <div className="space-y-3">
+                                                <div className="flex justify-between text-sm">
+                                                    <span className="text-muted-foreground">Recargo Nocturno:</span>
+                                                    <span className="font-medium">{formatMinutesToFloat(mockFixedSurcharges.recargo_nocturno)}</span>
+                                                </div>
+                                                <div className="flex justify-between text-sm">
+                                                    <span className="text-muted-foreground">Dominical/Festivo:</span>
+                                                    <span className="font-medium">{formatMinutesToFloat(mockFixedSurcharges.dominical_festivo)}</span>
+                                                </div>
+                                                <div className="pt-3 border-t border-blue-200 dark:border-blue-800 mt-2">
+                                                    <div className="flex justify-between items-end">
+                                                        <span className="text-sm font-medium text-foreground">Total Fijo:</span>
+                                                        <span className="text-lg font-bold text-blue-600 dark:text-blue-400">
+                                                            {formatCurrency(mockFixedSurcharges.value)}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </>
+                                    ) : (
+                                        <div className="flex flex-col items-center justify-center h-full text-center p-2 text-muted-foreground text-sm">
+                                            <p>No hay datos disponibles para este periodo.</p>
+                                        </div>
+                                    )
+                                ) : (
+                                    <div className="flex flex-col items-center justify-center h-full text-center p-2 text-muted-foreground text-sm">
+                                        <p>Selecciona una quincena para ver los recargos fijos calculados.</p>
+                                    </div>
                                 )}
                             </div>
                         </div>
 
-                        {/* Surcharges */}
-                        <div className="bg-card border border-border rounded-lg p-4 shadow-sm">
-                            <h4 className="text-xs font-bold text-muted-foreground uppercase mb-3">Recargos Variables</h4>
-                            <div className="space-y-2">
-                                {Object.entries(filteredSummary.surchargeTotals).map(([key, minutes]) => {
-                                    if (minutes === 0) return null
-                                    const value = filteredSummary.surchargeValues[key] || 0
-                                    return (
-                                        <div key={key} className="flex justify-between text-sm">
-                                            <span className="text-muted-foreground truncate pr-2" title={LABELS[key]}>{LABELS[key]}</span>
-                                            <div className="text-right">
-                                                <span className="font-medium block">{formatMinutesToFloat(minutes)}</span>
-                                                <span className="text-xs text-green-600 dark:text-green-400 font-semibold">{formatCurrency(value)}</span>
-                                            </div>
-                                        </div>
-                                    )
-                                })}
-                                {Object.values(filteredSummary.surchargeTotals).every(v => v === 0) && (
-                                    <p className="text-sm text-muted-foreground italic">- Sin registros -</p>
-                                )}
+                        {/* Reported Overtime Section (Variable) */}
+                        <div className="md:col-span-2 space-y-4">
+                            <h3 className="text-lg font-semibold text-foreground border-b border-border pb-2 flex items-center justify-between">
+                                <span>Nómina Variable (Reportada)</span>
+                                <span className="text-xs font-normal text-muted-foreground">Basado en {filteredJornadas.length} registros</span>
+                            </h3>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                {/* Overtime */}
+                                <div className="bg-card border border-border rounded-lg p-4 shadow-sm">
+                                    <h4 className="text-xs font-bold text-muted-foreground uppercase mb-3">Horas Extra</h4>
+                                    <div className="space-y-2">
+                                        {Object.entries(filteredSummary.overtimeTotals).map(([key, minutes]) => {
+                                            if (minutes === 0) return null
+                                            const value = filteredSummary.overtimeValues[key] || 0
+                                            return (
+                                                <div key={key} className="flex justify-between text-sm">
+                                                    <span className="text-muted-foreground truncate pr-2" title={LABELS[key]}>{LABELS[key]}</span>
+                                                    <div className="text-right">
+                                                        <span className="font-medium block">{formatMinutesToFloat(minutes)}</span>
+                                                        <span className="text-xs text-green-600 dark:text-green-400 font-semibold">{formatCurrency(value)}</span>
+                                                    </div>
+                                                </div>
+                                            )
+                                        })}
+                                        {Object.values(filteredSummary.overtimeTotals).every(v => v === 0) && (
+                                            <p className="text-sm text-muted-foreground italic">- Sin registros -</p>
+                                        )}
+                                    </div>
+                                </div>
+
+                                {/* Surcharges */}
+                                <div className="bg-card border border-border rounded-lg p-4 shadow-sm">
+                                    <h4 className="text-xs font-bold text-muted-foreground uppercase mb-3">Recargos Variables</h4>
+                                    <div className="space-y-2">
+                                        {Object.entries(filteredSummary.surchargeTotals).map(([key, minutes]) => {
+                                            if (minutes === 0) return null
+                                            const value = filteredSummary.surchargeValues[key] || 0
+                                            return (
+                                                <div key={key} className="flex justify-between text-sm">
+                                                    <span className="text-muted-foreground truncate pr-2" title={LABELS[key]}>{LABELS[key]}</span>
+                                                    <div className="text-right">
+                                                        <span className="font-medium block">{formatMinutesToFloat(minutes)}</span>
+                                                        <span className="text-xs text-green-600 dark:text-green-400 font-semibold">{formatCurrency(value)}</span>
+                                                    </div>
+                                                </div>
+                                            )
+                                        })}
+                                        {Object.values(filteredSummary.surchargeTotals).every(v => v === 0) && (
+                                            <p className="text-sm text-muted-foreground italic">- Sin registros -</p>
+                                        )}
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </div>
-                </div>
-            </div>
 
-            {/* Total Summary */}
-            <div className="bg-primary/10 border border-primary/20 rounded-lg p-6 shadow-sm mb-8 flex flex-col md:flex-row items-center justify-between gap-4">
-                <div>
-                    <h3 className="text-lg font-bold text-primary uppercase tracking-wider">Total General a Pagar</h3>
-                    <p className="text-sm text-muted-foreground">
-                        {selectedPeriod !== 'all'
-                            ? "Suma de Nómina Fija + Nómina Variable (Reportada)"
-                            : "Suma de todas las horas extra reportadas (Selecciona periodo para ver total real)"}
-                    </p>
-                </div>
-                <div className="text-right">
-                    <div className="text-3xl font-bold text-primary">
-                        {formatCurrency(filteredSummary.totalValue + (mockFixedSurcharges?.value || 0))}
-                    </div>
-                    {selectedPeriod !== 'all' && (
-                        <div className="text-xs text-muted-foreground mt-1">
-                            Variable: {formatCurrency(filteredSummary.totalValue)} + Fijo: {formatCurrency(mockFixedSurcharges?.value || 0)}
+                    {/* Total Summary */}
+                    <div className="bg-primary/10 border border-primary/20 rounded-lg p-6 shadow-sm mb-8 flex flex-col md:flex-row items-center justify-between gap-4">
+                        <div>
+                            <h3 className="text-lg font-bold text-primary uppercase tracking-wider">Total General a Pagar</h3>
+                            <p className="text-sm text-muted-foreground">
+                                {selectedPeriod !== 'all'
+                                    ? "Suma de Nómina Fija + Nómina Variable (Reportada)"
+                                    : "Suma de todas las horas extra reportadas (Selecciona periodo para ver total real)"}
+                            </p>
                         </div>
-                    )}
-                </div>
-            </div>
+                        <div className="text-right">
+                            <div className="text-3xl font-bold text-primary">
+                                {formatCurrency(filteredSummary.totalValue + (mockFixedSurcharges?.value || 0))}
+                            </div>
+                            {selectedPeriod !== 'all' && (
+                                <div className="text-xs text-muted-foreground mt-1">
+                                    Variable: {formatCurrency(filteredSummary.totalValue)} + Fijo: {formatCurrency(mockFixedSurcharges?.value || 0)}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </>
+            )}
 
             {filteredJornadas.length === 0 ? (
                 <div className="text-center py-12 bg-card border border-border rounded-lg">
