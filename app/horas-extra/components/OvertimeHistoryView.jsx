@@ -1,5 +1,7 @@
 "use client"
 
+import Link from "next/link"
+
 import { useState, useEffect } from "react"
 import { useAuth } from "@/hooks/useAuth"
 import { canManageOvertime } from "@/lib/permissions"
@@ -352,30 +354,37 @@ export function OvertimeHistoryView({ employeeId, showBackButton = true }) {
                 <div>
                     <h1 className="text-3xl font-bold text-foreground">Historial de Horas Extra</h1>
                     {empleado && (
-                        <div className="mt-4 flex items-center gap-4">
-                            <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center overflow-hidden relative flex-shrink-0">
-                                {empleado.foto_url ? (
-                                    <img
-                                        src={empleado.foto_url}
-                                        alt={`Foto de ${empleado.nombre || empleado.username}`}
-                                        className="h-full w-full object-cover"
-                                    />
-                                ) : (
-                                    <span className="text-xl font-bold text-primary">
-                                        {(empleado.nombre || empleado.username || "?").charAt(0).toUpperCase()}
-                                    </span>
-                                )}
-                            </div>
-                            <div>
-                                <h2 className="font-semibold text-lg text-foreground">{empleado.nombre || empleado.username}</h2>
-                                <div className="text-sm text-muted-foreground">
-                                    <p>CC: {empleado.cc || "No registrada"}</p>
-                                    {empleado.valor_hora && (
-                                        <p>Valor Hora: <span className="font-semibold text-foreground">{formatCurrency(empleado.valor_hora)}</span></p>
+                        <Link href={`/empleados/${empleado.id}/detalles`}>
+                            <div className="mt-4 flex items-center gap-4 hover:bg-neutral-100 dark:hover:bg-neutral-800 p-2 -ml-2 rounded-lg transition-colors cursor-pointer group">
+                                <div className="h-16 w-16 rounded-full bg-primary/10 flex items-center justify-center overflow-hidden relative flex-shrink-0 border-2 border-transparent group-hover:border-primary transition-colors">
+                                    {empleado.foto_url ? (
+                                        <img
+                                            src={empleado.foto_url}
+                                            alt={`Foto de ${empleado.nombre || empleado.username}`}
+                                            className="h-full w-full object-cover"
+                                        />
+                                    ) : (
+                                        <span className="text-xl font-bold text-primary">
+                                            {(empleado.nombre || empleado.username || "?").charAt(0).toUpperCase()}
+                                        </span>
                                     )}
                                 </div>
+                                <div>
+                                    <h2 className="font-semibold text-lg text-foreground group-hover:text-primary transition-colors flex items-center gap-2">
+                                        {empleado.nombre || empleado.username}
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 opacity-0 group-hover:opacity-100 transition-opacity" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                                        </svg>
+                                    </h2>
+                                    <div className="text-sm text-muted-foreground">
+                                        <p>CC: {empleado.cc || "No registrada"}</p>
+                                        {empleado.valor_hora && (
+                                            <p>Valor Hora: <span className="font-semibold text-foreground">{formatCurrency(empleado.valor_hora)}</span></p>
+                                        )}
+                                    </div>
+                                </div>
                             </div>
-                        </div>
+                        </Link>
                     )}
                 </div>
                 <div className="flex gap-2">
