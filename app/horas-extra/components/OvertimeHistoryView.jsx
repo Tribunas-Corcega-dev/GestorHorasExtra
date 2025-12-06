@@ -338,6 +338,7 @@ export function OvertimeHistoryView({ employeeId, showBackButton = true }) {
     const mockFixedSurcharges = fixedSurchargesData ? {
         recargo_nocturno: fixedSurchargesData.fixedSurcharges.recargo_nocturno || 0,
         dominical_festivo: fixedSurchargesData.fixedSurcharges.dominical_festivo || 0,
+        recargo_nocturno_festivo: fixedSurchargesData.fixedSurcharges.recargo_nocturno_festivo || 0,
         value: fixedSurchargesData.totalValue || 0
     } : null
 
