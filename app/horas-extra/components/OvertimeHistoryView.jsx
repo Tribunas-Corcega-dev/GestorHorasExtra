@@ -293,18 +293,25 @@ export function OvertimeHistoryView({ employeeId, showBackButton = true }) {
                         Object.entries(flatBreakdown).forEach(([type, minutes]) => {
                             if (minutes > 0) {
                                 const surcharge = recargos.find(r => {
-                                    const dbType = r.tipo_hora_extra
+                                    const dbType = (r.tipo_hora_extra || "").trim().toLowerCase()
                                     const map = {
-                                        "Extra diurno": "extra_diurna", "Extra Diurna": "extra_diurna",
-                                        "Trabajo extra nocturno": "extra_nocturna", "Extra Nocturna": "extra_nocturna",
-                                        "Trabajo extra diurno dominical y festivo": "extra_diurna_festivo", "Extra Diurna Festivo": "extra_diurna_festivo",
-                                        "Trabajo extra nocturno en domingos y festivos": "extra_nocturna_festivo", "Extra Nocturna Festivo": "extra_nocturna_festivo",
-                                        "Recargo Nocturno": "recargo_nocturno", "Trabajo nocturno": "recargo_nocturno",
-                                        "Trabajo dominical y festivo": "dominical_festivo", "Dominical/Festivo": "dominical_festivo",
-                                        "Trabajo nocturno en dominical y festivo": "recargo_nocturno_festivo", "Recargo Nocturno Festivo": "recargo_nocturno_festivo"
+                                        "extra diurno": "extra_diurna",
+                                        "trabajo extra nocturno": "extra_nocturna",
+                                        "extra nocturna": "extra_nocturna",
+                                        "trabajo extra diurno dominical y festivo": "extra_diurna_festivo",
+                                        "extra diurna festivo": "extra_diurna_festivo",
+                                        "trabajo extra nocturno en domingos y festivos": "extra_nocturna_festivo",
+                                        "extra nocturna festivo": "extra_nocturna_festivo",
+                                        "recargo nocturno": "recargo_nocturno",
+                                        "trabajo nocturno": "recargo_nocturno",
+                                        "trabajo dominical y festivo": "dominical_festivo",
+                                        "dominical/festivo": "dominical_festivo",
+                                        "trabajo nocturno en dominical y festivo": "recargo_nocturno_festivo",
+                                        "recargo nocturno festivo": "recargo_nocturno_festivo"
                                     }
-                                    return (map[dbType] || dbType) === type
+                                    return (map[dbType] || r.tipo_hora_extra) === type
                                 })
+
 
                                 const percentage = surcharge ? surcharge.recargo : 0
                                 const hours = minutes / 60
@@ -440,6 +447,10 @@ export function OvertimeHistoryView({ employeeId, showBackButton = true }) {
                                     <span>Dominical/Festivo:</span>
                                     <span className="font-medium">{formatMinutesToFloat(closingRecord.recargos_fijos?.dominical_festivo || 0)}</span>
                                 </div>
+                                <div className="flex justify-between text-sm">
+                                    <span>Recargo Nocturno Festivo:</span>
+                                    <span className="font-medium">{formatMinutesToFloat(closingRecord.recargos_fijos?.recargo_nocturno_festivo || 0)}</span>
+                                </div>
                             </div>
                         </div>
 
@@ -500,6 +511,10 @@ export function OvertimeHistoryView({ employeeId, showBackButton = true }) {
                                                 <div className="flex justify-between text-sm">
                                                     <span className="text-muted-foreground">Dominical/Festivo:</span>
                                                     <span className="font-medium">{formatMinutesToFloat(mockFixedSurcharges.dominical_festivo)}</span>
+                                                </div>
+                                                <div className="flex justify-between text-sm">
+                                                    <span className="text-muted-foreground">Recargo Nocturno Festivo:</span>
+                                                    <span className="font-medium">{formatMinutesToFloat(mockFixedSurcharges.recargo_nocturno_festivo)}</span>
                                                 </div>
                                                 <div className="pt-3 border-t border-blue-200 dark:border-blue-800 mt-2">
                                                     <div className="flex justify-between items-end">

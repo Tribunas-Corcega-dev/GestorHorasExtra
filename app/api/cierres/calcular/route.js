@@ -116,17 +116,23 @@ export async function GET(request) {
 }
 
 function normalizeType(dbType) {
+    if (!dbType) return ""
     // Reuse normalization logic from calculations.js (or import it if exported)
-    // Since I can't easily import non-exported helper, I'll duplicate or export it.
-    // I'll assume I can import it if I export it in the previous step.
-    // For now, simple map:
+    const normalized = dbType.trim().toLowerCase()
     const map = {
-        "Recargo Nocturno": "recargo_nocturno",
-        "Trabajo nocturno": "recargo_nocturno",
-        "Dominical/Festivo": "dominical_festivo",
-        "Trabajo dominical y festivo": "dominical_festivo",
-        "Recargo Nocturno Festivo": "recargo_nocturno_festivo",
-        "Trabajo nocturno en dominical y festivo": "recargo_nocturno_festivo"
+        "extra diurno": "extra_diurna",
+        "trabajo extra nocturno": "extra_nocturna",
+        "extra nocturna": "extra_nocturna",
+        "trabajo extra diurno dominical y festivo": "extra_diurna_festivo",
+        "extra diurna festivo": "extra_diurna_festivo",
+        "trabajo extra nocturno en domingos y festivos": "extra_nocturna_festivo",
+        "extra nocturna festivo": "extra_nocturna_festivo",
+        "recargo nocturno": "recargo_nocturno",
+        "trabajo nocturno": "recargo_nocturno",
+        "trabajo dominical y festivo": "dominical_festivo",
+        "dominical/festivo": "dominical_festivo",
+        "trabajo nocturno en dominical y festivo": "recargo_nocturno_festivo",
+        "recargo nocturno festivo": "recargo_nocturno_festivo"
     }
-    return map[dbType] || dbType
+    return map[normalized] || dbType
 }
