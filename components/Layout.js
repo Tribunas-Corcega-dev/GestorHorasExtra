@@ -17,32 +17,32 @@ export function Layout({ children }) {
     <div className="min-h-screen bg-background flex flex-col">
       {/* Header */}
       <header className="bg-primary text-primary-foreground shadow-md z-10">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <img src="/assets/logo.png" alt="TribunasClock Logo" className="h-8 w-8" />
-            <h1 className="text-xl font-bold">TribunasClock</h1>
+        <div className="container mx-auto px-2 md:px-4 py-3 md:py-4 flex items-center justify-between">
+          <div className="flex items-center gap-2 md:gap-3 flex-shrink-0">
+            <img src="/assets/logo.png" alt="TribunasClock Logo" className="h-6 w-6 md:h-8 md:w-8" />
+            <h1 className="text-base md:text-xl font-bold">TribunasClock</h1>
           </div>
 
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2 md:gap-4 overflow-hidden">
             {/* User Info */}
-            <div className="flex flex-col items-end text-sm">
-              <span className="font-semibold">{user.username}</span>
-              <span className="text-xs opacity-90">{user.rol}</span>
+            <div className="flex flex-col items-end text-xs md:text-sm min-w-0">
+              <span className="font-semibold truncate max-w-[120px] md:max-w-none">{user.username}</span>
+              <span className="text-[10px] md:text-xs opacity-90 truncate max-w-[120px] md:max-w-none">{user.rol}</span>
             </div>
 
             {/* Logout Button */}
             <button
               onClick={logout}
-              className="bg-primary-foreground text-primary px-4 py-2 rounded-md hover:opacity-90 transition-opacity text-sm font-medium hidden md:block"
+              className="bg-primary-foreground text-primary px-4 py-2 rounded-md hover:opacity-90 transition-opacity text-sm font-medium hidden md:block flex-shrink-0"
             >
               Cerrar sesión
             </button>
             <button
               onClick={logout}
-              className="md:hidden p-2"
+              className="md:hidden p-1.5 flex-shrink-0"
               aria-label="Logout"
             >
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
               </svg>
             </button>

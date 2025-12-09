@@ -285,18 +285,18 @@ export function AppealDetailsView({ appealId, showBackButton = true }) {
 
                 {/* Actions */}
                 {appeal.estado === "PENDIENTE" && (
-                    <div className="flex gap-4">
+                    <div className="flex flex-col sm:flex-row gap-4">
                         <button
                             onClick={() => handleUpdateStatus("APROBADA")}
                             disabled={processing}
-                            className="flex-1 bg-green-600 text-white py-3 px-4 rounded-md hover:bg-green-700 transition-colors disabled:opacity-50 font-medium"
+                            className="flex-1 bg-green-600 text-white py-3 px-4 rounded-md hover:bg-green-700 transition-colors disabled:opacity-50 font-medium whitespace-nowrap"
                         >
                             {processing ? "Procesando..." : "Aprobar Apelación"}
                         </button>
                         <button
                             onClick={() => handleUpdateStatus("RECHAZADA")}
                             disabled={processing}
-                            className="flex-1 bg-red-600 text-white py-3 px-4 rounded-md hover:bg-red-700 transition-colors disabled:opacity-50 font-medium"
+                            className="flex-1 bg-red-600 text-white py-3 px-4 rounded-md hover:bg-red-700 transition-colors disabled:opacity-50 font-medium whitespace-nowrap"
                         >
                             {processing ? "Procesando..." : "Rechazar Apelación"}
                         </button>

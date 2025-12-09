@@ -60,14 +60,14 @@ function ApelacionesContent() {
     return (
         <div className="max-w-7xl mx-auto">
             <div className="flex items-center justify-between mb-6">
-                <h1 className="text-3xl font-bold text-foreground">Gestión de Apelaciones</h1>
+                <h1 className="text-2xl md:text-3xl font-bold text-foreground">Gestión de Apelaciones</h1>
             </div>
 
             {/* Filter Tabs */}
-            <div className="mb-6 flex gap-2 border-b border-border">
+            <div className="mb-6 flex gap-2 border-b border-border overflow-x-auto pb-1 scrollbar-hide">
                 <button
                     onClick={() => setFilter("PENDIENTE")}
-                    className={`px-4 py-2 font-medium transition-colors ${filter === "PENDIENTE"
+                    className={`px-3 py-2 text-sm md:px-4 md:text-base font-medium transition-colors whitespace-nowrap ${filter === "PENDIENTE"
                         ? "text-primary border-b-2 border-primary"
                         : "text-muted-foreground hover:text-foreground"
                         }`}
@@ -76,7 +76,7 @@ function ApelacionesContent() {
                 </button>
                 <button
                     onClick={() => setFilter("APROBADA")}
-                    className={`px-4 py-2 font-medium transition-colors ${filter === "APROBADA"
+                    className={`px-3 py-2 text-sm md:px-4 md:text-base font-medium transition-colors whitespace-nowrap ${filter === "APROBADA"
                         ? "text-primary border-b-2 border-primary"
                         : "text-muted-foreground hover:text-foreground"
                         }`}
@@ -85,7 +85,7 @@ function ApelacionesContent() {
                 </button>
                 <button
                     onClick={() => setFilter("RECHAZADA")}
-                    className={`px-4 py-2 font-medium transition-colors ${filter === "RECHAZADA"
+                    className={`px-3 py-2 text-sm md:px-4 md:text-base font-medium transition-colors whitespace-nowrap ${filter === "RECHAZADA"
                         ? "text-primary border-b-2 border-primary"
                         : "text-muted-foreground hover:text-foreground"
                         }`}
@@ -108,8 +108,8 @@ function ApelacionesContent() {
                             key={appeal.id}
                             className="bg-card border border-border rounded-lg p-6 hover:shadow-md transition-shadow"
                         >
-                            <div className="flex items-start justify-between">
-                                <div className="flex items-center gap-4 flex-1">
+                            <div className="flex flex-col sm:flex-row items-start justify-between gap-4">
+                                <div className="flex items-start gap-4 flex-1 w-full">
                                     {/* Employee Photo */}
                                     <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center overflow-hidden flex-shrink-0">
                                         {appeal.empleado?.foto_url ? (
@@ -127,7 +127,7 @@ function ApelacionesContent() {
 
                                     {/* Appeal Info */}
                                     <div className="flex-1">
-                                        <div className="flex items-center gap-3 mb-2">
+                                        <div className="flex flex-wrap items-center gap-3 mb-2">
                                             <h3 className="font-semibold text-lg text-foreground">
                                                 {appeal.empleado?.nombre || appeal.empleado?.username}
                                             </h3>
@@ -163,7 +163,7 @@ function ApelacionesContent() {
                                 {/* Action Button */}
                                 <button
                                     onClick={() => router.push(`/apelaciones/${appeal.id}`)}
-                                    className="px-4 py-2 bg-primary text-primary-foreground rounded-md text-sm font-medium hover:opacity-90 transition-opacity"
+                                    className="px-4 py-2 bg-primary text-primary-foreground rounded-md text-sm font-medium hover:opacity-90 transition-opacity w-full sm:w-auto text-center"
                                 >
                                     Ver Detalles
                                 </button>
