@@ -97,6 +97,7 @@ export async function PUT(request, props) {
     }
     if (body.rol !== undefined) updateData.rol = body.rol
     if (body.salario_base !== undefined) updateData.salario_base = body.salario_base
+    if (body.minimo !== undefined) updateData.minimo = body.minimo
 
     // Handle Schedule Update with Surcharges
     if (body.jornada_fija_hhmm !== undefined) {
@@ -142,7 +143,7 @@ export async function PUT(request, props) {
       .from("usuarios")
       .update(updateData)
       .eq("id", id)
-      .select("id, username, nombre, cc, foto_url, area, rol, salario_base, jornada_fija_hhmm")
+      .select("id, username, nombre, cc, foto_url, area, rol, salario_base, jornada_fija_hhmm, minimo")
       .single()
 
     if (updateError) {

@@ -57,6 +57,7 @@ function EditarEmpleadoContent() {
     jornada_fija_hhmm: "",
     rol: "",
     password: "",
+    minimo: false,
   })
 
   const [originalData, setOriginalData] = useState(null)
@@ -96,6 +97,7 @@ function EditarEmpleadoContent() {
         jornada_fija_hhmm: data.jornada_fija_hhmm || "",
         rol: data.rol || "",
         password: "",
+        minimo: data.minimo || false,
       })
     } catch (err) {
       setError(err.message)
@@ -144,7 +146,14 @@ function EditarEmpleadoContent() {
 
   function handleChange(e) {
     const { name, value } = e.target
-    setFormData((prev) => ({ ...prev, [name]: value }))
+    setFormData((prev) => {
+      const newState = { ...prev, [name]: value }
+      // Reset MINIMO if manually editing salary
+      if (name === "salario_base") {
+        newState.minimo = false
+      }
+      return newState
+    })
   }
 
   function handleImageSelect(e) {
@@ -431,8 +440,11 @@ function EditarEmpleadoContent() {
                 {minWage && (
                   <button
                     type="button"
-                    onClick={() => setFormData((prev) => ({ ...prev, salario_base: minWage }))}
-                    className="px-4 py-2 bg-slate-100 border border-slate-300 text-slate-700 rounded-md text-sm font-medium whitespace-nowrap hover:bg-slate-200 transition-colors focus:outline-none focus:ring-2 focus:ring-slate-400"
+                    onClick={() => setFormData((prev) => ({ ...prev, salario_base: minWage, minimo: true }))}
+                    className={`px-4 py-2 border rounded-md text-sm font-medium whitespace-nowrap transition-colors focus:outline-none focus:ring-2 focus:ring-ring ${formData.minimo
+                        ? "bg-green-600 text-white border-green-600 hover:bg-green-700"
+                        : "bg-slate-100 border-slate-300 text-slate-700 hover:bg-slate-200 focus:ring-slate-400"
+                      }`}
                     title={`Asignar salario mínimo: ${minWage}`}
                   >
                     Asignar Mínimo
