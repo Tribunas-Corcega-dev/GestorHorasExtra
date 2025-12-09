@@ -468,18 +468,18 @@ function EditarEmpleadoContent() {
 
           {error && <div className="bg-destructive/10 text-destructive px-4 py-3 rounded-md text-sm">{error}</div>}
 
-          <div className="flex gap-3 pt-4">
+          <div className="flex flex-col sm:flex-row gap-3 pt-4">
             <button
               type="submit"
               disabled={saving}
-              className="flex-1 bg-primary text-primary-foreground py-2 px-4 rounded-md hover:opacity-90 transition-opacity disabled:opacity-50 font-medium"
+              className="flex-1 bg-primary text-primary-foreground py-2 px-4 rounded-md hover:opacity-90 transition-opacity disabled:opacity-50 font-medium w-full sm:w-auto"
             >
               {saving ? "Guardando..." : "Guardar cambios"}
             </button>
             <button
               type="button"
               onClick={() => router.push("/empleados")}
-              className="px-6 py-2 border border-border rounded-md hover:bg-accent transition-colors text-foreground font-medium"
+              className="px-6 py-2 border border-border rounded-md hover:bg-accent transition-colors text-foreground font-medium w-full sm:w-auto"
             >
               Cancelar
             </button>
@@ -487,7 +487,7 @@ function EditarEmpleadoContent() {
               <button
                 type="button"
                 onClick={() => setShowDeleteModal(true)}
-                className="px-6 py-2 bg-destructive text-white rounded-md hover:opacity-90 transition-opacity font-medium"
+                className="px-6 py-2 bg-destructive text-white rounded-md hover:opacity-90 transition-opacity font-medium w-full sm:w-auto"
               >
                 Eliminar
               </button>

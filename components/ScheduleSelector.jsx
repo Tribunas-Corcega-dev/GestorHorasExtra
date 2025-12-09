@@ -243,19 +243,19 @@ export function ScheduleSelector({ value, onChange }) {
                                     </div>
 
                                     {schedule[day.id].morning.enabled && (
-                                        <div className="flex items-center gap-2">
+                                        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
                                             <input
                                                 type="time"
                                                 value={schedule[day.id].morning.start}
                                                 onChange={(e) => handleTimeChange(day.id, "morning", "start", e.target.value)}
-                                                className="flex-1 px-2 py-1 text-sm border border-input rounded bg-background text-foreground focus:ring-1 focus:ring-primary"
+                                                className="flex-1 px-2 py-1 text-sm border border-input rounded bg-background text-foreground focus:ring-1 focus:ring-primary w-full"
                                             />
-                                            <span className="text-muted-foreground">-</span>
+                                            <span className="text-muted-foreground hidden sm:block">-</span>
                                             <input
                                                 type="time"
                                                 value={schedule[day.id].morning.end}
                                                 onChange={(e) => handleTimeChange(day.id, "morning", "end", e.target.value)}
-                                                className="flex-1 px-2 py-1 text-sm border border-input rounded bg-background text-foreground focus:ring-1 focus:ring-primary"
+                                                className="flex-1 px-2 py-1 text-sm border border-input rounded bg-background text-foreground focus:ring-1 focus:ring-primary w-full"
                                             />
                                         </div>
                                     )}
@@ -281,19 +281,19 @@ export function ScheduleSelector({ value, onChange }) {
                                     </div>
 
                                     {schedule[day.id].afternoon.enabled && (
-                                        <div className="flex items-center gap-2">
+                                        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
                                             <input
                                                 type="time"
                                                 value={schedule[day.id].afternoon.start}
                                                 onChange={(e) => handleTimeChange(day.id, "afternoon", "start", e.target.value)}
-                                                className="flex-1 px-2 py-1 text-sm border border-input rounded bg-background text-foreground focus:ring-1 focus:ring-primary"
+                                                className="flex-1 px-2 py-1 text-sm border border-input rounded bg-background text-foreground focus:ring-1 focus:ring-primary w-full"
                                             />
-                                            <span className="text-muted-foreground">-</span>
+                                            <span className="text-muted-foreground hidden sm:block">-</span>
                                             <input
                                                 type="time"
                                                 value={schedule[day.id].afternoon.end}
                                                 onChange={(e) => handleTimeChange(day.id, "afternoon", "end", e.target.value)}
-                                                className="flex-1 px-2 py-1 text-sm border border-input rounded bg-background text-foreground focus:ring-1 focus:ring-primary"
+                                                className="flex-1 px-2 py-1 text-sm border border-input rounded bg-background text-foreground focus:ring-1 focus:ring-primary w-full"
                                             />
                                         </div>
                                     )}
