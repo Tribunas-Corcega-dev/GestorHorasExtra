@@ -130,19 +130,19 @@ export function DailyScheduleSelector({ value, onChange, date }) {
                     </div>
 
                     {schedule.morning.enabled && (
-                        <div className="flex items-center gap-2">
+                        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
                             <input
                                 type="time"
                                 value={schedule.morning.start}
                                 onChange={(e) => handleTimeChange("morning", "start", e.target.value)}
-                                className="flex-1 px-2 py-1 text-sm border border-input rounded bg-background text-foreground focus:ring-1 focus:ring-primary"
+                                className="w-full flex-1 px-2 py-1 text-sm border border-input rounded bg-background text-foreground focus:ring-1 focus:ring-primary"
                             />
-                            <span className="text-muted-foreground">-</span>
+                            <span className="text-muted-foreground hidden sm:block">-</span>
                             <input
                                 type="time"
                                 value={schedule.morning.end}
                                 onChange={(e) => handleTimeChange("morning", "end", e.target.value)}
-                                className="flex-1 px-2 py-1 text-sm border border-input rounded bg-background text-foreground focus:ring-1 focus:ring-primary"
+                                className="w-full flex-1 px-2 py-1 text-sm border border-input rounded bg-background text-foreground focus:ring-1 focus:ring-primary"
                             />
                         </div>
                     )}
@@ -168,19 +168,19 @@ export function DailyScheduleSelector({ value, onChange, date }) {
                     </div>
 
                     {schedule.afternoon.enabled && (
-                        <div className="flex items-center gap-2">
+                        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
                             <input
                                 type="time"
                                 value={schedule.afternoon.start}
                                 onChange={(e) => handleTimeChange("afternoon", "start", e.target.value)}
-                                className="flex-1 px-2 py-1 text-sm border border-input rounded bg-background text-foreground focus:ring-1 focus:ring-primary"
+                                className="w-full flex-1 px-2 py-1 text-sm border border-input rounded bg-background text-foreground focus:ring-1 focus:ring-primary"
                             />
-                            <span className="text-muted-foreground">-</span>
+                            <span className="text-muted-foreground hidden sm:block">-</span>
                             <input
                                 type="time"
                                 value={schedule.afternoon.end}
                                 onChange={(e) => handleTimeChange("afternoon", "end", e.target.value)}
-                                className="flex-1 px-2 py-1 text-sm border border-input rounded bg-background text-foreground focus:ring-1 focus:ring-primary"
+                                className="w-full flex-1 px-2 py-1 text-sm border border-input rounded bg-background text-foreground focus:ring-1 focus:ring-primary"
                             />
                         </div>
                     )}

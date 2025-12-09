@@ -221,20 +221,20 @@ function RegistrarHorasExtraContent() {
 
                     {error && <div className="bg-destructive/10 text-destructive px-4 py-3 rounded-md text-sm">{error}</div>}
 
-                    <div className="flex gap-3 pt-4">
-                        <button
-                            type="submit"
-                            disabled={saving}
-                            className="flex-1 bg-primary text-primary-foreground py-2 px-4 rounded-md hover:opacity-90 transition-opacity disabled:opacity-50 font-medium"
-                        >
-                            {saving ? "Guardando..." : "Guardar Jornada"}
-                        </button>
+                    <div className="flex flex-col sm:flex-row gap-3 pt-4">
                         <button
                             type="button"
                             onClick={() => router.push("/horas-extra")}
-                            className="px-6 py-2 border border-border rounded-md hover:bg-accent transition-colors text-foreground font-medium"
+                            className="w-full sm:w-auto px-6 py-2 border border-border rounded-md hover:bg-accent transition-colors text-foreground font-medium"
                         >
                             Cancelar
+                        </button>
+                        <button
+                            type="submit"
+                            disabled={saving}
+                            className="w-full sm:flex-1 bg-primary text-primary-foreground py-2 px-4 rounded-md hover:opacity-90 transition-opacity disabled:opacity-50 font-medium"
+                        >
+                            {saving ? "Guardando..." : "Guardar Jornada"}
                         </button>
                     </div>
                 </form>
