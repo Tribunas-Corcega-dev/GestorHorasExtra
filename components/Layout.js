@@ -141,7 +141,7 @@ export function Layout({ children }) {
         </nav>
 
         {/* Main Content */}
-        <main className="flex-1 p-4 md:p-8">{children}</main>
+        <main className="flex-1 p-4 md:p-8 min-w-0">{children}</main>
       </div>
     </div>
   )

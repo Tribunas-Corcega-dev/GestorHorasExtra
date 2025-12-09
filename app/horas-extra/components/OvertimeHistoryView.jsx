@@ -606,21 +606,21 @@ export function OvertimeHistoryView({ employeeId, showBackButton = true }) {
                     </div>
 
                     {/* Total Summary */}
-                    <div className="bg-primary/10 border border-primary/20 rounded-lg p-6 shadow-sm mb-8 flex flex-col md:flex-row items-center justify-between gap-4">
-                        <div>
-                            <h3 className="text-lg font-bold text-primary uppercase tracking-wider">Total General a Pagar</h3>
-                            <p className="text-sm text-muted-foreground">
+                    <div className="bg-primary/10 border border-primary/20 rounded-lg p-6 shadow-sm mb-8 flex flex-col md:flex-row items-center justify-between gap-4 text-center md:text-left">
+                        <div className="flex-1 min-w-0">
+                            <h3 className="text-lg font-bold text-primary uppercase tracking-wider break-words">Total General a Pagar</h3>
+                            <p className="text-sm text-muted-foreground break-words">
                                 {selectedPeriod !== 'all'
                                     ? "Suma de Nómina Fija + Nómina Variable (Reportada)"
                                     : "Suma de todas las horas extra reportadas (Selecciona periodo para ver total real)"}
                             </p>
                         </div>
-                        <div className="text-right">
-                            <div className="text-3xl font-bold text-primary">
+                        <div className="text-center md:text-right w-full md:w-auto">
+                            <div className="text-3xl font-bold text-primary break-all">
                                 {formatCurrency(filteredSummary.totalValue + (mockFixedSurcharges?.value || 0))}
                             </div>
                             {selectedPeriod !== 'all' && (
-                                <div className="text-xs text-muted-foreground mt-1">
+                                <div className="text-xs text-muted-foreground mt-1 break-words">
                                     Variable: {formatCurrency(filteredSummary.totalValue)} + Fijo: {formatCurrency(mockFixedSurcharges?.value || 0)}
                                 </div>
                             )}
@@ -635,7 +635,7 @@ export function OvertimeHistoryView({ employeeId, showBackButton = true }) {
                 </div>
             ) : (
                 <div className="bg-card border border-border rounded-lg shadow-sm overflow-hidden">
-                    <div className="overflow-x-auto">
+                    <div className="overflow-x-auto w-full max-w-full">
                         <table className="w-full">
                             <thead className="bg-muted">
                                 <tr>
