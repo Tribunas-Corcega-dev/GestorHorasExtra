@@ -74,7 +74,7 @@ export async function GET(request) {
 
         // Calculate Value
         // Fetch surcharges percentages
-        const { data: recargos } = await supabase.from("recargos").select("*")
+        const { data: recargos } = await supabase.from("recargos_he").select("*")
         let totalValue = 0
 
         if (empleado.valor_hora && recargos) {

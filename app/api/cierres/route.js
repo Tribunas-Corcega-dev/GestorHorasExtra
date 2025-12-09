@@ -116,7 +116,7 @@ export async function POST(request) {
         })
 
         // 6. Calculate Total Value
-        const { data: recargos } = await supabase.from("recargos").select("*")
+        const { data: recargos } = await supabase.from("recargos_he").select("*")
         let totalValue = 0
 
         if (empleado.valor_hora && recargos) {
