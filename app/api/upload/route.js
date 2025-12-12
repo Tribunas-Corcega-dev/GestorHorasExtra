@@ -42,15 +42,22 @@ export async function POST(request) {
         // 3.5 Limpiar carpeta del usuario (Solo mantener la última foto)
         const folder = path.split('/')[0] // El path es "cc/filename"
         if (folder) {
-            const { data: existingFiles } = await supabaseAdmin.storage
+            // Verificamos si existe la carpeta listando su contenido
+            // Si la carpeta no existe (usuario creado sin foto), list devolverá vacío o error,
+            // pero no debemos impedir la subida. La subida creará la carpeta automáticamente.
+            const { data: existingFiles, error: listError } = await supabaseAdmin.storage
                 .from("fotos_trabajadores")
                 .list(folder)
 
-            if (existingFiles && existingFiles.length > 0) {
+            if (!listError && existingFiles && existingFiles.length > 0) {
                 const filesToRemove = existingFiles.map(f => `${folder}/${f.name}`)
-                await supabaseAdmin.storage
+                const { error: removeError } = await supabaseAdmin.storage
                     .from("fotos_trabajadores")
                     .remove(filesToRemove)
+
+                if (removeError) {
+                    console.warn("Error cleaning up old photos:", removeError)
+                }
             }
         }
 

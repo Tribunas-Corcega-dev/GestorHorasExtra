@@ -36,6 +36,7 @@ Crea un archivo `.env` en la raíz del proyecto y configura las siguientes varia
 NEXT_PUBLIC_SUPABASE_URL=tu_url_de_supabase
 NEXT_PUBLIC_SUPABASE_ANON_KEY=tu_clave_anonima_de_supabase
 JWT_SECRET=tu_secreto_jwt
+SUPABASE_SERVICE_ROLE_KEY=tu_clave_de_rol_de_servicio_de_supabase
 ```
 
 ### 4. Ejecutar el Servidor de Desarrollo
