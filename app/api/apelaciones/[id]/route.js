@@ -26,8 +26,8 @@ export async function GET(request, context) {
             return NextResponse.json({ message: "No autorizado" }, { status: 403 })
         }
 
-        // Only HR can view appeal details
-        const canViewAppeals = ["TALENTO_HUMANO", "ASISTENTE_GERENCIA", "JEFE"].includes(user.rol)
+        // Only HR and Coordinators can view appeal details
+        const canViewAppeals = ["TALENTO_HUMANO", "ASISTENTE_GERENCIA", "JEFE", "COORDINADOR"].includes(user.rol)
 
         if (!canViewAppeals) {
             return NextResponse.json({ message: "No autorizado" }, { status: 403 })
