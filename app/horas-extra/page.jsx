@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { useAuth } from "@/hooks/useAuth"
 import { Layout } from "@/components/Layout"
 import { ProtectedRoute } from "@/components/ProtectedRoute"
-import { canManageOvertime } from "@/lib/permissions"
+import { canManageOvertime, isCoordinator } from "@/lib/permissions"
 import { useRouter } from "next/navigation"
 
 export default function HorasExtraPage() {
@@ -115,31 +115,35 @@ function HorasExtraContent() {
                     className="px-3 py-2 border border-input bg-background text-foreground rounded-md focus:outline-none focus:ring-2 focus:ring-ring"
                 />
 
-                <select
-                    value={areaFilter}
-                    onChange={(e) => setAreaFilter(e.target.value)}
-                    className="px-3 py-2 border border-input bg-background text-foreground rounded-md focus:outline-none focus:ring-2 focus:ring-ring"
-                >
-                    <option value="">Todas las áreas</option>
-                    {areas.map((area) => (
-                        <option key={area} value={area}>
-                            {area}
-                        </option>
-                    ))}
-                </select>
+                {!isCoordinator(user?.rol) && (
+                    <>
+                        <select
+                            value={areaFilter}
+                            onChange={(e) => setAreaFilter(e.target.value)}
+                            className="px-3 py-2 border border-input bg-background text-foreground rounded-md focus:outline-none focus:ring-2 focus:ring-ring"
+                        >
+                            <option value="">Todas las áreas</option>
+                            {areas.map((area) => (
+                                <option key={area} value={area}>
+                                    {area}
+                                </option>
+                            ))}
+                        </select>
 
-                <select
-                    value={rolFilter}
-                    onChange={(e) => setRolFilter(e.target.value)}
-                    className="px-3 py-2 border border-input bg-background text-foreground rounded-md focus:outline-none focus:ring-2 focus:ring-ring"
-                >
-                    <option value="">Todos los roles</option>
-                    {roles.map((rol) => (
-                        <option key={rol} value={rol}>
-                            {rol}
-                        </option>
-                    ))}
-                </select>
+                        <select
+                            value={rolFilter}
+                            onChange={(e) => setRolFilter(e.target.value)}
+                            className="px-3 py-2 border border-input bg-background text-foreground rounded-md focus:outline-none focus:ring-2 focus:ring-ring"
+                        >
+                            <option value="">Todos los roles</option>
+                            {roles.map((rol) => (
+                                <option key={rol} value={rol}>
+                                    {rol}
+                                </option>
+                            ))}
+                        </select>
+                    </>
+                )}
 
                 <select
                     value={sortOrder}
