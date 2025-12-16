@@ -112,8 +112,8 @@ export async function PATCH(request, context) {
             return NextResponse.json({ message: "No autorizado" }, { status: 403 })
         }
 
-        // Only HR can update appeals
-        const canUpdateAppeals = ["TALENTO_HUMANO", "ASISTENTE_GERENCIA", "JEFE"].includes(user.rol)
+        // Only HR and Coordinators can update appeals
+        const canUpdateAppeals = ["TALENTO_HUMANO", "ASISTENTE_GERENCIA", "JEFE", "COORDINADOR"].includes(user.rol)
 
         if (!canUpdateAppeals) {
             return NextResponse.json({ message: "No autorizado" }, { status: 403 })

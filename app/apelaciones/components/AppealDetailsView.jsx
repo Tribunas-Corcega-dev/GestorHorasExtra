@@ -7,8 +7,9 @@ import { formatDateForDisplay } from "@/lib/utils"
 import { formatMinutesToHHMM } from "@/hooks/useOvertimeCalculator"
 
 function formatMinutesToFloat(minutes) {
-    if (!minutes) return "0h"
-    const hours = minutes / 60
+    const numericMinutes = Number(minutes)
+    if (!numericMinutes || isNaN(numericMinutes)) return "0h"
+    const hours = numericMinutes / 60
     return `${parseFloat(hours.toFixed(2))}h`
 }
 
@@ -202,15 +203,38 @@ export function AppealDetailsView({ appealId, showBackButton = true }) {
                         <div>
                             <p className="text-sm text-muted-foreground mb-2">Horas Extra Calculadas</p>
                             <div className="space-y-2">
-                                {Object.entries(appeal.jornada.horas_extra_hhmm.breakdown || {}).map(([key, val]) => {
-                                    if (val <= 0) return null
-                                    return (
-                                        <div key={key} className="flex justify-between text-sm border-b border-border/50 pb-1">
-                                            <span className="text-muted-foreground">{LABELS[key]}</span>
-                                            <span className="font-medium text-foreground">{formatMinutesToFloat(val)}</span>
-                                        </div>
-                                    )
-                                })}
+                                {(() => {
+                                    const breakdown = appeal.jornada.horas_extra_hhmm.breakdown || {}
+                                    let itemsToRender = {}
+
+                                    // Handle nested structure (overtime/surcharges) vs flat structure
+                                    if (breakdown.overtime || breakdown.surcharges) {
+                                        itemsToRender = {
+                                            ...(breakdown.overtime || {}),
+                                            ...(breakdown.surcharges || {})
+                                        }
+                                    } else {
+                                        itemsToRender = breakdown
+                                    }
+
+                                    const renderedItems = Object.entries(itemsToRender).map(([key, val]) => {
+                                        if (!val || val <= 0) return null
+                                        // Skip if key is not a recognized label type (optional, but cleaner)
+                                        // if (!LABELS[key]) return null 
+
+                                        return (
+                                            <div key={key} className="flex justify-between text-sm border-b border-border/50 pb-1">
+                                                <span className="text-muted-foreground">{LABELS[key] || key}</span>
+                                                <span className="font-medium text-foreground">{formatMinutesToFloat(val)}</span>
+                                            </div>
+                                        )
+                                    }).filter(Boolean)
+
+                                    if (renderedItems.length === 0) {
+                                        return <p className="text-sm text-muted-foreground italic">No hay detalles disponibles</p>
+                                    }
+                                    return renderedItems
+                                })()}
                                 <div className="flex justify-between text-sm font-bold pt-2 border-t border-border">
                                     <span>Total</span>
                                     <span className="text-primary">{appeal.jornada.horas_extra_hhmm.formatted}</span>
