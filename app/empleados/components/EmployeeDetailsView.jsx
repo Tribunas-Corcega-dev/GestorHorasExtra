@@ -1,7 +1,7 @@
-"use client"
-
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
+import { useAuth } from "@/hooks/useAuth"
+import { canManageEmployees } from "@/lib/permissions"
 
 const DAYS = [
     { id: "lunes", label: "Lunes" },
@@ -15,8 +15,10 @@ const DAYS = [
 
 export function EmployeeDetailsView({ employeeId, showBackButton = true }) {
     const router = useRouter()
+    const { user } = useAuth()
     const [loading, setLoading] = useState(true)
     const [empleado, setEmpleado] = useState(null)
+    const [uploading, setUploading] = useState(false)
 
     useEffect(() => {
         if (employeeId) {
@@ -54,6 +56,53 @@ export function EmployeeDetailsView({ employeeId, showBackButton = true }) {
         }
     }
 
+    async function handleImageSelect(e) {
+        const file = e.target.files[0]
+        if (!file || !empleado) return
+
+        try {
+            setUploading(true)
+            const fileExt = file.name.split('.').pop()
+            const fileName = `${Math.random()}.${fileExt}`
+            const filePath = `${empleado.cc}/${fileName}`
+
+            // 1. Upload file
+            const uploadFormData = new FormData()
+            uploadFormData.append("file", file)
+            uploadFormData.append("path", filePath)
+
+            const uploadRes = await fetch("/api/upload", {
+                method: "POST",
+                body: uploadFormData,
+            })
+
+            if (!uploadRes.ok) throw new Error("Error al subir imagen")
+
+            const { publicUrl } = await uploadRes.json()
+
+            // 2. Update user profile with new photo URL
+            const updateRes = await fetch(`/api/empleados/${employeeId}`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ foto_url: publicUrl })
+            })
+
+            if (!updateRes.ok) throw new Error("Error al actualizar perfil")
+
+            // 3. Update local state
+            setEmpleado(prev => ({ ...prev, foto_url: publicUrl }))
+            alert("Foto actualizada correctamente")
+
+        } catch (error) {
+            console.error("Error updating photo:", error)
+            alert("Error al actualizar la foto")
+        } finally {
+            setUploading(false)
+        }
+    }
+
+    const canEditPhoto = user && (canManageEmployees(user.rol) || user.id === employeeId)
+
     if (loading) {
         return <div className="text-center py-8">Cargando...</div>
     }
@@ -81,13 +130,32 @@ export function EmployeeDetailsView({ employeeId, showBackButton = true }) {
             <div className="bg-card border border-border rounded-xl shadow-lg overflow-hidden">
                 {/* Header / Banner */}
                 <div className="bg-primary/10 p-8 flex flex-col items-center border-b border-border">
-                    <div className="h-32 w-32 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-5xl font-bold mb-4 shadow-md overflow-hidden">
-                        {empleado.foto_url ? (
-                            <img src={empleado.foto_url} alt={empleado.nombre} className="h-full w-full object-cover" />
-                        ) : (
-                            (empleado.nombre || empleado.username || "?").charAt(0).toUpperCase()
+                    <div className="relative group">
+                        <div className="h-32 w-32 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-5xl font-bold mb-4 shadow-md overflow-hidden border-4 border-background">
+                            {empleado.foto_url ? (
+                                <img src={empleado.foto_url} alt={empleado.nombre} className="h-full w-full object-cover" />
+                            ) : (
+                                (empleado.nombre || empleado.username || "?").charAt(0).toUpperCase()
+                            )}
+                        </div>
+
+                        {/* Overlay for uploading */}
+                        {canEditPhoto && (
+                            <label className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-full opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer mb-4">
+                                <input
+                                    type="file"
+                                    className="hidden"
+                                    accept="image/*"
+                                    onChange={handleImageSelect}
+                                    disabled={uploading}
+                                />
+                                <span className="text-white text-xs font-medium px-2 text-center">
+                                    {uploading ? "Subiendo..." : "Cambiar Foto"}
+                                </span>
+                            </label>
                         )}
                     </div>
+
                     <h2 className="text-2xl font-bold text-foreground">{empleado.nombre || empleado.username}</h2>
                     <p className="text-muted-foreground font-medium">@{empleado.username}</p>
                     <div className="mt-4 flex gap-2">
