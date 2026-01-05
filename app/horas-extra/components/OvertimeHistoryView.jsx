@@ -894,19 +894,71 @@ export function OvertimeHistoryView({ employeeId, showBackButton = true }) {
                                 </div>
                             </div>
                         </div>
-                        <div className="p-4 bg-muted/30 border-t border-border flex justify-between items-center">
-                            {/* Show appeal button only if user is viewing their own record */}
+                        <div className="p-4 bg-muted/30 border-t border-border flex justify-between items-center flex-wrap gap-2">
+                            {/* Actions for User */}
                             {user && user.id === employeeId && (
-                                <button
-                                    onClick={() => {
-                                        setShowAppealModal(true)
-                                        setAppealDescription("")
-                                        setAppealFiles([])
-                                    }}
-                                    className="px-4 py-2 bg-orange-500 text-white rounded-md text-sm font-medium hover:bg-orange-600 transition-colors"
-                                >
-                                    Apelar Jornada
-                                </button>
+                                <div className="flex gap-2">
+                                    <button
+                                        onClick={() => {
+                                            setShowAppealModal(true)
+                                            setAppealDescription("")
+                                            setAppealFiles([])
+                                        }}
+                                        className="px-4 py-2 bg-orange-500 text-white rounded-md text-sm font-medium hover:bg-orange-600 transition-colors"
+                                    >
+                                        Apelar
+                                    </button>
+
+                                    {/* Compensatory Time Request Button */}
+                                    {(() => {
+                                        const totalMinutes = selectedJornada.horas_extra_hhmm?.minutes || 0
+                                        const status = selectedJornada.estado_compensacion || 'NINGUNO'
+
+                                        if (totalMinutes > 0 && ['NINGUNO', 'RECHAZADO'].includes(status)) {
+                                            return (
+                                                <button
+                                                    onClick={async () => {
+                                                        const confirmMsg = `¿Deseas enviar estas ${formatMinutesToFloat(totalMinutes)} a tu Bolsa de Horas?\n\nAl hacerlo, estas horas NO se pagarán en dinero, sino que se acumularán para tiempo libre.`
+                                                        if (!confirm(confirmMsg)) return
+
+                                                        try {
+                                                            const res = await fetch("/api/compensatorios/acumular", {
+                                                                method: "POST",
+                                                                headers: { "Content-Type": "application/json" },
+                                                                body: JSON.stringify({
+                                                                    jornada_id: selectedJornada.id,
+                                                                    minutos: totalMinutes
+                                                                })
+                                                            })
+
+                                                            const data = await res.json()
+                                                            if (res.ok) {
+                                                                alert("Solicitud enviada exitosamente.")
+                                                                setSelectedJornada(null)
+                                                                fetchData() // Refresh data
+                                                            } else {
+                                                                alert("Error: " + data.message)
+                                                            }
+                                                        } catch (e) {
+                                                            console.error(e)
+                                                            alert("Error al procesar la solicitud")
+                                                        }
+                                                    }}
+                                                    className="px-4 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 transition-colors"
+                                                >
+                                                    A Bolsa
+                                                </button>
+                                            )
+                                        } else if (status !== 'NINGUNO') {
+                                            return (
+                                                <span className="px-3 py-2 bg-blue-100 text-blue-800 rounded-md text-sm font-medium border border-blue-200">
+                                                    {status === 'SOLICITADO' ? 'En Solicitud de Bolsa' : status === 'APROBADO' ? 'En Bolsa' : status}
+                                                </span>
+                                            )
+                                        }
+                                        return null
+                                    })()}
+                                </div>
                             )}
                             <button
                                 onClick={() => setSelectedJornada(null)}

@@ -55,7 +55,7 @@ export async function POST(request) {
         }
 
         const body = await request.json()
-        const { salario_minimo, anio_vigencia, jornada_nocturna, id } = body
+        const { salario_minimo, anio_vigencia, jornada_nocturna, limite_bolsa_horas, id } = body
 
         if (!anio_vigencia) {
             return NextResponse.json({ message: "Faltan datos requeridos" }, { status: 400 })
@@ -65,6 +65,7 @@ export async function POST(request) {
         const updates = { anio_vigencia }
         if (salario_minimo !== undefined) updates.salario_minimo = salario_minimo
         if (jornada_nocturna !== undefined) updates.jornada_nocturna = jornada_nocturna
+        if (limite_bolsa_horas !== undefined) updates.limite_bolsa_horas = limite_bolsa_horas
 
         let result
         if (id) {
