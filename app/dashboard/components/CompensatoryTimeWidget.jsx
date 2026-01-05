@@ -11,7 +11,7 @@ function formatMinutesToTime(minutes) {
 }
 
 // Import helper
-import { calculateTotalMinutes, getIntervals } from "@/lib/calculations"
+import { calculateTotalMinutes, getIntervals, timeToMinutes } from "@/lib/calculations"
 
 export function CompensatoryTimeWidget() {
     const { user } = useAuth()
@@ -23,7 +23,8 @@ export function CompensatoryTimeWidget() {
 
     // Form state
     const [tipo, setTipo] = useState("DIA_COMPLETO")
-    const [fechaSingle, setFechaSingle] = useState("") // For 'DIA_COMPLETO'
+    const [fechaSingle, setFechaSingle] = useState("") // For 'DIA_COMPLETO' and 'LLEGADA_TARDIA'
+    const [horaLlegada, setHoraLlegada] = useState("") // For 'LLEGADA_TARDIA'
     const [fechaInicio, setFechaInicio] = useState("")
     const [fechaFin, setFechaFin] = useState("")
     const [minutosSolicitados, setMinutosSolicitados] = useState("")
@@ -66,46 +67,36 @@ export function CompensatoryTimeWidget() {
         }
     }
 
-    // Handle single date change for "DIA_COMPLETO"
-    const handleDateChange = (e) => {
-        const dateStr = e.target.value
-        setFechaSingle(dateStr)
-
-        if (!dateStr || !schedule) return
-
-        // Determine day of week
-        // Append T12:00:00 to avoid timezone shifts when getting Day index
+    // Helper to get day schedule
+    const getDaySchedule = (dateStr) => {
+        if (!dateStr || !schedule) return null
         const dateObj = new Date(dateStr + 'T12:00:00')
-        const dayIndex = dateObj.getDay() // 0 = Sunday, 1 = Monday...
+        const dayIndex = dateObj.getDay()
         const daysMap = ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado']
-        const dayName = daysMap[dayIndex]
+        return schedule[daysMap[dayIndex]]
+    }
 
-        const daySchedule = schedule[dayName]
+    // Logic for "DIA_COMPLETO"
+    const handleFullDayLogic = (dateStr) => {
+        setFechaSingle(dateStr)
+        if (!dateStr) return
+
+        const daySchedule = getDaySchedule(dateStr)
 
         if (!daySchedule || !daySchedule.enabled) {
-            alert(`No tienes turno programado para el ${dayName}. Selecciona un día laboral.`)
+            alert("No tienes turno programado para este día.")
             setMinutosSolicitados("")
             setCalculatedDisplay("")
             return
         }
 
-        // Calculate minutes
         const intervals = getIntervals(daySchedule)
         const totalMinutes = calculateTotalMinutes(intervals)
 
-        setMinutosSolicitados(totalMinutes.toString())
+        updateCalculatedValues(totalMinutes)
 
-        // Format for display: "X.XXh (Hh Mm)"
-        const hoursDecimal = (totalMinutes / 60).toFixed(2)
-        const hoursInt = Math.floor(totalMinutes / 60)
-        const minutesInt = totalMinutes % 60
-        setCalculatedDisplay(`${hoursDecimal}h (${hoursInt}h ${minutesInt}m)`)
-
-        // Set Start/End timestamps for backend compatibility
-        // Find earliest start and latest end
-        let startStr = ""
-        let endStr = ""
-
+        // Set timestamps
+        let startStr = "", endStr = ""
         if (daySchedule.morning?.enabled) {
             startStr = daySchedule.morning.start
             endStr = daySchedule.morning.end
@@ -119,6 +110,48 @@ export function CompensatoryTimeWidget() {
             setFechaInicio(`${dateStr}T${startStr}`)
             setFechaFin(`${dateStr}T${endStr}`)
         }
+    }
+
+    // Logic for "LLEGADA_TARDIA"
+    const handleLateArrivalLogic = (dateStr, timeStr) => {
+        setFechaSingle(dateStr)
+        setHoraLlegada(timeStr)
+
+        if (!dateStr || !timeStr) return
+
+        const daySchedule = getDaySchedule(dateStr)
+        if (!daySchedule || !daySchedule.enabled) {
+            // Don't alert immediately on typing, maybe just clear
+            return
+        }
+
+        // Assume start time is morning start
+        const startTime = daySchedule.morning?.start || daySchedule.afternoon?.start
+        if (!startTime) return
+
+        const startMin = timeToMinutes(startTime)
+        const arrivalMin = timeToMinutes(timeStr)
+
+        if (arrivalMin <= startMin) {
+            // Invalid: Arrival is before or at start
+            setMinutosSolicitados("")
+            setCalculatedDisplay("Hora de llegada debe ser posterior a " + startTime)
+            return
+        }
+
+        const diffMinutes = arrivalMin - startMin
+        updateCalculatedValues(diffMinutes)
+
+        setFechaInicio(`${dateStr}T${startTime}`)
+        setFechaFin(`${dateStr}T${timeStr}`)
+    }
+
+    const updateCalculatedValues = (minutes) => {
+        setMinutosSolicitados(minutes.toString())
+        const hoursDecimal = (minutes / 60).toFixed(2)
+        const hoursInt = Math.floor(minutes / 60)
+        const minutesInt = minutes % 60
+        setCalculatedDisplay(`${hoursDecimal}h (${hoursInt}h ${minutesInt}m)`)
     }
 
     async function handleSubmit(e) {
@@ -158,12 +191,13 @@ export function CompensatoryTimeWidget() {
                 // Reset form
                 setTipo("DIA_COMPLETO")
                 setFechaSingle("")
+                setHoraLlegada("")
                 setFechaInicio("")
                 setFechaFin("")
                 setMinutosSolicitados("")
                 setMotivo("")
                 setCalculatedDisplay("")
-                fetchBalance() // Refresh 
+                fetchBalance() // Refresh
             } else {
                 alert("Error: " + data.message)
             }
@@ -245,6 +279,7 @@ export function CompensatoryTimeWidget() {
                                         setTipo(e.target.value)
                                         // Reset fields when switching
                                         setFechaSingle("")
+                                        setHoraLlegada("")
                                         setFechaInicio("")
                                         setFechaFin("")
                                         setMinutosSolicitados("")
@@ -261,13 +296,13 @@ export function CompensatoryTimeWidget() {
                                 </select>
                             </div>
 
-                            {tipo === 'DIA_COMPLETO' ? (
+                            {tipo === 'DIA_COMPLETO' && (
                                 <div>
                                     <label className="block text-sm font-medium text-foreground mb-1">Fecha</label>
                                     <input
                                         type="date"
                                         value={fechaSingle}
-                                        onChange={handleDateChange}
+                                        onChange={(e) => handleFullDayLogic(e.target.value)}
                                         required
                                         className="w-full px-3 py-2 border border-input bg-background text-foreground rounded-md focus:outline-none focus:ring-2 focus:ring-ring text-sm"
                                     />
@@ -275,7 +310,34 @@ export function CompensatoryTimeWidget() {
                                         Se descontarán horas según tu horario fijo.
                                     </p>
                                 </div>
-                            ) : (
+                            )}
+
+                            {tipo === 'LLEGADA_TARDIA' && (
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-foreground mb-1">Fecha</label>
+                                        <input
+                                            type="date"
+                                            value={fechaSingle}
+                                            onChange={(e) => handleLateArrivalLogic(e.target.value, horaLlegada)}
+                                            required
+                                            className="w-full px-3 py-2 border border-input bg-background text-foreground rounded-md focus:outline-none focus:ring-2 focus:ring-ring text-sm"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-foreground mb-1">Hora de Llegada</label>
+                                        <input
+                                            type="time"
+                                            value={horaLlegada}
+                                            onChange={(e) => handleLateArrivalLogic(fechaSingle, e.target.value)}
+                                            required
+                                            className="w-full px-3 py-2 border border-input bg-background text-foreground rounded-md focus:outline-none focus:ring-2 focus:ring-ring text-sm"
+                                        />
+                                    </div>
+                                </div>
+                            )}
+
+                            {tipo !== 'DIA_COMPLETO' && tipo !== 'LLEGADA_TARDIA' && (
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
                                         <label className="block text-sm font-medium text-foreground mb-1">Desde</label>
@@ -304,17 +366,16 @@ export function CompensatoryTimeWidget() {
                                 <label className="block text-sm font-medium text-foreground mb-1">Tiempo a descontar</label>
                                 <div className="relative">
                                     <input
-                                        type="text" // Text to allow "Calculando..." or formatted string if desired, but number is cleaner. Used text for 'calculatedDisplay' logic separation.
-                                        // Actually, if 'DIA_COMPLETO', we want to show the formatted string and keep it read-only.
-                                        value={tipo === 'DIA_COMPLETO' ? calculatedDisplay : minutesToDisplay(minutosSolicitados)}
-                                        readOnly={tipo === 'DIA_COMPLETO'}
+                                        type="text"
+                                        value={(tipo === 'DIA_COMPLETO' || tipo === 'LLEGADA_TARDIA') ? calculatedDisplay : minutesToDisplay(minutosSolicitados)}
+                                        readOnly={tipo === 'DIA_COMPLETO' || tipo === 'LLEGADA_TARDIA'}
                                         onChange={(e) => {
-                                            if (tipo !== 'DIA_COMPLETO') setMinutosSolicitados(e.target.value)
+                                            if (tipo !== 'DIA_COMPLETO' && tipo !== 'LLEGADA_TARDIA') setMinutosSolicitados(e.target.value)
                                         }}
-                                        className={`w-full px-3 py-2 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-ring ${tipo === 'DIA_COMPLETO' ? 'bg-muted text-muted-foreground' : 'bg-background text-foreground'}`}
-                                        placeholder={tipo === 'DIA_COMPLETO' ? "Selecciona una fecha" : "Minutos (ej. 120)"}
+                                        className={`w-full px-3 py-2 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-ring ${(tipo === 'DIA_COMPLETO' || tipo === 'LLEGADA_TARDIA') ? 'bg-muted text-muted-foreground' : 'bg-background text-foreground'}`}
+                                        placeholder={(tipo === 'DIA_COMPLETO' || tipo === 'LLEGADA_TARDIA') ? "Selecciona fecha/hora" : "Minutos (ej. 120)"}
                                     />
-                                    {tipo !== 'DIA_COMPLETO' && (
+                                    {tipo !== 'DIA_COMPLETO' && tipo !== 'LLEGADA_TARDIA' && (
                                         <input
                                             type="number"
                                             className="absolute inset-0 opacity-0 cursor-text"
@@ -351,7 +412,7 @@ export function CompensatoryTimeWidget() {
                                 </button>
                                 <button
                                     type="submit"
-                                    disabled={submitting || (tipo === 'DIA_COMPLETO' && !minutosSolicitados)}
+                                    disabled={submitting || (tipo === 'DIA_COMPLETO' && !minutosSolicitados) || (tipo === 'LLEGADA_TARDIA' && !minutosSolicitados)}
                                     className="px-4 py-2 bg-primary text-primary-foreground rounded-md text-sm font-medium hover:opacity-90 transition-opacity disabled:opacity-50"
                                 >
                                     {submitting ? "Enviando..." : "Enviar Solicitud"}
@@ -370,5 +431,3 @@ function minutesToDisplay(min) {
     if (!min) return ""
     return min
 }
-
-
