@@ -25,6 +25,8 @@ function AprobacionesContent() {
     const [redemptionRequests, setRedemptionRequests] = useState([])
     const [loading, setLoading] = useState(true)
 
+    const [processingId, setProcessingId] = useState(null)
+
     useEffect(() => {
         if (user && canManageOvertime(user.rol)) {
             fetchRequests()
@@ -50,7 +52,8 @@ function AprobacionesContent() {
     }
 
     async function handleBankingAction(jornadaId, action) {
-        // action: 'APROBAR' or 'RECHAZAR'
+        if (processingId) return
+        setProcessingId(jornadaId)
         try {
             const res = await fetch("/api/compensatorios/gestionar", {
                 method: "POST",
@@ -64,7 +67,7 @@ function AprobacionesContent() {
 
             if (res.ok) {
                 alert(`Solicitud ${action === 'APROBAR' ? 'aprobada' : 'rechazada'} exitosamente`)
-                fetchRequests()
+                await fetchRequests()
             } else {
                 const data = await res.json()
                 alert("Error: " + data.message)
@@ -72,10 +75,14 @@ function AprobacionesContent() {
         } catch (error) {
             console.error("Error processing banking request:", error)
             alert("Error al procesar la solicitud")
+        } finally {
+            setProcessingId(null)
         }
     }
 
     async function handleRedemptionAction(requestId, action) {
+        if (processingId) return
+        setProcessingId(requestId)
         try {
             const res = await fetch("/api/compensatorios/gestionar", {
                 method: "POST",
@@ -89,7 +96,7 @@ function AprobacionesContent() {
 
             if (res.ok) {
                 alert(`Solicitud ${action === 'APROBAR' ? 'aprobada' : 'rechazada'} exitosamente`)
-                fetchRequests()
+                await fetchRequests()
             } else {
                 const data = await res.json()
                 alert("Error: " + data.message)
@@ -97,6 +104,8 @@ function AprobacionesContent() {
         } catch (error) {
             console.error("Error processing redemption request:", error)
             alert("Error al procesar la solicitud")
+        } finally {
+            setProcessingId(null)
         }
     }
 
@@ -164,18 +173,26 @@ function AprobacionesContent() {
                                                     {Math.floor(req.horas_para_bolsa_minutos / 60)}h {req.horas_para_bolsa_minutos % 60}m
                                                 </td>
                                                 <td className="px-4 py-3 text-right flex justify-end gap-2">
-                                                    <button
-                                                        onClick={() => handleBankingAction(req.id, 'APROBAR')}
-                                                        className="px-3 py-1 bg-green-100 text-green-700 hover:bg-green-200 rounded text-xs font-bold transition-colors"
-                                                    >
-                                                        Aprobar
-                                                    </button>
-                                                    <button
-                                                        onClick={() => handleBankingAction(req.id, 'RECHAZAR')}
-                                                        className="px-3 py-1 bg-red-100 text-red-700 hover:bg-red-200 rounded text-xs font-bold transition-colors"
-                                                    >
-                                                        Rechazar
-                                                    </button>
+                                                    {processingId === req.id ? (
+                                                        <button disabled className="px-4 py-1 bg-muted text-muted-foreground rounded text-xs font-bold cursor-not-allowed">
+                                                            Cargando...
+                                                        </button>
+                                                    ) : (
+                                                        <>
+                                                            <button
+                                                                onClick={() => handleBankingAction(req.id, 'APROBAR')}
+                                                                className="px-3 py-1 bg-green-100 text-green-700 hover:bg-green-200 rounded text-xs font-bold transition-colors"
+                                                            >
+                                                                Aprobar
+                                                            </button>
+                                                            <button
+                                                                onClick={() => handleBankingAction(req.id, 'RECHAZAR')}
+                                                                className="px-3 py-1 bg-red-100 text-red-700 hover:bg-red-200 rounded text-xs font-bold transition-colors"
+                                                            >
+                                                                Rechazar
+                                                            </button>
+                                                        </>
+                                                    )}
                                                 </td>
                                             </tr>
                                         ))}
@@ -221,18 +238,26 @@ function AprobacionesContent() {
                                                     {req.motivo || "-"}
                                                 </td>
                                                 <td className="px-4 py-3 text-right flex justify-end gap-2">
-                                                    <button
-                                                        onClick={() => handleRedemptionAction(req.id, 'APROBAR')}
-                                                        className="px-3 py-1 bg-green-100 text-green-700 hover:bg-green-200 rounded text-xs font-bold transition-colors"
-                                                    >
-                                                        Aprobar
-                                                    </button>
-                                                    <button
-                                                        onClick={() => handleRedemptionAction(req.id, 'RECHAZAR')}
-                                                        className="px-3 py-1 bg-red-100 text-red-700 hover:bg-red-200 rounded text-xs font-bold transition-colors"
-                                                    >
-                                                        Rechazar
-                                                    </button>
+                                                    {processingId === req.id ? (
+                                                        <button disabled className="px-4 py-1 bg-muted text-muted-foreground rounded text-xs font-bold cursor-not-allowed">
+                                                            Cargando...
+                                                        </button>
+                                                    ) : (
+                                                        <>
+                                                            <button
+                                                                onClick={() => handleRedemptionAction(req.id, 'APROBAR')}
+                                                                className="px-3 py-1 bg-green-100 text-green-700 hover:bg-green-200 rounded text-xs font-bold transition-colors"
+                                                            >
+                                                                Aprobar
+                                                            </button>
+                                                            <button
+                                                                onClick={() => handleRedemptionAction(req.id, 'RECHAZAR')}
+                                                                className="px-3 py-1 bg-red-100 text-red-700 hover:bg-red-200 rounded text-xs font-bold transition-colors"
+                                                            >
+                                                                Rechazar
+                                                            </button>
+                                                        </>
+                                                    )}
                                                 </td>
                                             </tr>
                                         ))}
