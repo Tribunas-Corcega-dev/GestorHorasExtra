@@ -34,6 +34,17 @@ export function CompensatoryTimeWidget() {
     // Derived state for display
     const [calculatedDisplay, setCalculatedDisplay] = useState("")
 
+    // Calculate min date (Tomorrow) for UI restriction
+    const getTomorrowDate = () => {
+        const d = new Date()
+        d.setDate(d.getDate() + 1)
+        const y = d.getFullYear()
+        const m = String(d.getMonth() + 1).padStart(2, '0')
+        const dd = String(d.getDate()).padStart(2, '0')
+        return `${y}-${m}-${dd}`
+    }
+    const minDate = getTomorrowDate()
+
     useEffect(() => {
         if (user) {
             fetchBalance()
@@ -81,6 +92,18 @@ export function CompensatoryTimeWidget() {
         setFechaSingle(dateStr)
         if (!dateStr) return
 
+        // Validate future date
+        const today = new Date()
+        today.setHours(0, 0, 0, 0)
+        const selectedDate = new Date(dateStr + 'T00:00:00')
+
+        if (selectedDate <= today) {
+            alert("La fecha debe ser posterior al día actual.")
+            setMinutosSolicitados("")
+            setCalculatedDisplay("")
+            return
+        }
+
         const daySchedule = getDaySchedule(dateStr)
 
         if (!daySchedule || !daySchedule.enabled) {
@@ -119,28 +142,88 @@ export function CompensatoryTimeWidget() {
 
         if (!dateStr || !timeStr) return
 
-        const daySchedule = getDaySchedule(dateStr)
-        if (!daySchedule || !daySchedule.enabled) {
-            // Don't alert immediately on typing, maybe just clear
+        // Validate future date
+        const today = new Date()
+        today.setHours(0, 0, 0, 0)
+        const selectedDate = new Date(dateStr + 'T00:00:00')
+
+        if (selectedDate <= today) {
+            alert("La fecha debe ser posterior al día actual.")
+            setMinutosSolicitados("")
+            setCalculatedDisplay("")
             return
         }
 
-        // Assume start time is morning start
+        const daySchedule = getDaySchedule(dateStr)
+        if (!daySchedule || !daySchedule.enabled) {
+            return
+        }
+
         const startTime = daySchedule.morning?.start || daySchedule.afternoon?.start
         if (!startTime) return
 
         const startMin = timeToMinutes(startTime)
         const arrivalMin = timeToMinutes(timeStr)
 
-        if (arrivalMin <= startMin) {
-            // Invalid: Arrival is before or at start
+        // Validate Arrival Time is within working hours
+        // Must be within [Start, End] of Morning OR [Start, End] of Afternoon
+        let isValidTime = false
+        const intervals = getIntervals(daySchedule)
+
+        for (const interval of intervals) {
+            if (arrivalMin >= interval.start && arrivalMin <= interval.end) {
+                isValidTime = true
+                break
+            }
+        }
+
+        if (!isValidTime) {
+            // Check if it's explicitly before the first shift (already handled conceptually by logic but good to feedback)
+            // or in the break.
+            // Actually, if I arrive BEFORE the start, it's just "early", but user says "no puede encontrarse fuera...antes".
+            // So strict check matches intervals.
             setMinutosSolicitados("")
-            setCalculatedDisplay("Hora de llegada debe ser posterior a " + startTime)
+            setCalculatedDisplay("La hora debe estar dentro de la jornada laboral.")
             return
         }
 
-        const diffMinutes = arrivalMin - startMin
-        updateCalculatedValues(diffMinutes)
+        // Calculate minutes based on start time
+        // Note: If I arrive in the afternoon, do I deduct morning + part of afternoon?
+        // Yes. "Llegada Tardía" implies I missed everything before.
+        // So Diff = Arrival - FirstStart - (Break if applicable?)
+        // Wait, simply: Time missed = Total Working Minutes *scheduled BEFORE arrival*.
+        // Correct logic:
+        // Calculate overlapping working minutes between [FirstStart, Arrival].
+        // Simple diff (ArrivalDiff = Arrival - FirstStart) includes break time! We must exclude break.
+        // Better logic:
+        // MissedMinutes = calculateTotalMinutes(intersection([FirstStart, Arrival], dayIntervals))
+
+        // This is robust.
+        // interval [FirstStart, Arrival] intersect with WorkingIntervals -> Sum duration.
+
+        const firstStart = intervals[0].start
+        const arrivalInterval = { start: firstStart, end: arrivalMin }
+
+        // Use intersect logic if available?
+        // I have `getIntervals` and `calculateTotalMinutes`.
+        // I can define `intersectIntervals` locally or import.
+        // Importing `intersectIntervalsList` from `lib/calculations` is best but it's not exported?
+        // Let's check `lib/calculations.js` exports. `intersectIntervalsList` IS exported.
+
+        // Let's import `intersectIntervalsList` at the top first? Or just implement simple logic here since I can't easily change imports in this block.
+        // Simple logic:
+        let missedMinutes = 0
+        for (const interval of intervals) {
+            // Intersection of (interval) and (firstStart -> arrival)
+            const overlapStart = Math.max(interval.start, firstStart)
+            const overlapEnd = Math.min(interval.end, arrivalMin)
+
+            if (overlapStart < overlapEnd) {
+                missedMinutes += (overlapEnd - overlapStart)
+            }
+        }
+
+        updateCalculatedValues(missedMinutes)
 
         setFechaInicio(`${dateStr}T${startTime}`)
         setFechaFin(`${dateStr}T${timeStr}`)
@@ -301,6 +384,7 @@ export function CompensatoryTimeWidget() {
                                     <label className="block text-sm font-medium text-foreground mb-1">Fecha</label>
                                     <input
                                         type="date"
+                                        min={minDate}
                                         value={fechaSingle}
                                         onChange={(e) => handleFullDayLogic(e.target.value)}
                                         required
@@ -318,6 +402,7 @@ export function CompensatoryTimeWidget() {
                                         <label className="block text-sm font-medium text-foreground mb-1">Fecha</label>
                                         <input
                                             type="date"
+                                            min={minDate}
                                             value={fechaSingle}
                                             onChange={(e) => handleLateArrivalLogic(e.target.value, horaLlegada)}
                                             required
@@ -372,7 +457,7 @@ export function CompensatoryTimeWidget() {
                                         onChange={(e) => {
                                             if (tipo !== 'DIA_COMPLETO' && tipo !== 'LLEGADA_TARDIA') setMinutosSolicitados(e.target.value)
                                         }}
-                                        className={`w-full px-3 py-2 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-ring ${(tipo === 'DIA_COMPLETO' || tipo === 'LLEGADA_TARDIA') ? 'bg-muted text-muted-foreground' : 'bg-background text-foreground'}`}
+                                        className={`w-full px-3 py-2 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-ring ${(tipo === 'DIA_COMPLETO' || tipo === 'LLEGADA_TARDIA') ? 'bg-muted' : 'bg-background text-foreground'} ${(calculatedDisplay.includes('debe') || calculatedDisplay.includes('posterior')) ? 'text-destructive font-medium' : 'text-muted-foreground'}`}
                                         placeholder={(tipo === 'DIA_COMPLETO' || tipo === 'LLEGADA_TARDIA') ? "Selecciona fecha/hora" : "Minutos (ej. 120)"}
                                     />
                                     {tipo !== 'DIA_COMPLETO' && tipo !== 'LLEGADA_TARDIA' && (
