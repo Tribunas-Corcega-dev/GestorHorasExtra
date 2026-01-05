@@ -10,20 +10,28 @@ function formatMinutesToTime(minutes) {
     return `${h}h ${m}m`
 }
 
+// Import helper
+import { calculateTotalMinutes, getIntervals } from "@/lib/calculations"
+
 export function CompensatoryTimeWidget() {
     const { user } = useAuth()
     const [balance, setBalance] = useState(0)
     const [history, setHistory] = useState([])
+    const [schedule, setSchedule] = useState(null)
     const [loading, setLoading] = useState(true)
     const [showModal, setShowModal] = useState(false)
 
     // Form state
     const [tipo, setTipo] = useState("DIA_COMPLETO")
+    const [fechaSingle, setFechaSingle] = useState("") // For 'DIA_COMPLETO'
     const [fechaInicio, setFechaInicio] = useState("")
     const [fechaFin, setFechaFin] = useState("")
     const [minutosSolicitados, setMinutosSolicitados] = useState("")
     const [motivo, setMotivo] = useState("")
     const [submitting, setSubmitting] = useState(false)
+
+    // Derived state for display
+    const [calculatedDisplay, setCalculatedDisplay] = useState("")
 
     useEffect(() => {
         if (user) {
@@ -38,11 +46,78 @@ export function CompensatoryTimeWidget() {
                 const data = await res.json()
                 setBalance(data.saldo_minutos || 0)
                 setHistory(data.historial || [])
+
+                // Parse schedule
+                if (data.jornada_fija_hhmm) {
+                    try {
+                        const parsed = typeof data.jornada_fija_hhmm === 'string'
+                            ? JSON.parse(data.jornada_fija_hhmm)
+                            : data.jornada_fija_hhmm
+                        setSchedule(parsed)
+                    } catch (e) {
+                        console.error("Error parsing schedule:", e)
+                    }
+                }
             }
         } catch (error) {
             console.error("Error fetching balance:", error)
         } finally {
             setLoading(false)
+        }
+    }
+
+    // Handle single date change for "DIA_COMPLETO"
+    const handleDateChange = (e) => {
+        const dateStr = e.target.value
+        setFechaSingle(dateStr)
+
+        if (!dateStr || !schedule) return
+
+        // Determine day of week
+        // Append T12:00:00 to avoid timezone shifts when getting Day index
+        const dateObj = new Date(dateStr + 'T12:00:00')
+        const dayIndex = dateObj.getDay() // 0 = Sunday, 1 = Monday...
+        const daysMap = ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado']
+        const dayName = daysMap[dayIndex]
+
+        const daySchedule = schedule[dayName]
+
+        if (!daySchedule || !daySchedule.enabled) {
+            alert(`No tienes turno programado para el ${dayName}. Selecciona un día laboral.`)
+            setMinutosSolicitados("")
+            setCalculatedDisplay("")
+            return
+        }
+
+        // Calculate minutes
+        const intervals = getIntervals(daySchedule)
+        const totalMinutes = calculateTotalMinutes(intervals)
+
+        setMinutosSolicitados(totalMinutes.toString())
+
+        // Format for display: "X.XXh (Hh Mm)"
+        const hoursDecimal = (totalMinutes / 60).toFixed(2)
+        const hoursInt = Math.floor(totalMinutes / 60)
+        const minutesInt = totalMinutes % 60
+        setCalculatedDisplay(`${hoursDecimal}h (${hoursInt}h ${minutesInt}m)`)
+
+        // Set Start/End timestamps for backend compatibility
+        // Find earliest start and latest end
+        let startStr = ""
+        let endStr = ""
+
+        if (daySchedule.morning?.enabled) {
+            startStr = daySchedule.morning.start
+            endStr = daySchedule.morning.end
+        }
+        if (daySchedule.afternoon?.enabled) {
+            if (!startStr) startStr = daySchedule.afternoon.start
+            endStr = daySchedule.afternoon.end
+        }
+
+        if (startStr && endStr) {
+            setFechaInicio(`${dateStr}T${startStr}`)
+            setFechaFin(`${dateStr}T${endStr}`)
         }
     }
 
@@ -52,8 +127,14 @@ export function CompensatoryTimeWidget() {
 
         try {
             // Basic validation
-            if (!minutosSolicitados || minutosSolicitados <= 0) {
+            if (!minutosSolicitados || parseInt(minutosSolicitados) <= 0) {
                 alert("Por favor ingrese una cantidad de tiempo válida")
+                setSubmitting(false)
+                return
+            }
+
+            if (parseInt(minutosSolicitados) > balance) {
+                alert("No tienes suficiente saldo disponible")
                 setSubmitting(false)
                 return
             }
@@ -63,11 +144,8 @@ export function CompensatoryTimeWidget() {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     tipo,
-                    fecha_inicio: fechaInicio, // Should be full ISO string ideally, but basic date works if backend handles it? 
-                    // Backend creates 'solicitudes_tiempo' with timestamps.
-                    // The 'fecha_inicio' input is type="datetime-local" or just "date"?
-                    // Let's use datetime-local to be precise for 'LLEGADA_TARDIA'.
-                    fecha_fin: fechaFin || fechaInicio, // Fallback if single day/event
+                    fecha_inicio: fechaInicio,
+                    fecha_fin: fechaFin || fechaInicio,
                     minutos_solicitados: parseInt(minutosSolicitados),
                     motivo
                 })
@@ -77,12 +155,15 @@ export function CompensatoryTimeWidget() {
             if (res.ok) {
                 alert("Solicitud creada exitosamente")
                 setShowModal(false)
+                // Reset form
                 setTipo("DIA_COMPLETO")
+                setFechaSingle("")
                 setFechaInicio("")
                 setFechaFin("")
                 setMinutosSolicitados("")
                 setMotivo("")
-                fetchBalance() // Refresh pending status/balance perception
+                setCalculatedDisplay("")
+                fetchBalance() // Refresh 
             } else {
                 alert("Error: " + data.message)
             }
@@ -95,6 +176,8 @@ export function CompensatoryTimeWidget() {
     }
 
     if (loading) return <div className="animate-pulse h-32 bg-card rounded-lg border border-border"></div>
+
+    const canFullDay = balance >= 465 // 7.75 hours
 
     return (
         <div className="bg-card border border-border rounded-lg shadow-sm p-6">
@@ -127,7 +210,7 @@ export function CompensatoryTimeWidget() {
                             <div key={item.id} className="flex justify-between items-center text-sm border-b border-border/50 pb-1 last:border-0">
                                 <div>
                                     <span className={`inline-block w-2 h-2 rounded-full mr-2 ${item.tipo_movimiento === 'ACUMULACION' ? 'bg-green-500' :
-                                            item.tipo_movimiento === 'USO' ? 'bg-orange-500' : 'bg-blue-500'
+                                        item.tipo_movimiento === 'USO' ? 'bg-orange-500' : 'bg-blue-500'
                                         }`}></span>
                                     <span className="font-medium text-foreground">
                                         {item.tipo_movimiento === 'ACUMULACION' ? 'Acumulación' :
@@ -158,53 +241,93 @@ export function CompensatoryTimeWidget() {
                                 <label className="block text-sm font-medium text-foreground mb-1">Tipo de Solicitud</label>
                                 <select
                                     value={tipo}
-                                    onChange={(e) => setTipo(e.target.value)}
+                                    onChange={(e) => {
+                                        setTipo(e.target.value)
+                                        // Reset fields when switching
+                                        setFechaSingle("")
+                                        setFechaInicio("")
+                                        setFechaFin("")
+                                        setMinutosSolicitados("")
+                                        setCalculatedDisplay("")
+                                    }}
                                     className="w-full px-3 py-2 border border-input bg-background text-foreground rounded-md focus:outline-none focus:ring-2 focus:ring-ring"
                                 >
-                                    <option value="DIA_COMPLETO">Día Completo</option>
+                                    <option value="DIA_COMPLETO" disabled={!canFullDay}>
+                                        {canFullDay ? "Día Completo" : "Día Completo (Saldo insuficiente)"}
+                                    </option>
                                     <option value="LLEGADA_TARDIA">Llegada Tardía</option>
                                     <option value="SALIDA_TEMPRANA">Salida Temprana</option>
                                     <option value="OTRO">Otro</option>
                                 </select>
                             </div>
 
-                            <div className="grid grid-cols-2 gap-4">
+                            {tipo === 'DIA_COMPLETO' ? (
                                 <div>
-                                    <label className="block text-sm font-medium text-foreground mb-1">Desde</label>
+                                    <label className="block text-sm font-medium text-foreground mb-1">Fecha</label>
                                     <input
-                                        type="datetime-local"
-                                        value={fechaInicio}
-                                        onChange={(e) => setFechaInicio(e.target.value)}
+                                        type="date"
+                                        value={fechaSingle}
+                                        onChange={handleDateChange}
                                         required
                                         className="w-full px-3 py-2 border border-input bg-background text-foreground rounded-md focus:outline-none focus:ring-2 focus:ring-ring text-sm"
                                     />
+                                    <p className="text-xs text-muted-foreground mt-1">
+                                        Se descontarán horas según tu horario fijo.
+                                    </p>
                                 </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-foreground mb-1">Hasta</label>
-                                    <input
-                                        type="datetime-local"
-                                        value={fechaFin}
-                                        onChange={(e) => setFechaFin(e.target.value)}
-                                        required
-                                        className="w-full px-3 py-2 border border-input bg-background text-foreground rounded-md focus:outline-none focus:ring-2 focus:ring-ring text-sm"
-                                    />
+                            ) : (
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-foreground mb-1">Desde</label>
+                                        <input
+                                            type="datetime-local"
+                                            value={fechaInicio}
+                                            onChange={(e) => setFechaInicio(e.target.value)}
+                                            required
+                                            className="w-full px-3 py-2 border border-input bg-background text-foreground rounded-md focus:outline-none focus:ring-2 focus:ring-ring text-sm"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-foreground mb-1">Hasta</label>
+                                        <input
+                                            type="datetime-local"
+                                            value={fechaFin}
+                                            onChange={(e) => setFechaFin(e.target.value)}
+                                            required
+                                            className="w-full px-3 py-2 border border-input bg-background text-foreground rounded-md focus:outline-none focus:ring-2 focus:ring-ring text-sm"
+                                        />
+                                    </div>
                                 </div>
-                            </div>
+                            )}
 
                             <div>
-                                <label className="block text-sm font-medium text-foreground mb-1">Tiempo a descontar (minutos)</label>
-                                <input
-                                    type="number"
-                                    value={minutosSolicitados}
-                                    onChange={(e) => setMinutosSolicitados(e.target.value)}
-                                    required
-                                    min="1"
-                                    className="w-full px-3 py-2 border border-input bg-background text-foreground rounded-md focus:outline-none focus:ring-2 focus:ring-ring"
-                                    placeholder="Ej: 480 para un día (8h)"
-                                />
-                                <p className="text-xs text-muted-foreground mt-1 text-right">
-                                    Disponible: {balance} min
-                                </p>
+                                <label className="block text-sm font-medium text-foreground mb-1">Tiempo a descontar</label>
+                                <div className="relative">
+                                    <input
+                                        type="text" // Text to allow "Calculando..." or formatted string if desired, but number is cleaner. Used text for 'calculatedDisplay' logic separation.
+                                        // Actually, if 'DIA_COMPLETO', we want to show the formatted string and keep it read-only.
+                                        value={tipo === 'DIA_COMPLETO' ? calculatedDisplay : minutesToDisplay(minutosSolicitados)}
+                                        readOnly={tipo === 'DIA_COMPLETO'}
+                                        onChange={(e) => {
+                                            if (tipo !== 'DIA_COMPLETO') setMinutosSolicitados(e.target.value)
+                                        }}
+                                        className={`w-full px-3 py-2 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-ring ${tipo === 'DIA_COMPLETO' ? 'bg-muted text-muted-foreground' : 'bg-background text-foreground'}`}
+                                        placeholder={tipo === 'DIA_COMPLETO' ? "Selecciona una fecha" : "Minutos (ej. 120)"}
+                                    />
+                                    {tipo !== 'DIA_COMPLETO' && (
+                                        <input
+                                            type="number"
+                                            className="absolute inset-0 opacity-0 cursor-text"
+                                            value={minutosSolicitados}
+                                            onChange={(e) => setMinutosSolicitados(e.target.value)}
+                                        />
+                                    )}
+                                </div>
+                                {tipo !== 'DIA_COMPLETO' && (
+                                    <p className="text-xs text-muted-foreground mt-1 text-right">
+                                        Disponible: {balance} min
+                                    </p>
+                                )}
                             </div>
 
                             <div>
@@ -228,8 +351,8 @@ export function CompensatoryTimeWidget() {
                                 </button>
                                 <button
                                     type="submit"
-                                    disabled={submitting}
-                                    className="px-4 py-2 bg-primary text-primary-foreground rounded-md text-sm font-medium hover:opacity-90 transition-opacity"
+                                    disabled={submitting || (tipo === 'DIA_COMPLETO' && !minutosSolicitados)}
+                                    className="px-4 py-2 bg-primary text-primary-foreground rounded-md text-sm font-medium hover:opacity-90 transition-opacity disabled:opacity-50"
                                 >
                                     {submitting ? "Enviando..." : "Enviar Solicitud"}
                                 </button>
@@ -241,3 +364,11 @@ export function CompensatoryTimeWidget() {
         </div>
     )
 }
+
+// Helper for generic minutes input
+function minutesToDisplay(min) {
+    if (!min) return ""
+    return min
+}
+
+

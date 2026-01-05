@@ -38,7 +38,9 @@ export async function GET(request) {
 
         return NextResponse.json({
             saldo_minutos: user.bolsa_horas_minutos || 0,
-            historial: history || []
+            historial: history || [],
+            jornada_fija_hhmm: user.jornada_fija_hhmm,
+            rol: user.rol
         })
 
     } catch (error) {
