@@ -32,6 +32,23 @@ export async function POST(request) {
             return NextResponse.json({ message: "Datos incompletos o inválidos" }, { status: 400 })
         }
 
+        // 0. Check for duplicate requests on the same date
+        const dateOnly = fecha_inicio.split('T')[0]
+        const dayStart = `${dateOnly}T00:00:00`
+        const dayEnd = `${dateOnly}T23:59:59`
+
+        const { data: duplicateRequests } = await supabase
+            .from("solicitudes_tiempo")
+            .select("id")
+            .eq("usuario_id", user.id)
+            .neq("estado", "RECHAZADA")
+            .gte("fecha_inicio", dayStart)
+            .lte("fecha_inicio", dayEnd)
+
+        if (duplicateRequests && duplicateRequests.length > 0) {
+            return NextResponse.json({ message: "Ya existe una solicitud activa para esta fecha." }, { status: 400 })
+        }
+
         // 1. Check Balance
         const currentBalance = user.bolsa_horas_minutos || 0
 

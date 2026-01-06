@@ -341,7 +341,7 @@ export function CompensatoryTimeWidget() {
                 setMinutosSolicitados("")
                 setMotivo("")
                 setCalculatedDisplay("")
-                fetchBalance() // Refresh
+                window.location.reload()
             } else {
                 alert("Error: " + data.message)
             }
