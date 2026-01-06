@@ -15,7 +15,9 @@ import { calculateTotalMinutes, getIntervals, timeToMinutes, formatMinutesToHHMM
 
 export function CompensatoryTimeWidget() {
     const { user } = useAuth()
-    const [balance, setBalance] = useState(0)
+    const [balance, setBalance] = useState(0) // Now represents AVAILABLE balance
+    const [balanceTotal, setBalanceTotal] = useState(0)
+    const [balancePending, setBalancePending] = useState(0)
     const [history, setHistory] = useState([])
     const [schedule, setSchedule] = useState(null)
     const [loading, setLoading] = useState(true)
@@ -57,7 +59,9 @@ export function CompensatoryTimeWidget() {
             const res = await fetch("/api/compensatorios/saldo")
             if (res.ok) {
                 const data = await res.json()
-                setBalance(data.saldo_minutos || 0)
+                setBalance(data.saldo_disponible || 0)
+                setBalanceTotal(data.saldo_total || 0)
+                setBalancePending(data.saldo_pendiente || 0)
                 setHistory(data.historial || [])
 
                 // Parse schedule
@@ -368,9 +372,19 @@ export function CompensatoryTimeWidget() {
                 </button>
             </div>
 
-            <div className="mb-6">
-                <span className="text-4xl font-bold text-primary">{formatMinutesToTime(balance)}</span>
-                <span className="text-sm text-muted-foreground ml-2">disponibles</span>
+            <div className="mb-6 grid grid-cols-3 gap-2 text-center border-b border-border pb-4">
+                <div>
+                    <span className="block text-2xl font-bold text-foreground">{formatMinutesToTime(balanceTotal)}</span>
+                    <span className="text-[10px] uppercase text-muted-foreground font-semibold">Total</span>
+                </div>
+                <div>
+                    <span className="block text-2xl font-bold text-orange-500">{formatMinutesToTime(balancePending)}</span>
+                    <span className="text-[10px] uppercase text-muted-foreground font-semibold">En Solicitud</span>
+                </div>
+                <div>
+                    <span className="block text-2xl font-bold text-green-600">{formatMinutesToTime(balance)}</span>
+                    <span className="text-[10px] uppercase text-muted-foreground font-semibold">Disponible</span>
+                </div>
             </div>
 
             {/* Mini History */}
@@ -433,7 +447,6 @@ export function CompensatoryTimeWidget() {
                                     </option>
                                     <option value="LLEGADA_TARDIA">Llegada Tardía</option>
                                     <option value="SALIDA_TEMPRANA">Salida Temprana</option>
-                                    <option value="OTRO">Otro</option>
                                 </select>
                             </div>
 

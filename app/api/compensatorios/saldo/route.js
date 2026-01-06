@@ -25,6 +25,17 @@ export async function GET(request) {
             return NextResponse.json({ message: "No autorizado" }, { status: 401 })
         }
 
+        // Fetch pending requests
+        const { data: pendingRequests } = await supabase
+            .from("solicitudes_tiempo")
+            .select("minutos_solicitados")
+            .eq("usuario_id", user.id)
+            .eq("estado", "PENDIENTE")
+
+        const pendingMinutes = pendingRequests?.reduce((sum, req) => sum + req.minutos_solicitados, 0) || 0
+        const totalMinutes = user.bolsa_horas_minutos || 0
+        const availableMinutes = totalMinutes - pendingMinutes
+
         // Fetch history
         const { data: history, error: historyError } = await supabase
             .from("historial_bolsa")
@@ -37,7 +48,9 @@ export async function GET(request) {
         }
 
         return NextResponse.json({
-            saldo_minutos: user.bolsa_horas_minutos || 0,
+            saldo_total: totalMinutes,
+            saldo_pendiente: pendingMinutes,
+            saldo_disponible: availableMinutes,
             historial: history || [],
             jornada_fija_hhmm: user.jornada_fija_hhmm,
             rol: user.rol
