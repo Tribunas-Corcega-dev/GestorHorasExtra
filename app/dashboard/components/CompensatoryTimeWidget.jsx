@@ -11,7 +11,7 @@ function formatMinutesToTime(minutes) {
 }
 
 // Import helper
-import { calculateTotalMinutes, getIntervals, timeToMinutes } from "@/lib/calculations"
+import { calculateTotalMinutes, getIntervals, timeToMinutes, formatMinutesToHHMM } from "@/lib/calculations"
 
 export function CompensatoryTimeWidget() {
     const { user } = useAuth()
@@ -23,8 +23,9 @@ export function CompensatoryTimeWidget() {
 
     // Form state
     const [tipo, setTipo] = useState("DIA_COMPLETO")
-    const [fechaSingle, setFechaSingle] = useState("") // For 'DIA_COMPLETO' and 'LLEGADA_TARDIA'
+    const [fechaSingle, setFechaSingle] = useState("") // For 'DIA_COMPLETO', 'LLEGADA_TARDIA', 'SALIDA_TEMPRANA'
     const [horaLlegada, setHoraLlegada] = useState("") // For 'LLEGADA_TARDIA'
+    const [horaSalida, setHoraSalida] = useState("") // For 'SALIDA_TEMPRANA'
     const [fechaInicio, setFechaInicio] = useState("")
     const [fechaFin, setFechaFin] = useState("")
     const [minutosSolicitados, setMinutosSolicitados] = useState("")
@@ -219,6 +220,71 @@ export function CompensatoryTimeWidget() {
         setFechaFin(`${dateStr}T${timeStr}`)
     }
 
+    // Logic for "SALIDA_TEMPRANA"
+    const handleEarlyDepartureLogic = (dateStr, timeStr) => {
+        setFechaSingle(dateStr)
+        setHoraSalida(timeStr)
+
+        if (!dateStr || !timeStr) return
+
+        // Validate future date
+        const today = new Date()
+        today.setHours(0, 0, 0, 0)
+        const selectedDate = new Date(dateStr + 'T00:00:00')
+
+        if (selectedDate <= today) {
+            alert("La fecha debe ser posterior al día actual.")
+            setMinutosSolicitados("")
+            setCalculatedDisplay("")
+            return
+        }
+
+        const daySchedule = getDaySchedule(dateStr)
+        if (!daySchedule || !daySchedule.enabled) {
+            return
+        }
+
+        const intervals = getIntervals(daySchedule)
+        if (intervals.length === 0) {
+            setCalculatedDisplay("No hay horas laborales definidas.")
+            return
+        }
+
+        const lastEnd = intervals[intervals.length - 1].end
+        const exitMin = timeToMinutes(timeStr)
+
+        // Validate Exit Time is within working hours
+        let isValidTime = false
+        for (const interval of intervals) {
+            if (exitMin >= interval.start && exitMin <= interval.end) {
+                isValidTime = true
+                break
+            }
+        }
+
+        if (!isValidTime) {
+            setMinutosSolicitados("")
+            setCalculatedDisplay("La hora debe estar dentro de la jornada laboral.")
+            return
+        }
+
+        // Calculate overlap from ExitTime to EndOfDay
+        let missedMinutes = 0
+        for (const interval of intervals) {
+            const overlapStart = Math.max(interval.start, exitMin)
+            const overlapEnd = Math.min(interval.end, lastEnd)
+
+            if (overlapStart < overlapEnd) {
+                missedMinutes += (overlapEnd - overlapStart)
+            }
+        }
+
+        updateCalculatedValues(missedMinutes)
+
+        setFechaInicio(`${dateStr}T${timeStr}`)
+        setFechaFin(`${dateStr}T${formatMinutesToHHMM(lastEnd)}`)
+    }
+
     const updateCalculatedValues = (minutes) => {
         setMinutosSolicitados(minutes.toString())
         const hoursDecimal = (minutes / 60).toFixed(2)
@@ -265,6 +331,7 @@ export function CompensatoryTimeWidget() {
                 setTipo("DIA_COMPLETO")
                 setFechaSingle("")
                 setHoraLlegada("")
+                setHoraSalida("")
                 setFechaInicio("")
                 setFechaFin("")
                 setMinutosSolicitados("")
@@ -353,6 +420,7 @@ export function CompensatoryTimeWidget() {
                                         // Reset fields when switching
                                         setFechaSingle("")
                                         setHoraLlegada("")
+                                        setHoraSalida("")
                                         setFechaInicio("")
                                         setFechaFin("")
                                         setMinutosSolicitados("")
@@ -412,7 +480,33 @@ export function CompensatoryTimeWidget() {
                                 </div>
                             )}
 
-                            {tipo !== 'DIA_COMPLETO' && tipo !== 'LLEGADA_TARDIA' && (
+                            {tipo === 'SALIDA_TEMPRANA' && (
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-foreground mb-1">Fecha</label>
+                                        <input
+                                            type="date"
+                                            min={minDate}
+                                            value={fechaSingle}
+                                            onChange={(e) => handleEarlyDepartureLogic(e.target.value, horaSalida)}
+                                            required
+                                            className="w-full px-3 py-2 border border-input bg-background text-foreground rounded-md focus:outline-none focus:ring-2 focus:ring-ring text-sm"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-foreground mb-1">Hora de Salida</label>
+                                        <input
+                                            type="time"
+                                            value={horaSalida}
+                                            onChange={(e) => handleEarlyDepartureLogic(fechaSingle, e.target.value)}
+                                            required
+                                            className="w-full px-3 py-2 border border-input bg-background text-foreground rounded-md focus:outline-none focus:ring-2 focus:ring-ring text-sm"
+                                        />
+                                    </div>
+                                </div>
+                            )}
+
+                            {tipo !== 'DIA_COMPLETO' && tipo !== 'LLEGADA_TARDIA' && tipo !== 'SALIDA_TEMPRANA' && (
                                 <div className="grid grid-cols-2 gap-4">
                                     <div>
                                         <label className="block text-sm font-medium text-foreground mb-1">Desde</label>
@@ -442,15 +536,15 @@ export function CompensatoryTimeWidget() {
                                 <div className="relative">
                                     <input
                                         type="text"
-                                        value={(tipo === 'DIA_COMPLETO' || tipo === 'LLEGADA_TARDIA') ? calculatedDisplay : minutesToDisplay(minutosSolicitados)}
-                                        readOnly={tipo === 'DIA_COMPLETO' || tipo === 'LLEGADA_TARDIA'}
+                                        value={(tipo === 'DIA_COMPLETO' || tipo === 'LLEGADA_TARDIA' || tipo === 'SALIDA_TEMPRANA') ? calculatedDisplay : minutesToDisplay(minutosSolicitados)}
+                                        readOnly={tipo === 'DIA_COMPLETO' || tipo === 'LLEGADA_TARDIA' || tipo === 'SALIDA_TEMPRANA'}
                                         onChange={(e) => {
-                                            if (tipo !== 'DIA_COMPLETO' && tipo !== 'LLEGADA_TARDIA') setMinutosSolicitados(e.target.value)
+                                            if (tipo !== 'DIA_COMPLETO' && tipo !== 'LLEGADA_TARDIA' && tipo !== 'SALIDA_TEMPRANA') setMinutosSolicitados(e.target.value)
                                         }}
-                                        className={`w-full px-3 py-2 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-ring ${(tipo === 'DIA_COMPLETO' || tipo === 'LLEGADA_TARDIA') ? 'bg-muted' : 'bg-background text-foreground'} ${(calculatedDisplay.includes('debe') || calculatedDisplay.includes('posterior')) ? 'text-destructive font-medium' : 'text-muted-foreground'}`}
-                                        placeholder={(tipo === 'DIA_COMPLETO' || tipo === 'LLEGADA_TARDIA') ? "Selecciona fecha/hora" : "Minutos (ej. 120)"}
+                                        className={`w-full px-3 py-2 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-ring ${(tipo === 'DIA_COMPLETO' || tipo === 'LLEGADA_TARDIA' || tipo === 'SALIDA_TEMPRANA') ? 'bg-muted' : 'bg-background text-foreground'} ${(calculatedDisplay.includes('debe') || calculatedDisplay.includes('posterior')) ? 'text-destructive font-medium' : 'text-muted-foreground'}`}
+                                        placeholder={(tipo === 'DIA_COMPLETO' || tipo === 'LLEGADA_TARDIA' || tipo === 'SALIDA_TEMPRANA') ? "Selecciona fecha/hora" : "Minutos (ej. 120)"}
                                     />
-                                    {tipo !== 'DIA_COMPLETO' && tipo !== 'LLEGADA_TARDIA' && (
+                                    {tipo !== 'DIA_COMPLETO' && tipo !== 'LLEGADA_TARDIA' && tipo !== 'SALIDA_TEMPRANA' && (
                                         <input
                                             type="number"
                                             className="absolute inset-0 opacity-0 cursor-text"
@@ -487,7 +581,7 @@ export function CompensatoryTimeWidget() {
                                 </button>
                                 <button
                                     type="submit"
-                                    disabled={submitting || (tipo === 'DIA_COMPLETO' && !minutosSolicitados) || (tipo === 'LLEGADA_TARDIA' && !minutosSolicitados)}
+                                    disabled={submitting || (tipo === 'DIA_COMPLETO' && !minutosSolicitados) || (tipo === 'LLEGADA_TARDIA' && !minutosSolicitados) || (tipo === 'SALIDA_TEMPRANA' && !minutosSolicitados)}
                                     className="px-4 py-2 bg-primary text-primary-foreground rounded-md text-sm font-medium hover:opacity-90 transition-opacity disabled:opacity-50"
                                 >
                                     {submitting ? "Enviando..." : "Enviar Solicitud"}
