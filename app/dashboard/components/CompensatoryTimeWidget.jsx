@@ -195,23 +195,13 @@ export function CompensatoryTimeWidget() {
         // Correct logic:
         // Calculate overlapping working minutes between [FirstStart, Arrival].
         // Simple diff (ArrivalDiff = Arrival - FirstStart) includes break time! We must exclude break.
-        // Better logic:
-        // MissedMinutes = calculateTotalMinutes(intersection([FirstStart, Arrival], dayIntervals))
-
-        // This is robust.
-        // interval [FirstStart, Arrival] intersect with WorkingIntervals -> Sum duration.
+        if (intervals.length === 0) {
+            setCalculatedDisplay("No hay horas laborales definidas.")
+            return
+        }
 
         const firstStart = intervals[0].start
-        const arrivalInterval = { start: firstStart, end: arrivalMin }
 
-        // Use intersect logic if available?
-        // I have `getIntervals` and `calculateTotalMinutes`.
-        // I can define `intersectIntervals` locally or import.
-        // Importing `intersectIntervalsList` from `lib/calculations` is best but it's not exported?
-        // Let's check `lib/calculations.js` exports. `intersectIntervalsList` IS exported.
-
-        // Let's import `intersectIntervalsList` at the top first? Or just implement simple logic here since I can't easily change imports in this block.
-        // Simple logic:
         let missedMinutes = 0
         for (const interval of intervals) {
             // Intersection of (interval) and (firstStart -> arrival)
