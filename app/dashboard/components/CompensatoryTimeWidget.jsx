@@ -18,7 +18,8 @@ export function CompensatoryTimeWidget() {
     const [balance, setBalance] = useState(0) // Now represents AVAILABLE balance
     const [balanceTotal, setBalanceTotal] = useState(0)
     const [balancePending, setBalancePending] = useState(0)
-    const [history, setHistory] = useState([])
+    const [history, setHistory] = useState([]) // Balance Log
+    const [requestHistory, setRequestHistory] = useState([]) // Requests Log
     const [schedule, setSchedule] = useState(null)
     const [loading, setLoading] = useState(true)
     const [showModal, setShowModal] = useState(false)
@@ -63,6 +64,7 @@ export function CompensatoryTimeWidget() {
                 setBalanceTotal(data.saldo_total || 0)
                 setBalancePending(data.saldo_pendiente || 0)
                 setHistory(data.historial || [])
+                setRequestHistory(data.solicitudes || [])
 
                 // Parse schedule
                 if (data.jornada_fija_hhmm) {
@@ -387,13 +389,13 @@ export function CompensatoryTimeWidget() {
                 </div>
             </div>
 
-            {/* Mini History */}
-            <div>
-                <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Movimientos Recientes</h4>
+            {/* Mini History - Balance Movements */}
+            <div className="mb-6">
+                <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Movimientos de Saldo</h4>
                 {history.length === 0 ? (
                     <p className="text-sm text-muted-foreground italic">No hay movimientos registrados</p>
                 ) : (
-                    <div className="space-y-2 max-h-40 overflow-y-auto pr-1 custom-scrollbar">
+                    <div className="space-y-2 max-h-32 overflow-y-auto pr-1 custom-scrollbar">
                         {history.slice(0, 5).map(item => (
                             <div key={item.id} className="flex justify-between items-center text-sm border-b border-border/50 pb-1 last:border-0">
                                 <div>
@@ -412,6 +414,45 @@ export function CompensatoryTimeWidget() {
                                     <p className="text-[10px] text-muted-foreground">
                                         {new Date(item.fecha).toLocaleDateString()}
                                     </p>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                )}
+            </div>
+
+            {/* Request History */}
+            <div>
+                <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Historial de Solicitudes</h4>
+                {requestHistory.length === 0 ? (
+                    <p className="text-sm text-muted-foreground italic">No hay solicitudes registradas</p>
+                ) : (
+                    <div className="space-y-2 max-h-40 overflow-y-auto pr-1 custom-scrollbar">
+                        {requestHistory.map(req => (
+                            <div key={req.id} className="flex justify-between items-start text-xs border-b border-border/50 pb-2 last:border-0">
+                                <div>
+                                    <div className="flex items-center gap-2 mb-1">
+                                        <span className={`font-bold ${req.tipo === 'DIA_COMPLETO' ? 'text-foreground' : 'text-muted-foreground'}`}>
+                                            {req.tipo.replace('_', ' ')}
+                                        </span>
+                                        <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${req.estado === 'PENDIENTE' ? 'bg-orange-100 text-orange-700' :
+                                                req.estado === 'APROBADO' ? 'bg-green-100 text-green-700' :
+                                                    'bg-red-100 text-red-700'
+                                            }`}>
+                                            {req.estado}
+                                        </span>
+                                    </div>
+                                    <p className="text-muted-foreground">
+                                        {new Date(req.fecha_inicio).toLocaleDateString()} {new Date(req.fecha_inicio).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                    </p>
+                                </div>
+                                <div className="text-right">
+                                    <span className="font-bold text-foreground block">
+                                        {Math.floor(req.minutos_solicitados / 60)}h {req.minutos_solicitados % 60}m
+                                    </span>
+                                    <span className="text-[10px] text-muted-foreground block max-w-[100px] truncate">
+                                        {req.motivo || "-"}
+                                    </span>
                                 </div>
                             </div>
                         ))}

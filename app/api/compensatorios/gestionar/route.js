@@ -179,9 +179,31 @@ export async function GET(request) {
 
         if (redemptionError) throw redemptionError
 
+        // 3. Banking History (Approved/Rejected)
+        const { data: bankingHistory, error: bankingHistoryError } = await supabaseAdmin
+            .from("jornadas")
+            .select("*, usuario:usuarios!empleado_id(nombre, username)")
+            .neq("estado_compensacion", "SOLICITADO")
+            .order("fecha", { ascending: false })
+            .limit(50)
+
+        if (bankingHistoryError) throw bankingHistoryError
+
+        // 4. Redemption History (Approved/Rejected)
+        const { data: redemptionHistory, error: redemptionHistoryError } = await supabaseAdmin
+            .from("solicitudes_tiempo")
+            .select("*, usuario:usuarios!usuario_id(nombre, username)")
+            .neq("estado", "PENDIENTE")
+            .order("fecha_inicio", { ascending: false })
+            .limit(50)
+
+        if (redemptionHistoryError) throw redemptionHistoryError
+
         return NextResponse.json({
             banking: bankingData || [],
-            redemption: redemptionData || []
+            redemption: redemptionData || [],
+            bankingHistory: bankingHistory || [],
+            redemptionHistory: redemptionHistory || []
         })
 
     } catch (error) {

@@ -36,7 +36,14 @@ export async function GET(request) {
         const totalMinutes = user.bolsa_horas_minutos || 0
         const availableMinutes = totalMinutes - pendingMinutes
 
-        // Fetch history
+        // Fetch full request history
+        const { data: requestHistory } = await supabase
+            .from("solicitudes_tiempo")
+            .select("*")
+            .eq("usuario_id", user.id)
+            .order("fecha_inicio", { ascending: false })
+
+        // Fetch history (Balance Log)
         const { data: history, error: historyError } = await supabase
             .from("historial_bolsa")
             .select("*")
@@ -52,6 +59,7 @@ export async function GET(request) {
             saldo_pendiente: pendingMinutes,
             saldo_disponible: availableMinutes,
             historial: history || [],
+            solicitudes: requestHistory || [],
             jornada_fija_hhmm: user.jornada_fija_hhmm,
             rol: user.rol
         })
