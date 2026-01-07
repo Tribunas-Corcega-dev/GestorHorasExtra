@@ -30,6 +30,7 @@ function SalarioContent() {
     const [id, setId] = useState(null)
     const [salarioMinimo, setSalarioMinimo] = useState("")
     const [anioVigencia, setAnioVigencia] = useState(new Date().getFullYear().toString())
+    const [limiteBolsaHoras, setLimiteBolsaHoras] = useState("") // New state
 
     useEffect(() => {
         if (user && !canManageOvertime(user.rol)) {
@@ -48,6 +49,7 @@ function SalarioContent() {
                     setId(data.id)
                     setSalarioMinimo(data.salario_minimo || "")
                     setAnioVigencia(data.anio_vigencia || new Date().getFullYear().toString())
+                    setLimiteBolsaHoras(data.limite_bolsa_horas || "") // Load limit
                 }
             }
         } catch (err) {
@@ -71,7 +73,8 @@ function SalarioContent() {
                 body: JSON.stringify({
                     id,
                     salario_minimo: parseFloat(salarioMinimo),
-                    anio_vigencia: anioVigencia
+                    anio_vigencia: anioVigencia,
+                    limite_bolsa_horas: limiteBolsaHoras ? parseInt(limiteBolsaHoras) : null // Save limit
                 }),
             })
 
@@ -81,7 +84,7 @@ function SalarioContent() {
             }
 
             const data = await res.json()
-            setId(data.id) // Ensure we have the ID for future updates
+            setId(data.id)
             setSuccess("Configuración guardada exitosamente.")
         } catch (err) {
             setError(err.message)
@@ -106,7 +109,7 @@ function SalarioContent() {
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
                     </svg>
                 </Link>
-                <h1 className="text-3xl font-bold text-foreground">Salario Mínimo</h1>
+                <h1 className="text-3xl font-bold text-foreground">Parámetros Generales</h1>
             </div>
 
             <div className="bg-card border border-border rounded-lg shadow-md p-6">
@@ -131,6 +134,24 @@ function SalarioContent() {
                         </div>
                         <p className="text-xs text-muted-foreground mt-1">
                             Ingrese el valor sin puntos ni comas (use punto para decimales).
+                        </p>
+                    </div>
+
+                    <div>
+                        <label htmlFor="limite" className="block text-sm font-medium text-foreground mb-2">
+                            Límite Bolsa de Horas (Minutos)
+                        </label>
+                        <input
+                            id="limite"
+                            type="number"
+                            value={limiteBolsaHoras}
+                            onChange={(e) => setLimiteBolsaHoras(e.target.value)}
+                            min="0"
+                            className="w-full px-3 py-2 border border-input bg-background text-foreground rounded-md focus:outline-none focus:ring-2 focus:ring-ring"
+                            placeholder="Ej: 2400 (40 horas)"
+                        />
+                        <p className="text-xs text-muted-foreground mt-1">
+                            Máximo de minutos acumulables por empleado. Deje en blanco para ilimitado.
                         </p>
                     </div>
 

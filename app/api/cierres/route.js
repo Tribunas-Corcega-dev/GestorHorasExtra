@@ -102,12 +102,29 @@ export async function POST(request) {
         jornadas?.forEach(jornada => {
             if (jornada.horas_extra_hhmm) {
                 const breakdown = jornada.horas_extra_hhmm.breakdown || {}
-                const flatBreakdown = jornada.horas_extra_hhmm.flatBreakdown || breakdown
+                const flatBreakdown = { ...(jornada.horas_extra_hhmm.flatBreakdown || breakdown) }
+
+                // Compensatory Time Deduction Logic
+                if (jornada.horas_para_bolsa_minutos > 0 && ['SOLICITADO', 'APROBADO'].includes(jornada.estado_compensacion)) {
+                    let minutesToDeduct = jornada.horas_para_bolsa_minutos
+
+                    // Priority of deduction: Diurna -> Nocturna -> Diurna Festivo -> Nocturna Festivo
+                    // We typically bank "extra" hours. Surcharges (recargos) are often paid regardless, 
+                    // but if the employee is absent (Compensatory), they effectively traded the whole overtime event.
+                    // Implementation: Subtract from pure overtime types first.
+                    const typesToDeduct = ['extra_diurna', 'extra_nocturna', 'extra_diurna_festivo', 'extra_nocturna_festivo']
+
+                    for (const type of typesToDeduct) {
+                        if (minutesToDeduct <= 0) break
+                        if (flatBreakdown[type] > 0) {
+                            const deduct = Math.min(flatBreakdown[type], minutesToDeduct)
+                            flatBreakdown[type] -= deduct
+                            minutesToDeduct -= deduct
+                        }
+                    }
+                }
 
                 Object.entries(flatBreakdown).forEach(([k, v]) => {
-                    // Normalize keys if needed, but usually they match
-                    // We need to map them to the standard keys if they differ
-                    // Assuming standard keys for now based on previous usage
                     if (reportedOvertime[k] !== undefined) {
                         reportedOvertime[k] += v
                     }
