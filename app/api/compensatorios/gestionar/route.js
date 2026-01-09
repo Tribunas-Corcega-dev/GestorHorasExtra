@@ -183,7 +183,7 @@ export async function GET(request) {
         const { data: bankingHistory, error: bankingHistoryError } = await supabaseAdmin
             .from("jornadas")
             .select("*, usuario:usuarios!empleado_id(nombre, username)")
-            .neq("estado_compensacion", "SOLICITADO")
+            .in("estado_compensacion", ["APROBADO", "RECHAZADO"])
             .order("fecha", { ascending: false })
             .limit(50)
 
