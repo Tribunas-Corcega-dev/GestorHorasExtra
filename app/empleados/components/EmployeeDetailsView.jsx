@@ -101,7 +101,7 @@ export function EmployeeDetailsView({ employeeId, showBackButton = true }) {
         }
     }
 
-    const canEditPhoto = user && (canManageEmployees(user.rol) || user.id === employeeId)
+    const canEditPhoto = user && canManageEmployees(user.rol)
 
     if (loading) {
         return <div className="text-center py-8">Cargando...</div>
