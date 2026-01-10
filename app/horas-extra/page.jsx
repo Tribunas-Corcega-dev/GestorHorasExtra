@@ -6,6 +6,7 @@ import { Layout } from "@/components/Layout"
 import { ProtectedRoute } from "@/components/ProtectedRoute"
 import { canManageOvertime, isCoordinator } from "@/lib/permissions"
 import { useRouter } from "next/navigation"
+import { calculateTotalMinutes, getIntervals, timeToMinutes, formatMinutesToHHMM } from "@/lib/calculations"
 
 export default function HorasExtraPage() {
     return (
@@ -100,12 +101,21 @@ function HorasExtraContent() {
     const [showBalanceModal, setShowBalanceModal] = useState(false)
     const [selectedEmployeeForBalance, setSelectedEmployeeForBalance] = useState(null)
     const [balanceData, setBalanceData] = useState(null)
+    const [schedule, setSchedule] = useState(null)
+
+    // Form State
+    const [tipo, setTipo] = useState("DIA_COMPLETO")
+    const [fechaSingle, setFechaSingle] = useState("")
+    const [horaLlegada, setHoraLlegada] = useState("")
+    const [horaSalida, setHoraSalida] = useState("")
+
     const [redemptionForm, setRedemptionForm] = useState({
-        fecha: new Date().toISOString().split('T')[0],
-        hours: "",
-        minutes: "",
+        fecha_inicio: "",
+        fecha_fin: "",
+        minutos: "",
         motivo: ""
     })
+    const [calculatedDisplay, setCalculatedDisplay] = useState("")
     const [redeeming, setRedeeming] = useState(false)
 
     async function fetchBalance(employeeId) {
@@ -114,6 +124,21 @@ function HorasExtraContent() {
             if (res.ok) {
                 const data = await res.json()
                 setBalanceData(data)
+
+                // Parse schedule if available
+                if (data.jornada_fija_hhmm) {
+                    try {
+                        const parsed = typeof data.jornada_fija_hhmm === 'string'
+                            ? JSON.parse(data.jornada_fija_hhmm)
+                            : data.jornada_fija_hhmm
+                        setSchedule(parsed)
+                    } catch (e) {
+                        console.error("Error parsing schedule:", e)
+                        setSchedule(null)
+                    }
+                } else {
+                    setSchedule(null)
+                }
             }
         } catch (error) {
             console.error("Error fetching balance:", error)
@@ -122,29 +147,160 @@ function HorasExtraContent() {
 
     const handleOpenBalanceModal = async (empleado) => {
         setSelectedEmployeeForBalance(empleado)
-        setBalanceData(null) // Reset while fetching
+        setBalanceData(null)
+        setSchedule(null)
+
+        // Reset Form
+        setTipo("DIA_COMPLETO")
+        setFechaSingle("")
+        setHoraLlegada("")
+        setHoraSalida("")
+        setRedemptionForm({
+            fecha_inicio: "",
+            fecha_fin: "",
+            minutos: "",
+            motivo: ""
+        })
+        setCalculatedDisplay("")
+
         setShowBalanceModal(true)
         await fetchBalance(empleado.id)
     }
 
+    const getDaySchedule = (dateStr) => {
+        if (!dateStr || !schedule) return null
+        const dateObj = new Date(dateStr + 'T12:00:00')
+        // Fix: dateObj.getDay() returns 0 for Sunday, matches daysMap index
+        const dayIndex = dateObj.getDay()
+        const daysMap = ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado']
+        return schedule[daysMap[dayIndex]]
+    }
+
+    const updateCalculatedValues = (minutes) => {
+        setRedemptionForm(prev => ({ ...prev, minutos: minutes.toString() }))
+        const hoursDecimal = (minutes / 60).toFixed(2)
+        const hoursInt = Math.floor(minutes / 60)
+        const minutesInt = minutes % 60
+        setCalculatedDisplay(`${hoursDecimal}h (${hoursInt}h ${minutesInt}m)`)
+    }
+
+    const handleFullDayLogic = (dateStr) => {
+        setFechaSingle(dateStr)
+        if (!dateStr) return
+
+        const daySchedule = getDaySchedule(dateStr)
+        if (!daySchedule || !daySchedule.enabled) {
+            alert("El empleado no tiene turno programado para este día.")
+            updateCalculatedValues(0)
+            return
+        }
+
+        const intervals = getIntervals(daySchedule)
+        const totalMinutes = calculateTotalMinutes(intervals)
+        updateCalculatedValues(totalMinutes)
+
+        // Set timestamps
+        let startStr = "", endStr = ""
+        if (daySchedule.morning?.enabled) {
+            startStr = daySchedule.morning.start
+            endStr = daySchedule.morning.end
+        }
+        if (daySchedule.afternoon?.enabled) {
+            if (!startStr) startStr = daySchedule.afternoon.start
+            endStr = daySchedule.afternoon.end
+        }
+
+        if (startStr && endStr) {
+            setRedemptionForm(prev => ({
+                ...prev,
+                fecha_inicio: `${dateStr}T${startStr}`,
+                fecha_fin: `${dateStr}T${endStr}`
+            }))
+        }
+    }
+
+    const handleLateArrivalLogic = (dateStr, timeStr) => {
+        setFechaSingle(dateStr)
+        setHoraLlegada(timeStr)
+        if (!dateStr || !timeStr) return
+
+        const daySchedule = getDaySchedule(dateStr)
+        if (!daySchedule || !daySchedule.enabled) return
+
+        const startTime = daySchedule.morning?.start || daySchedule.afternoon?.start
+        if (!startTime) return
+
+        const intervals = getIntervals(daySchedule)
+        if (intervals.length === 0) return
+
+        const firstStart = intervals[0].start
+        const arrivalMin = timeToMinutes(timeStr)
+
+        let missedMinutes = 0
+        for (const interval of intervals) {
+            const overlapStart = Math.max(interval.start, firstStart)
+            const overlapEnd = Math.min(interval.end, arrivalMin)
+            if (overlapStart < overlapEnd) {
+                missedMinutes += (overlapEnd - overlapStart)
+            }
+        }
+
+        updateCalculatedValues(missedMinutes)
+        setRedemptionForm(prev => ({
+            ...prev,
+            fecha_inicio: `${dateStr}T${startTime}`,
+            fecha_fin: `${dateStr}T${timeStr}`
+        }))
+    }
+
+    const handleEarlyDepartureLogic = (dateStr, timeStr) => {
+        setFechaSingle(dateStr)
+        setHoraSalida(timeStr)
+        if (!dateStr || !timeStr) return
+
+        const daySchedule = getDaySchedule(dateStr)
+        if (!daySchedule || !daySchedule.enabled) return
+
+        const intervals = getIntervals(daySchedule)
+        if (intervals.length === 0) return
+
+        const lastEnd = intervals[intervals.length - 1].end
+        const exitMin = timeToMinutes(timeStr)
+
+        let missedMinutes = 0
+        for (const interval of intervals) {
+            const overlapStart = Math.max(interval.start, exitMin)
+            const overlapEnd = Math.min(interval.end, lastEnd)
+            if (overlapStart < overlapEnd) {
+                missedMinutes += (overlapEnd - overlapStart)
+            }
+        }
+
+        updateCalculatedValues(missedMinutes)
+        setRedemptionForm(prev => ({
+            ...prev,
+            fecha_inicio: `${dateStr}T${timeStr}`,
+            fecha_fin: `${dateStr}T${formatMinutesToHHMM(lastEnd)}` // Assuming this helper pads with 0
+        }))
+    }
+
     async function handleManagerRedemption(e) {
         e.preventDefault()
-        if (!redemptionForm.hours && !redemptionForm.minutes) return alert("Ingresa el tiempo a canjear")
+        if (!redemptionForm.minutos || parseInt(redemptionForm.minutos) <= 0) return alert("Cantidad de tiempo inválida")
         if (!redemptionForm.motivo) return alert("Ingresa un motivo")
 
         try {
             setRedeeming(true)
-            const totalMinutes = (parseInt(redemptionForm.hours || 0) * 60) + parseInt(redemptionForm.minutes || 0)
 
             const res = await fetch("/api/compensatorios/solicitar", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     targetUserId: selectedEmployeeForBalance.id,
-                    fecha_inicio: `${redemptionForm.fecha}T08:00:00`,
-                    fecha_fin: `${redemptionForm.fecha}T17:00:00`,
-                    minutos_solicitados: totalMinutes,
-                    tipo: "COMPENSATORIO",
+                    tipo: tipo,
+                    fecha_inicio: redemptionForm.fecha_inicio,
+                    fecha_fin: redemptionForm.fecha_fin,
+                    minutos_solicitados: parseInt(redemptionForm.minutos),
                     motivo: redemptionForm.motivo
                 })
             })
@@ -156,12 +312,17 @@ function HorasExtraContent() {
                 // Refresh balance
                 await fetchBalance(selectedEmployeeForBalance.id)
                 // Reset form
+                setTipo("DIA_COMPLETO")
+                setFechaSingle("")
+                setHoraLlegada("")
+                setHoraSalida("")
                 setRedemptionForm({
-                    fecha: new Date().toISOString().split('T')[0],
-                    hours: "",
-                    minutes: "",
+                    fecha_inicio: "",
+                    fecha_fin: "",
+                    minutos: "",
                     motivo: ""
                 })
+                setCalculatedDisplay("")
             } else {
                 alert("Error: " + data.message)
             }
@@ -177,11 +338,13 @@ function HorasExtraContent() {
         return null
     }
 
+    // ... (Outer JSX unchanged until modal form)
+
     return (
         <div>
+            {/* Same Outer JSX */}
             <h1 className="text-3xl font-bold mb-6 text-foreground">Gestión de Horas Extra</h1>
-
-            {/* Filters: search, area, role */}
+            {/* ... Filters & List ... */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                 <input
                     type="text"
@@ -416,45 +579,104 @@ function HorasExtraContent() {
                                         Registrar Canjeo
                                     </h4>
                                     <p className="text-xs text-muted-foreground">
-                                        Registra un disfrute de horas compensatorias en nombre del trabajador. Se aprobará automáticamente.
+                                        Registra un disfrute de horas compensatorias.
                                     </p>
 
                                     <form onSubmit={handleManagerRedemption} className="space-y-3">
                                         <div>
-                                            <label className="text-xs font-medium block mb-1">Fecha</label>
-                                            <input
-                                                type="date"
-                                                required
-                                                value={redemptionForm.fecha}
-                                                onChange={e => setRedemptionForm(prev => ({ ...prev, fecha: e.target.value }))}
+                                            <label className="text-xs font-medium block mb-1">Tipo de Canjeo</label>
+                                            <select
+                                                value={tipo}
+                                                onChange={(e) => {
+                                                    setTipo(e.target.value)
+                                                    setFechaSingle("")
+                                                    setHoraLlegada("")
+                                                    setHoraSalida("")
+                                                    setRedemptionForm(prev => ({ ...prev, minutos: "" }))
+                                                    setCalculatedDisplay("")
+                                                }}
                                                 className="w-full px-3 py-2 border border-input rounded-md text-sm bg-background"
+                                            >
+                                                <option value="DIA_COMPLETO">Día Completo</option>
+                                                <option value="LLEGADA_TARDIA">Llegada Tardía</option>
+                                                <option value="SALIDA_TEMPRANA">Salida Temprana</option>
+                                            </select>
+                                        </div>
+
+                                        {tipo === 'DIA_COMPLETO' && (
+                                            <div>
+                                                <label className="text-xs font-medium block mb-1">Fecha</label>
+                                                <input
+                                                    type="date"
+                                                    value={fechaSingle}
+                                                    onChange={e => handleFullDayLogic(e.target.value)}
+                                                    required
+                                                    className="w-full px-3 py-2 border border-input rounded-md text-sm bg-background"
+                                                />
+                                            </div>
+                                        )}
+
+                                        {tipo === 'LLEGADA_TARDIA' && (
+                                            <div className="grid grid-cols-2 gap-2">
+                                                <div>
+                                                    <label className="text-xs font-medium block mb-1">Fecha</label>
+                                                    <input
+                                                        type="date"
+                                                        value={fechaSingle}
+                                                        onChange={e => handleLateArrivalLogic(e.target.value, horaLlegada)}
+                                                        required
+                                                        className="w-full px-3 py-2 border border-input rounded-md text-sm bg-background"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label className="text-xs font-medium block mb-1">Hora Llegada</label>
+                                                    <input
+                                                        type="time"
+                                                        value={horaLlegada}
+                                                        onChange={e => handleLateArrivalLogic(fechaSingle, e.target.value)}
+                                                        required
+                                                        className="w-full px-3 py-2 border border-input rounded-md text-sm bg-background"
+                                                    />
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {tipo === 'SALIDA_TEMPRANA' && (
+                                            <div className="grid grid-cols-2 gap-2">
+                                                <div>
+                                                    <label className="text-xs font-medium block mb-1">Fecha</label>
+                                                    <input
+                                                        type="date"
+                                                        value={fechaSingle}
+                                                        onChange={e => handleEarlyDepartureLogic(e.target.value, horaSalida)}
+                                                        required
+                                                        className="w-full px-3 py-2 border border-input rounded-md text-sm bg-background"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label className="text-xs font-medium block mb-1">Hora Salida</label>
+                                                    <input
+                                                        type="time"
+                                                        value={horaSalida}
+                                                        onChange={e => handleEarlyDepartureLogic(fechaSingle, e.target.value)}
+                                                        required
+                                                        className="w-full px-3 py-2 border border-input rounded-md text-sm bg-background"
+                                                    />
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        <div>
+                                            <label className="text-xs font-medium block mb-1">Tiempo a descontar</label>
+                                            <input
+                                                type="text"
+                                                readOnly
+                                                value={calculatedDisplay}
+                                                placeholder="Calculado automáticamente"
+                                                className="w-full px-3 py-2 border border-input rounded-md text-sm bg-muted text-foreground"
                                             />
                                         </div>
-                                        <div className="grid grid-cols-2 gap-2">
-                                            <div>
-                                                <label className="text-xs font-medium block mb-1">Horas</label>
-                                                <input
-                                                    type="number"
-                                                    min="0"
-                                                    placeholder="0"
-                                                    value={redemptionForm.hours}
-                                                    onChange={e => setRedemptionForm(prev => ({ ...prev, hours: e.target.value }))}
-                                                    className="w-full px-3 py-2 border border-input rounded-md text-sm bg-background"
-                                                />
-                                            </div>
-                                            <div>
-                                                <label className="text-xs font-medium block mb-1">Minutos</label>
-                                                <input
-                                                    type="number"
-                                                    min="0"
-                                                    max="59"
-                                                    placeholder="0"
-                                                    value={redemptionForm.minutes}
-                                                    onChange={e => setRedemptionForm(prev => ({ ...prev, minutes: e.target.value }))}
-                                                    className="w-full px-3 py-2 border border-input rounded-md text-sm bg-background"
-                                                />
-                                            </div>
-                                        </div>
+
                                         <div>
                                             <label className="text-xs font-medium block mb-1">Motivo</label>
                                             <textarea
@@ -469,7 +691,7 @@ function HorasExtraContent() {
 
                                         <button
                                             type="submit"
-                                            disabled={redeeming}
+                                            disabled={redeeming || !redemptionForm.minutos}
                                             className="w-full py-2 bg-primary text-primary-foreground rounded-md text-sm font-medium hover:opacity-90 transition-opacity disabled:opacity-50 flex justify-center items-center gap-2"
                                         >
                                             {redeeming ? "Procesando..." : "Registrar y Descontar"}
