@@ -8,7 +8,7 @@ import { canManageOvertime } from "@/lib/permissions"
 import { formatDateForDisplay } from "@/lib/utils"
 import { useRouter } from "next/navigation"
 import { formatMinutesToHHMM } from "@/hooks/useOvertimeCalculator"
-import { calculateTotalOvertimeValue, formatToAmPm } from "@/lib/calculations"
+import { calculateTotalOvertimeValue, formatToAmPm, getSalaryForDate } from "@/lib/calculations"
 import { supabase } from "@/lib/supabaseClient"
 
 const LABELS = {
@@ -299,9 +299,17 @@ export function OvertimeHistoryView({ employeeId, showBackButton = true }) {
                     })
                 }
 
-                const hourlyRate = (jornada && jornada.valor_hora_snapshot)
-                    ? Number(jornada.valor_hora_snapshot)
-                    : (empleado ? empleado.valor_hora : 0)
+                // Determine hourly rate based on history > snapshot > current
+                let hourlyRate = 0
+                const historySalary = empleado ? getSalaryForDate(empleado.hist_salarios, jornada.fecha) : null
+
+                if (historySalary) {
+                    hourlyRate = Number(historySalary.hourlyRate)
+                } else if (jornada && jornada.valor_hora_snapshot) {
+                    hourlyRate = Number(jornada.valor_hora_snapshot)
+                } else if (empleado) {
+                    hourlyRate = Number(empleado.valor_hora)
+                }
 
                 if (hourlyRate > 0) {
                     // Check if hours are banked
@@ -741,9 +749,21 @@ export function OvertimeHistoryView({ employeeId, showBackButton = true }) {
                                         const hasOvertime = Object.values(overtimeBreakdown).some(v => v > 0)
                                         const hasSurcharges = Object.values(surchargeBreakdown).some(v => v > 0)
 
+                                        // Determine hourly rate
+                                        let hourlyRate = 0
+                                        const historySalary = empleado ? getSalaryForDate(empleado.hist_salarios, jornada.fecha) : null
+
+                                        if (historySalary) {
+                                            hourlyRate = Number(historySalary.hourlyRate)
+                                        } else if (jornada.valor_hora_snapshot) {
+                                            hourlyRate = Number(jornada.valor_hora_snapshot)
+                                        } else if (empleado) {
+                                            hourlyRate = Number(empleado.valor_hora)
+                                        }
+
                                         let dayValue = 0
-                                        if (empleado && empleado.valor_hora && recargos.length > 0) {
-                                            dayValue = calculateTotalOvertimeValue(flatBreakdown, empleado.valor_hora, recargos)
+                                        if (hourlyRate > 0 && recargos.length > 0) {
+                                            dayValue = calculateTotalOvertimeValue(flatBreakdown, hourlyRate, recargos)
                                         }
 
                                         return (

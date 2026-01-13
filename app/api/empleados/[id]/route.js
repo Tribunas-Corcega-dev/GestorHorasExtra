@@ -71,7 +71,7 @@ export async function PUT(request, props) {
     // Obtener empleado actual
     const { data: currentEmpleado, error: fetchError } = await supabase
       .from("usuarios")
-      .select("*")
+      .select("*, hist_salarios")
       .eq("id", id)
       .single()
 
@@ -128,6 +128,29 @@ export async function PUT(request, props) {
       updateData.horas_semanales = horas_semanales
       updateData.horas_mensuales = horas_mensuales
       updateData.valor_hora = valor_hora
+
+      // Append to salary history if salary or value changed
+      // (Even if salary is same but hours changed, rate changes)
+      let historyToUpdate = [...(currentEmpleado.hist_salarios || [])]
+
+      // If history is empty, assumes the current (old) salary was valid indefinitely in the past.
+      // We add a baseline entry to ensure calculations for past dates find this salary.
+      if (historyToUpdate.length === 0) {
+        historyToUpdate.push({
+          date: "2000-01-01T00:00:00.000Z", // Safe past date
+          salary: currentEmpleado.salario_base,
+          hourlyRate: Number(currentEmpleado.valor_hora), // Ensure number
+          reason: "Línea base inicial"
+        })
+      }
+
+      const newEntry = {
+        date: body.fecha_cambio || new Date().toISOString(),
+        salary: salaryToUse,
+        hourlyRate: valor_hora,
+        reason: "Actualización individual"
+      }
+      updateData.hist_salarios = [...historyToUpdate, newEntry]
     }
 
     // Si se proporciona nueva contraseña

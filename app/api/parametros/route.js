@@ -73,7 +73,7 @@ export async function POST(request) {
         }
 
         const body = await request.json()
-        const { salario_minimo, anio_vigencia, jornada_nocturna, limite_bolsa_horas } = body
+        const { salario_minimo, anio_vigencia, jornada_nocturna, limite_bolsa_horas, fecha_aplicacion } = body
 
         if (!anio_vigencia) {
             return NextResponse.json({ message: "Faltan datos requeridos (Año de Vigencia)" }, { status: 400 })
@@ -142,11 +142,11 @@ export async function POST(request) {
         // I'll keep logic simple: If saving params, update employees. 
         // Ideally we check `if (anio_vigencia == currentYear)`.
 
-        const currentYear = new Date().getFullYear().toString()
-        if (updates.salario_minimo && anio_vigencia == currentYear) {
+        // Auto-update employees regardless of year (User Request: "No Restrictions")
+        if (updates.salario_minimo) {
             const { data: employees } = await supabase
                 .from("usuarios")
-                .select("id, jornada_fija_hhmm")
+                .select("id, jornada_fija_hhmm, hist_salarios, salario_base, valor_hora")
                 .eq("minimo", true)
                 .eq("is_active", true) // Only active
 
@@ -154,13 +154,35 @@ export async function POST(request) {
                 const updatePromises = employees.map(async (emp) => {
                     try {
                         const workValues = calculateEmployeeWorkValues(emp.jornada_fija_hhmm, updates.salario_minimo)
+
+                        // Append to history
+                        let currentHistory = [...(emp.hist_salarios || [])]
+
+                        if (currentHistory.length === 0) {
+                            currentHistory.push({
+                                date: "2000-01-01T00:00:00.000Z",
+                                salary: emp.salario_base,
+                                hourlyRate: Number(emp.valor_hora),
+                                reason: "Línea base inicial"
+                            })
+                        }
+
+                        const newEntry = {
+                            date: fecha_aplicacion || new Date().toISOString(),
+                            salary: updates.salario_minimo,
+                            hourlyRate: workValues.valor_hora,
+                            reason: "Aumento SMLV"
+                        }
+                        const updatedHistory = [...currentHistory, newEntry]
+
                         await supabase
                             .from("usuarios")
                             .update({
                                 salario_base: updates.salario_minimo,
                                 horas_semanales: workValues.horas_semanales,
                                 horas_mensuales: workValues.horas_mensuales,
-                                valor_hora: workValues.valor_hora
+                                valor_hora: workValues.valor_hora,
+                                hist_salarios: updatedHistory
                             })
                             .eq("id", emp.id)
                     } catch (err) {

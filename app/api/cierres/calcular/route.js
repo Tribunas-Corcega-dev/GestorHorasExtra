@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import { supabase } from "@/lib/supabaseClient"
-import { calculatePeriodFixedSurcharges, calculateEmployeeWorkValues } from "@/lib/calculations"
+import { calculatePeriodFixedSurcharges, calculateEmployeeWorkValues, getSalaryForDate } from "@/lib/calculations"
 
 export async function GET(request) {
     try {
@@ -99,11 +99,18 @@ export async function GET(request) {
         )
 
         // Calculate Value
+        // Determine effective hourly rate for this period (using End Date)
+        let hourlyRate = empleado.valor_hora
+        if (empleado.hist_salarios && Array.isArray(empleado.hist_salarios)) {
+            const historySalary = getSalaryForDate(empleado.hist_salarios, endDate)
+            if (historySalary) hourlyRate = historySalary.hourlyRate
+        }
+
         // Fetch surcharges percentages
         const { data: recargos } = await supabase.from("recargos_he").select("*")
         let totalValue = 0
 
-        if (empleado.valor_hora && recargos) {
+        if (hourlyRate && recargos) {
             Object.entries(fixedSurcharges).forEach(([key, minutes]) => {
                 const surchargeType = recargos.find(r => normalizeType(r.tipo_hora_extra) === key)
                 if (surchargeType) {
@@ -121,7 +128,7 @@ export async function GET(request) {
 
                     const hours = minutes / 60
                     const percentage = surchargeType.recargo > 2 ? surchargeType.recargo / 100 : surchargeType.recargo
-                    totalValue += hours * empleado.valor_hora * percentage
+                    totalValue += hours * hourlyRate * percentage
                 }
             })
         }

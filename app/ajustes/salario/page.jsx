@@ -31,6 +31,7 @@ function SalarioContent() {
     const [salarioMinimo, setSalarioMinimo] = useState("")
     const [anioVigencia, setAnioVigencia] = useState(new Date().getFullYear().toString())
     const [limiteBolsaHoras, setLimiteBolsaHoras] = useState("") // New state
+    const [fechaAplicacion, setFechaAplicacion] = useState(new Date().toISOString().split('T')[0]) // New state
 
     useEffect(() => {
         if (user && !canManageOvertime(user.rol)) {
@@ -108,7 +109,8 @@ function SalarioContent() {
                     id,
                     salario_minimo: parseFloat(salarioMinimo),
                     anio_vigencia: anioVigencia,
-                    limite_bolsa_horas: limiteBolsaHoras ? parseInt(limiteBolsaHoras) : null // Save limit
+                    limite_bolsa_horas: limiteBolsaHoras ? parseInt(limiteBolsaHoras) : null, // Save limit
+                    fecha_aplicacion: fechaAplicacion // Send effective date
                 }),
             })
 
@@ -168,6 +170,23 @@ function SalarioContent() {
                         </div>
                         <p className="text-xs text-muted-foreground mt-1">
                             Ingrese el valor sin puntos ni comas (use punto para decimales).
+                        </p>
+                    </div>
+
+                    <div>
+                        <label htmlFor="fecha_aplicacion" className="block text-sm font-medium text-foreground mb-2">
+                            Fecha de Aplicación (Vigencia)
+                        </label>
+                        <input
+                            id="fecha_aplicacion"
+                            type="date"
+                            value={fechaAplicacion}
+                            onChange={(e) => setFechaAplicacion(e.target.value)}
+                            required
+                            className="w-full px-3 py-2 border border-input bg-background text-foreground rounded-md focus:outline-none focus:ring-2 focus:ring-ring"
+                        />
+                        <p className="text-xs text-muted-foreground mt-1">
+                            Fecha desde la cual es efectivo este nuevo salario mínimo (se usará en el historial).
                         </p>
                     </div>
 

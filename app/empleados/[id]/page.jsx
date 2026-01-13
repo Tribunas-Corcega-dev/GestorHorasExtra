@@ -58,6 +58,7 @@ function EditarEmpleadoContent() {
     rol: "",
     password: "",
     minimo: false,
+    fecha_cambio: new Date().toISOString().split('T')[0], // Default to today
   })
 
   const [originalData, setOriginalData] = useState(null)
@@ -442,8 +443,8 @@ function EditarEmpleadoContent() {
                     type="button"
                     onClick={() => setFormData((prev) => ({ ...prev, salario_base: minWage, minimo: true }))}
                     className={`px-4 py-2 border rounded-md text-sm font-medium whitespace-nowrap transition-colors focus:outline-none focus:ring-2 focus:ring-ring ${formData.minimo
-                        ? "bg-green-600 text-white border-green-600 hover:bg-green-700"
-                        : "bg-slate-100 border-slate-300 text-slate-700 hover:bg-slate-200 focus:ring-slate-400"
+                      ? "bg-green-600 text-white border-green-600 hover:bg-green-700"
+                      : "bg-slate-100 border-slate-300 text-slate-700 hover:bg-slate-200 focus:ring-slate-400"
                       }`}
                     title={`Asignar salario mínimo: ${minWage}`}
                   >
@@ -451,6 +452,24 @@ function EditarEmpleadoContent() {
                   </button>
                 )}
               </div>
+            </div>
+
+            <div>
+              <label htmlFor="fecha_cambio" className="block text-sm font-medium text-foreground mb-1">
+                Fecha de Vigencia del Cambio
+              </label>
+              <input
+                id="fecha_cambio"
+                name="fecha_cambio"
+                type="date"
+                value={formData.fecha_cambio}
+                onChange={handleChange}
+                required
+                className="w-full px-3 py-2 border border-input bg-background text-foreground rounded-md focus:outline-none focus:ring-2 focus:ring-ring"
+              />
+              <p className="text-xs text-muted-foreground mt-1">
+                Fecha a partir de la cual aplica este nuevo salario.
+              </p>
             </div>
 
             <div className="md:col-span-2">
