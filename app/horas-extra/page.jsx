@@ -5,7 +5,7 @@ import { useAuth } from "@/hooks/useAuth"
 import { Layout } from "@/components/Layout"
 import { ProtectedRoute } from "@/components/ProtectedRoute"
 import { canManageOvertime, isCoordinator } from "@/lib/permissions"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { calculateTotalMinutes, getIntervals, timeToMinutes, formatMinutesToHHMM } from "@/lib/calculations"
 
 export default function HorasExtraPage() {
@@ -32,6 +32,13 @@ function HorasExtraContent() {
     const [areas, setAreas] = useState([])
     const [sortOrder, setSortOrder] = useState("asc")
 
+    const [searchParamsReady, setSearchParamsReady] = useState(false)
+    const searchParams = useSearchParams()
+
+    useEffect(() => {
+        setSearchParamsReady(true)
+    }, [searchParams])
+
     useEffect(() => {
         if (user) {
             if (user.rol === "OPERARIO") {
@@ -41,6 +48,30 @@ function HorasExtraContent() {
             }
         }
     }, [user, router])
+
+    // Handle deep linking for actions
+    useEffect(() => {
+        if (searchParamsReady && user && canManageOvertime(user.rol)) {
+            const action = searchParams.get('action')
+            const empId = searchParams.get('employeeId')
+
+            if (action === 'manage' && empId) {
+                // We need to get the employee data to open the modal
+                // Try finding in current list first
+                const emp = empleados.find(e => e.id === empId)
+                if (emp) {
+                    handleOpenBalanceModal(emp)
+                } else {
+                    // Fetch specifically
+                    fetch(`/api/empleados/${empId}`)
+                        .then(res => res.ok ? res.json() : null)
+                        .then(data => {
+                            if (data) handleOpenBalanceModal(data)
+                        })
+                }
+            }
+        }
+    }, [searchParamsReady, user, empleados, searchParams])
 
     // Fetch roles once
     useEffect(() => {
