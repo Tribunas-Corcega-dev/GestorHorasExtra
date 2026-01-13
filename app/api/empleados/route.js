@@ -36,6 +36,7 @@ export async function GET(request) {
     let query = supabase
       .from("usuarios")
       .select("id, username, nombre, cc, foto_url, area, rol, salario_base, jornada_fija_hhmm")
+      .eq("is_active", true)
 
     // Si es coordinador, solo puede ver empleados de su área
     if (isCoordinator(user.rol)) {

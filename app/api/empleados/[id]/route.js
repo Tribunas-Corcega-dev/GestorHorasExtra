@@ -193,41 +193,18 @@ export async function DELETE(request, props) {
       return NextResponse.json({ message: "Empleado no encontrado" }, { status: 404 })
     }
 
-    // Delete employee's photo folder from storage if they have a cc
-    if (empleado.cc && supabaseAdmin) {
-      try {
-        const { data: files } = await supabaseAdmin.storage
-          .from("fotos_trabajadores")
-          .list(empleado.cc)
-
-        if (files && files.length > 0) {
-          const filesToRemove = files.map(f => `${empleado.cc}/${f.name}`)
-          const { error: removeError } = await supabaseAdmin.storage
-            .from("fotos_trabajadores")
-            .remove(filesToRemove)
-
-          if (removeError) {
-            console.error("[v0] Error removing files:", removeError)
-          }
-        }
-      } catch (storageError) {
-        console.error("[v0] Error deleting employee photos:", storageError)
-        // Continue with employee deletion even if photo deletion fails
-      }
-    }
-
-    // Delete the employee
+    // Soft Delete: Deactivate the employee instead of deleting details
     const { error: deleteError } = await supabase
       .from("usuarios")
-      .delete()
+      .update({ is_active: false })
       .eq("id", id)
 
     if (deleteError) {
-      console.error("[v0] Error deleting employee:", deleteError)
-      return NextResponse.json({ message: `Error al eliminar el empleado: ${deleteError.message}` }, { status: 500 })
+      console.error("[v0] Error deactivating employee:", deleteError)
+      return NextResponse.json({ message: `Error al desactivar el empleado: ${deleteError.message}` }, { status: 500 })
     }
 
-    return NextResponse.json({ message: "Empleado eliminado exitosamente" })
+    return NextResponse.json({ message: "Empleado desactivado exitosamente. Su historial se preservará." })
   } catch (error) {
     console.error("[v0] Error in DELETE empleado:", error)
     return NextResponse.json({ message: "Error interno del servidor" }, { status: 500 })
