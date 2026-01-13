@@ -8,7 +8,7 @@ import { canManageOvertime } from "@/lib/permissions"
 import { formatDateForDisplay } from "@/lib/utils"
 import { useRouter } from "next/navigation"
 import { formatMinutesToHHMM } from "@/hooks/useOvertimeCalculator"
-import { calculateTotalOvertimeValue } from "@/lib/calculations"
+import { calculateTotalOvertimeValue, formatToAmPm } from "@/lib/calculations"
 import { supabase } from "@/lib/supabaseClient"
 
 const LABELS = {
@@ -741,10 +741,10 @@ export function OvertimeHistoryView({ employeeId, showBackButton = true }) {
                                                 <td className="px-4 py-3 text-sm text-foreground">
                                                     <div className="flex flex-col gap-1">
                                                         {schedule.morning.enabled && (
-                                                            <span className="text-xs">M: {schedule.morning.start}-{schedule.morning.end}</span>
+                                                            <span className="text-xs">M: {formatToAmPm(schedule.morning.start)}-{formatToAmPm(schedule.morning.end)}</span>
                                                         )}
                                                         {schedule.afternoon.enabled && (
-                                                            <span className="text-xs">T: {schedule.afternoon.start}-{schedule.afternoon.end}</span>
+                                                            <span className="text-xs">T: {formatToAmPm(schedule.afternoon.start)}-{formatToAmPm(schedule.afternoon.end)}</span>
                                                         )}
                                                         {!schedule.morning.enabled && !schedule.afternoon.enabled && (
                                                             <span className="text-xs italic text-muted-foreground">Sin turno</span>
@@ -849,7 +849,7 @@ export function OvertimeHistoryView({ employeeId, showBackButton = true }) {
                                             <span>Mañana:</span>
                                             <span className="font-medium">
                                                 {selectedJornada.jornada_base_calcular.morning.enabled
-                                                    ? `${selectedJornada.jornada_base_calcular.morning.start} - ${selectedJornada.jornada_base_calcular.morning.end}`
+                                                    ? `${formatToAmPm(selectedJornada.jornada_base_calcular.morning.start)} - ${formatToAmPm(selectedJornada.jornada_base_calcular.morning.end)}`
                                                     : "No labora"}
                                             </span>
                                         </div>
@@ -857,7 +857,7 @@ export function OvertimeHistoryView({ employeeId, showBackButton = true }) {
                                             <span>Tarde:</span>
                                             <span className="font-medium">
                                                 {selectedJornada.jornada_base_calcular.afternoon.enabled
-                                                    ? `${selectedJornada.jornada_base_calcular.afternoon.start} - ${selectedJornada.jornada_base_calcular.afternoon.end}`
+                                                    ? `${formatToAmPm(selectedJornada.jornada_base_calcular.afternoon.start)} - ${formatToAmPm(selectedJornada.jornada_base_calcular.afternoon.end)}`
                                                     : "No labora"}
                                             </span>
                                         </div>

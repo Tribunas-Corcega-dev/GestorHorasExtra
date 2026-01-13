@@ -2,6 +2,7 @@ import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/hooks/useAuth"
 import { canManageEmployees } from "@/lib/permissions"
+import { formatToAmPm } from "@/lib/calculations"
 
 const DAYS = [
     { id: "lunes", label: "Lunes" },
@@ -215,7 +216,7 @@ export function EmployeeDetailsView({ employeeId, showBackButton = true }) {
                                                         <span className="text-muted-foreground">M:</span>
                                                         <span className="font-medium">
                                                             {daySchedule.morning?.enabled
-                                                                ? `${daySchedule.morning.start} - ${daySchedule.morning.end}`
+                                                                ? `${formatToAmPm(daySchedule.morning.start)} - ${formatToAmPm(daySchedule.morning.end)}`
                                                                 : "No labora"}
                                                         </span>
                                                     </div>
@@ -223,7 +224,7 @@ export function EmployeeDetailsView({ employeeId, showBackButton = true }) {
                                                         <span className="text-muted-foreground">T:</span>
                                                         <span className="font-medium">
                                                             {daySchedule.afternoon?.enabled
-                                                                ? `${daySchedule.afternoon.start} - ${daySchedule.afternoon.end}`
+                                                                ? `${formatToAmPm(daySchedule.afternoon.start)} - ${formatToAmPm(daySchedule.afternoon.end)}`
                                                                 : "No labora"}
                                                         </span>
                                                     </div>
