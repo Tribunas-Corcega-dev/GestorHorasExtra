@@ -33,6 +33,17 @@ export async function POST(request) {
             return NextResponse.json({ message: "Faltan datos requeridos" }, { status: 400 })
         }
 
+        // Fetch Employee current data for snapshot
+        const { data: empleado, error: empError } = await supabase
+            .from("usuarios")
+            .select("valor_hora")
+            .eq("id", empleado_id)
+            .single()
+
+        if (empError || !empleado) {
+            return NextResponse.json({ message: "Empleado no encontrado" }, { status: 404 })
+        }
+
         // Insertar nueva jornada
         const { data: newJornada, error } = await supabase
             .from("jornadas")
@@ -44,6 +55,7 @@ export async function POST(request) {
                     horas_extra_hhmm: horas_extra_hhmm || {},
                     es_festivo: es_festivo || false,
                     registrado_por: user.id,
+                    valor_hora_snapshot: empleado.valor_hora // Save snapshot
                 },
             ])
             .select()

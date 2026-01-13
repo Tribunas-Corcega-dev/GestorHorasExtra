@@ -40,24 +40,58 @@ function SalarioContent() {
         }
     }, [user, router])
 
-    async function fetchData() {
+    const [lastFetchedYear, setLastFetchedYear] = useState(null)
+
+    async function fetchByYear(year) {
+        if (!year || year.length !== 4) return
+        if (year === lastFetchedYear) return // Avoid refetching same year
+
+        setLoading(true)
         try {
-            const res = await fetch("/api/parametros")
+            const res = await fetch(`/api/parametros?year=${year}`)
             if (res.ok) {
                 const data = await res.json()
+                // Update state regardless if data is empty (reset fields for new year) or full
                 if (data && data.id) {
                     setId(data.id)
                     setSalarioMinimo(data.salario_minimo || "")
-                    setAnioVigencia(data.anio_vigencia || new Date().getFullYear().toString())
-                    setLimiteBolsaHoras(data.limite_bolsa_horas || "") // Load limit
+                    setLimiteBolsaHoras(data.limite_bolsa_horas || "")
+                } else {
+                    // New year setup - clear ID but keep user input for valid fields if they typed?
+                    // Actually if we switch year, we should show "Saved" data if exists, or "Empty/Previous" if not?
+                    // If insert new year, usually we might want to copy previous?
+                    // For now, let's just clear ID to ensure we create new.
+                    // Keep the inputs as is? No, if I switch to 2026 and 2026 is empty, I probably want to see defaults or empty.
+                    // Let's reset ID.
+                    setId(null)
+                    // Optional: Don't clear values, let user edit previous ones as template. 
+                    // But if 2026 has saved values, we MUST load them.
+                    setSalarioMinimo(data.salario_minimo || "")
+                    setLimiteBolsaHoras(data.limite_bolsa_horas || "")
+                    // If completely empty object returned:
+                    if (Object.keys(data).length === 0) {
+                        // Reset or Keep? Keeping inputs allows "Clone" behavior easily. 
+                        // "I typed 2026, inputs stayed 2025's, I click save -> Copies to 2026." 
+                        // This is nice UX.
+                        // Just ensure ID is null so we don't update 2025.
+                        setId(null)
+                    }
                 }
+                setLastFetchedYear(year)
             }
         } catch (err) {
             console.error("Error fetching parameters:", err)
-            setError("No se pudo cargar la información actual.")
+            // don't set error state to avoid blocking UI on simple fetch fail
         } finally {
             setLoading(false)
         }
+    }
+
+    async function fetchData() {
+        // Initial fetch - default to current year
+        const year = new Date().getFullYear().toString()
+        setAnioVigencia(year)
+        await fetchByYear(year)
     }
 
     async function handleSubmit(e) {
@@ -168,6 +202,7 @@ function SalarioContent() {
                             min="2000"
                             max="2100"
                             className="w-full px-3 py-2 border border-input bg-background text-foreground rounded-md focus:outline-none focus:ring-2 focus:ring-ring"
+                            onBlur={(e) => fetchByYear(e.target.value)}
                         />
                     </div>
 

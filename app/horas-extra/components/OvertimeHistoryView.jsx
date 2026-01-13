@@ -75,6 +75,7 @@ export function OvertimeHistoryView({ employeeId, showBackButton = true }) {
             const month = date.getMonth()
             const monthName = date.toLocaleString('es-CO', { month: 'long' })
 
+            mockPeriods.push({ id: `${year}-${month}-0`, label: `Mes Completo ${monthName} ${year}` })
             mockPeriods.push({ id: `${year}-${month}-2`, label: `2ª Quincena ${monthName} ${year} (16-End)` })
             mockPeriods.push({ id: `${year}-${month}-1`, label: `1ª Quincena ${monthName} ${year} (01-15)` })
         }
@@ -255,6 +256,9 @@ export function OvertimeHistoryView({ employeeId, showBackButton = true }) {
 
         if (jDate.getFullYear() !== year || jDate.getMonth() !== month) return false
 
+        // Full Month (0) includes everything for that month
+        if (quincena === 0) return true
+
         const day = jDate.getDate()
         if (quincena === 1) return day <= 15
         if (quincena === 2) return day > 15
@@ -295,13 +299,17 @@ export function OvertimeHistoryView({ employeeId, showBackButton = true }) {
                     })
                 }
 
-                if (empleado && empleado.valor_hora) {
+                const hourlyRate = (jornada && jornada.valor_hora_snapshot)
+                    ? Number(jornada.valor_hora_snapshot)
+                    : (empleado ? empleado.valor_hora : 0)
+
+                if (hourlyRate > 0) {
                     // Check if hours are banked
                     const isBanked = ['SOLICITADO', 'APROBADO'].includes(jornada.estado_compensacion)
 
                     // Only calculate value if NOT banked
                     if (!isBanked) {
-                        totalValue += calculateTotalOvertimeValue(flatBreakdown, empleado.valor_hora, recargos)
+                        totalValue += calculateTotalOvertimeValue(flatBreakdown, hourlyRate, recargos)
 
                         // Calculate individual values
                         if (recargos.length > 0) {
@@ -332,7 +340,7 @@ export function OvertimeHistoryView({ employeeId, showBackButton = true }) {
                                     const hours = minutes / 60
                                     const p = percentage > 2 ? percentage / 100 : percentage
                                     const factor = 1 + p
-                                    const value = hours * empleado.valor_hora * factor
+                                    const value = hours * hourlyRate * factor
 
                                     if (overtimeValues[type] !== undefined) {
                                         overtimeValues[type] += value

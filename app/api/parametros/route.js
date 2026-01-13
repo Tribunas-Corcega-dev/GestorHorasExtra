@@ -27,19 +27,37 @@ export async function GET(request) {
             return NextResponse.json({ message: "No autorizado" }, { status: 403 })
         }
 
-        // Fetch the single parameters record (assuming only one exists or we want the latest)
+        const { searchParams } = new URL(request.url)
+        const year = searchParams.get("year") || new Date().getFullYear().toString()
+
+        // Fetch parameters for the specific year
         const { data, error } = await supabase
             .from("parametros")
             .select("*")
-            .limit(1)
+            .eq("anio_vigencia", year)
             .single()
 
-        if (error && error.code !== 'PGRST116') { // PGRST116 is "The result contains 0 rows"
+        if (error && error.code !== 'PGRST116') {
             console.error("Error fetching parameters:", error)
             return NextResponse.json({ message: "Error al obtener parámetros" }, { status: 500 })
         }
 
-        return NextResponse.json(data || {}) // Return empty object if no record found
+        // If not found for requested year, maybe try to return latest? 
+        // Or just return empty so UI knows to create
+        if (!data) {
+            // Optional: Fallback to getting the latest configuration to pre-fill the form
+            const { data: latest } = await supabase
+                .from("parametros")
+                .select("*")
+                .order("anio_vigencia", { ascending: false })
+                .limit(1)
+                .single()
+
+            if (latest) return NextResponse.json(latest)
+            return NextResponse.json({})
+        }
+
+        return NextResponse.json(data)
     } catch (error) {
         console.error("Error in GET parametros:", error)
         return NextResponse.json({ message: "Error interno del servidor" }, { status: 500 })
@@ -55,45 +73,60 @@ export async function POST(request) {
         }
 
         const body = await request.json()
-        const { salario_minimo, anio_vigencia, jornada_nocturna, limite_bolsa_horas, id } = body
+        const { salario_minimo, anio_vigencia, jornada_nocturna, limite_bolsa_horas } = body
 
         if (!anio_vigencia) {
-            return NextResponse.json({ message: "Faltan datos requeridos" }, { status: 400 })
+            return NextResponse.json({ message: "Faltan datos requeridos (Año de Vigencia)" }, { status: 400 })
         }
 
-        // Prepare update object with only defined fields
+        // Prepare update object
         const updates = { anio_vigencia }
         if (salario_minimo !== undefined) updates.salario_minimo = salario_minimo
         if (jornada_nocturna !== undefined) updates.jornada_nocturna = jornada_nocturna
         if (limite_bolsa_horas !== undefined) updates.limite_bolsa_horas = limite_bolsa_horas
 
+        // Check if parameters exist for this year
+        const { data: existing } = await supabase
+            .from("parametros")
+            .select("id")
+            .eq("anio_vigencia", anio_vigencia)
+            .single()
+
         let result
-        if (id) {
-            // Update existing
+        if (existing) {
+            // Update existing record for this year
             result = await supabase
                 .from("parametros")
                 .update(updates)
-                .eq("id", id)
+                .eq("id", existing.id)
                 .select()
                 .single()
         } else {
-            // Insert new (check if one exists first to avoid duplicates if we want singleton)
-            const { data: existing } = await supabase.from("parametros").select("id").limit(1).single()
+            // Insert new record for this year
 
-            if (existing) {
-                result = await supabase
+            // If night shift range is not provided, inherit from previous year (latest record)
+            if (!updates.jornada_nocturna) {
+                const { data: latest } = await supabase
                     .from("parametros")
-                    .update(updates)
-                    .eq("id", existing.id)
-                    .select()
+                    .select("jornada_nocturna")
+                    .neq("anio_vigencia", anio_vigencia) // Exclude current if somehow exists (though we know it doesn't)
+                    .order("anio_vigencia", { ascending: false })
+                    .limit(1)
                     .single()
-            } else {
-                result = await supabase
-                    .from("parametros")
-                    .insert([updates])
-                    .select()
-                    .single()
+
+                if (latest && latest.jornada_nocturna) {
+                    updates.jornada_nocturna = latest.jornada_nocturna
+                } else {
+                    // Default fallback if no previous history
+                    updates.jornada_nocturna = "21:00-06:00"
+                }
             }
+
+            result = await supabase
+                .from("parametros")
+                .insert([updates])
+                .select()
+                .single()
         }
 
         if (result.error) {
@@ -101,24 +134,26 @@ export async function POST(request) {
             return NextResponse.json({ message: "Error al guardar parámetros" }, { status: 500 })
         }
 
-        // Auto-update employees if Minimum Wage changed
-        if (updates.salario_minimo) {
-            // Fetch employees with 'minimo' flag set to true
+        // Auto-update employees logic...
+        // Only if updating CURRENT YEAR or FUTURE YEAR? 
+        // User asked to fix overwriting. Auto-update logic is separate.
+        // Assuming we still want to auto-update based on the saved value if valid.
+        // But warning: updating 2026 params shouldn't update employees NOW if it's 2025.
+        // I'll keep logic simple: If saving params, update employees. 
+        // Ideally we check `if (anio_vigencia == currentYear)`.
+
+        const currentYear = new Date().getFullYear().toString()
+        if (updates.salario_minimo && anio_vigencia == currentYear) {
             const { data: employees } = await supabase
                 .from("usuarios")
                 .select("id, jornada_fija_hhmm")
                 .eq("minimo", true)
+                .eq("is_active", true) // Only active
 
             if (employees && employees.length > 0) {
-                console.log(`Auto-updating ${employees.length} employees to new minimum wage: ${updates.salario_minimo}`)
-
-                // Process updates in parallel or sequence
                 const updatePromises = employees.map(async (emp) => {
                     try {
-                        // Recalculate work values with new salary and existing schedule
                         const workValues = calculateEmployeeWorkValues(emp.jornada_fija_hhmm, updates.salario_minimo)
-
-                        // Update employee
                         await supabase
                             .from("usuarios")
                             .update({
@@ -132,8 +167,6 @@ export async function POST(request) {
                         console.error(`Failed to auto-update employee ${emp.id}:`, err)
                     }
                 })
-
-                // Wait for all to complete (or let them run in background if too many, but await suggests safety)
                 await Promise.all(updatePromises)
             }
         }
