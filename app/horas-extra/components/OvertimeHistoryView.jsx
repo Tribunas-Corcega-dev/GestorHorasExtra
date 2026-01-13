@@ -296,46 +296,52 @@ export function OvertimeHistoryView({ employeeId, showBackButton = true }) {
                 }
 
                 if (empleado && empleado.valor_hora) {
-                    totalValue += calculateTotalOvertimeValue(flatBreakdown, empleado.valor_hora, recargos)
+                    // Check if hours are banked
+                    const isBanked = ['SOLICITADO', 'APROBADO'].includes(jornada.estado_compensacion)
 
-                    // Calculate individual values
-                    if (recargos.length > 0) {
-                        Object.entries(flatBreakdown).forEach(([type, minutes]) => {
-                            if (minutes > 0) {
-                                const surcharge = recargos.find(r => {
-                                    const dbType = (r.tipo_hora_extra || "").trim().toLowerCase()
-                                    const map = {
-                                        "extra diurno": "extra_diurna",
-                                        "trabajo extra nocturno": "extra_nocturna",
-                                        "extra nocturna": "extra_nocturna",
-                                        "trabajo extra diurno dominical y festivo": "extra_diurna_festivo",
-                                        "extra diurna festivo": "extra_diurna_festivo",
-                                        "trabajo extra nocturno en domingos y festivos": "extra_nocturna_festivo",
-                                        "extra nocturna festivo": "extra_nocturna_festivo",
-                                        "recargo nocturno": "recargo_nocturno",
-                                        "trabajo nocturno": "recargo_nocturno",
-                                        "trabajo dominical y festivo": "dominical_festivo",
-                                        "dominical/festivo": "dominical_festivo",
-                                        "trabajo nocturno en dominical y festivo": "recargo_nocturno_festivo",
-                                        "recargo nocturno festivo": "recargo_nocturno_festivo"
+                    // Only calculate value if NOT banked
+                    if (!isBanked) {
+                        totalValue += calculateTotalOvertimeValue(flatBreakdown, empleado.valor_hora, recargos)
+
+                        // Calculate individual values
+                        if (recargos.length > 0) {
+                            Object.entries(flatBreakdown).forEach(([type, minutes]) => {
+                                if (minutes > 0) {
+                                    const surcharge = recargos.find(r => {
+                                        const dbType = (r.tipo_hora_extra || "").trim().toLowerCase()
+                                        const map = {
+                                            "extra diurno": "extra_diurna",
+                                            "trabajo extra nocturno": "extra_nocturna",
+                                            "extra nocturna": "extra_nocturna",
+                                            "trabajo extra diurno dominical y festivo": "extra_diurna_festivo",
+                                            "extra diurna festivo": "extra_diurna_festivo",
+                                            "trabajo extra nocturno en domingos y festivos": "extra_nocturna_festivo",
+                                            "extra nocturna festivo": "extra_nocturna_festivo",
+                                            "recargo nocturno": "recargo_nocturno",
+                                            "trabajo nocturno": "recargo_nocturno",
+                                            "trabajo dominical y festivo": "dominical_festivo",
+                                            "dominical/festivo": "dominical_festivo",
+                                            "trabajo nocturno en dominical y festivo": "recargo_nocturno_festivo",
+                                            "recargo nocturno festivo": "recargo_nocturno_festivo"
+                                        }
+                                        return (map[dbType] || r.tipo_hora_extra) === type
+                                    })
+
+
+                                    const percentage = surcharge ? surcharge.recargo : 0
+                                    const hours = minutes / 60
+                                    const p = percentage > 2 ? percentage / 100 : percentage
+                                    const factor = 1 + p
+                                    const value = hours * empleado.valor_hora * factor
+
+                                    if (overtimeValues[type] !== undefined) {
+                                        overtimeValues[type] += value
+                                    } else if (surchargeValues[type] !== undefined) {
+                                        surchargeValues[type] += value
                                     }
-                                    return (map[dbType] || r.tipo_hora_extra) === type
-                                })
-
-
-                                const percentage = surcharge ? surcharge.recargo : 0
-                                const hours = minutes / 60
-                                const p = percentage > 2 ? percentage / 100 : percentage
-                                const factor = 1 + p
-                                const value = hours * empleado.valor_hora * factor
-
-                                if (overtimeValues[type] !== undefined) {
-                                    overtimeValues[type] += value
-                                } else if (surchargeValues[type] !== undefined) {
-                                    surchargeValues[type] += value
                                 }
-                            }
-                        })
+                            })
+                        }
                     }
                 }
             }
@@ -784,7 +790,13 @@ export function OvertimeHistoryView({ employeeId, showBackButton = true }) {
                                                     )}
                                                 </td>
                                                 <td className="px-4 py-3 text-sm font-bold text-green-600 dark:text-green-400 text-right whitespace-nowrap">
-                                                    {dayValue > 0 ? formatCurrency(dayValue) : "-"}
+                                                    {['SOLICITADO', 'APROBADO'].includes(jornada.estado_compensacion) ? (
+                                                        <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400 border border-blue-200 dark:border-blue-800">
+                                                            En Bolsa
+                                                        </span>
+                                                    ) : (
+                                                        dayValue > 0 ? formatCurrency(dayValue) : "-"
+                                                    )}
                                                 </td>
                                                 <td className="px-4 py-3 text-sm font-bold text-primary text-right">
                                                     {overtimeMinutes > 0 ? (
