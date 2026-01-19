@@ -8,6 +8,25 @@ import { canManageOvertime } from "@/lib/permissions"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 
+// Helpers
+function formatMinutesToHHMM(minutes) {
+    if (minutes === null || minutes === undefined || minutes === "") return ""
+    const h = Math.floor(minutes / 60)
+    const m = minutes % 60
+    return `${h}:${m.toString().padStart(2, '0')}`
+}
+
+function parseHHMMToMinutes(timeStr) {
+    if (!timeStr) return null
+    // If just number, assume hours
+    if (!timeStr.includes(':')) {
+        const num = parseInt(timeStr)
+        return isNaN(num) ? null : num * 60
+    }
+    const [h, m] = timeStr.split(':').map(val => parseInt(val) || 0)
+    return (h * 60) + m
+}
+
 export default function SalarioPage() {
     return (
         <ProtectedRoute>
@@ -30,8 +49,9 @@ function SalarioContent() {
     const [id, setId] = useState(null)
     const [salarioMinimo, setSalarioMinimo] = useState("")
     const [anioVigencia, setAnioVigencia] = useState(new Date().getFullYear().toString())
-    const [limiteBolsaHoras, setLimiteBolsaHoras] = useState("") // New state
-    const [fechaAplicacion, setFechaAplicacion] = useState(new Date().toISOString().split('T')[0]) // New state
+    const [limitHours, setLimitHours] = useState("")
+    const [limitMinutes, setLimitMinutes] = useState("")
+    const [fechaAplicacion, setFechaAplicacion] = useState(new Date().toISOString().split('T')[0])
 
     useEffect(() => {
         if (user && !canManageOvertime(user.rol)) {
@@ -45,36 +65,39 @@ function SalarioContent() {
 
     async function fetchByYear(year) {
         if (!year || year.length !== 4) return
-        if (year === lastFetchedYear) return // Avoid refetching same year
+        if (year === lastFetchedYear) return
 
         setLoading(true)
         try {
             const res = await fetch(`/api/parametros?year=${year}`)
             if (res.ok) {
                 const data = await res.json()
-                // Update state regardless if data is empty (reset fields for new year) or full
                 if (data && data.id) {
                     setId(data.id)
                     setSalarioMinimo(data.salario_minimo || "")
-                    setLimiteBolsaHoras(data.limite_bolsa_horas || "")
+
+                    const totalMin = data.limite_bolsa_horas
+                    if (totalMin !== null && totalMin !== undefined) {
+                        setLimitHours(Math.floor(totalMin / 60).toString())
+                        setLimitMinutes((totalMin % 60).toString())
+                    } else {
+                        setLimitHours("")
+                        setLimitMinutes("")
+                    }
                 } else {
-                    // New year setup - clear ID but keep user input for valid fields if they typed?
-                    // Actually if we switch year, we should show "Saved" data if exists, or "Empty/Previous" if not?
-                    // If insert new year, usually we might want to copy previous?
-                    // For now, let's just clear ID to ensure we create new.
-                    // Keep the inputs as is? No, if I switch to 2026 and 2026 is empty, I probably want to see defaults or empty.
-                    // Let's reset ID.
                     setId(null)
-                    // Optional: Don't clear values, let user edit previous ones as template. 
-                    // But if 2026 has saved values, we MUST load them.
                     setSalarioMinimo(data.salario_minimo || "")
-                    setLimiteBolsaHoras(data.limite_bolsa_horas || "")
-                    // If completely empty object returned:
+
+                    const totalMin = data.limite_bolsa_horas
+                    if (totalMin !== null && totalMin !== undefined) {
+                        setLimitHours(Math.floor(totalMin / 60).toString())
+                        setLimitMinutes((totalMin % 60).toString())
+                    } else {
+                        setLimitHours("")
+                        setLimitMinutes("")
+                    }
+
                     if (Object.keys(data).length === 0) {
-                        // Reset or Keep? Keeping inputs allows "Clone" behavior easily. 
-                        // "I typed 2026, inputs stayed 2025's, I click save -> Copies to 2026." 
-                        // This is nice UX.
-                        // Just ensure ID is null so we don't update 2025.
                         setId(null)
                     }
                 }
@@ -82,14 +105,12 @@ function SalarioContent() {
             }
         } catch (err) {
             console.error("Error fetching parameters:", err)
-            // don't set error state to avoid blocking UI on simple fetch fail
         } finally {
             setLoading(false)
         }
     }
 
     async function fetchData() {
-        // Initial fetch - default to current year
         const year = new Date().getFullYear().toString()
         setAnioVigencia(year)
         await fetchByYear(year)
@@ -102,6 +123,13 @@ function SalarioContent() {
         setSaving(true)
 
         try {
+            let finalLimit = null
+            if (limitHours !== "" || limitMinutes !== "") {
+                const h = parseInt(limitHours) || 0
+                const m = parseInt(limitMinutes) || 0
+                finalLimit = (h * 60) + m
+            }
+
             const res = await fetch("/api/parametros", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -109,8 +137,8 @@ function SalarioContent() {
                     id,
                     salario_minimo: parseFloat(salarioMinimo),
                     anio_vigencia: anioVigencia,
-                    limite_bolsa_horas: limiteBolsaHoras ? parseInt(limiteBolsaHoras) : null, // Save limit
-                    fecha_aplicacion: fechaAplicacion // Send effective date
+                    limite_bolsa_horas: finalLimit, // Send minutes
+                    fecha_aplicacion: fechaAplicacion
                 }),
             })
 
@@ -191,20 +219,43 @@ function SalarioContent() {
                     </div>
 
                     <div>
-                        <label htmlFor="limite" className="block text-sm font-medium text-foreground mb-2">
-                            Límite Bolsa de Horas (Minutos)
+                        <label htmlFor="limitHours" className="block text-sm font-medium text-foreground mb-2">
+                            Límite Bolsa de Horas
                         </label>
-                        <input
-                            id="limite"
-                            type="number"
-                            value={limiteBolsaHoras}
-                            onChange={(e) => setLimiteBolsaHoras(e.target.value)}
-                            min="0"
-                            className="w-full px-3 py-2 border border-input bg-background text-foreground rounded-md focus:outline-none focus:ring-2 focus:ring-ring"
-                            placeholder="Ej: 2400 (40 horas)"
-                        />
+                        <div className="flex items-center gap-2">
+                            <div className="flex-1 relative">
+                                <input
+                                    id="limitHours"
+                                    type="number"
+                                    min="0"
+                                    value={limitHours}
+                                    onChange={(e) => setLimitHours(e.target.value)}
+                                    className="w-full px-3 py-2 border border-input bg-background text-foreground rounded-md focus:outline-none focus:ring-2 focus:ring-ring pr-8"
+                                    placeholder="Horas"
+                                />
+                                <span className="absolute right-3 top-2 text-xs text-muted-foreground font-medium pt-0.5">h</span>
+                            </div>
+                            <span className="text-xl font-bold pb-2 text-muted-foreground">:</span>
+                            <div className="w-28 relative">
+                                <input
+                                    type="number"
+                                    min="0"
+                                    max="59"
+                                    value={limitMinutes}
+                                    onChange={(e) => {
+                                        const val = parseInt(e.target.value)
+                                        if (!e.target.value || (val >= 0 && val <= 59)) {
+                                            setLimitMinutes(e.target.value)
+                                        }
+                                    }}
+                                    className="w-full px-3 py-2 border border-input bg-background text-foreground rounded-md focus:outline-none focus:ring-2 focus:ring-ring pr-8"
+                                    placeholder="Min"
+                                />
+                                <span className="absolute right-3 top-2 text-xs text-muted-foreground font-medium pt-0.5">m</span>
+                            </div>
+                        </div>
                         <p className="text-xs text-muted-foreground mt-1">
-                            Máximo de minutos acumulables por empleado. Deje en blanco para ilimitado.
+                            Máximo de horas acumulables. Deje ambos en blanco para ilimitado.
                         </p>
                     </div>
 
