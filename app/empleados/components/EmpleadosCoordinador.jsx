@@ -106,12 +106,24 @@ export function EmpleadosCoordinador() {
                                     </div>
                                 </div>
 
-                                <div className="mt-auto">
+                                <div className="mt-auto flex flex-col gap-2">
                                     <Link
                                         href={`/empleados/${empleado.id}/detalles`}
-                                        className="flex items-center justify-center px-4 py-2 border border-border rounded-md text-sm font-medium hover:bg-accent transition-colors w-full"
+                                        className="flex items-center justify-center gap-2 bg-primary text-primary-foreground px-4 py-2 rounded-md text-sm font-medium hover:opacity-90 transition-opacity w-full"
                                     >
-                                        Ver Detalles
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                                        </svg>
+                                        Ver Perfil
+                                    </Link>
+                                    <Link
+                                        href={`/horas-extra/${empleado.id}/historial`}
+                                        className="flex items-center justify-center gap-2 border border-input bg-background hover:bg-accent text-foreground px-4 py-2 rounded-md text-sm font-medium transition-colors w-full"
+                                    >
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                        </svg>
+                                        Ver Historial
                                     </Link>
                                 </div>
                             </div>
