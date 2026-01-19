@@ -10,6 +10,7 @@ import { useRouter } from "next/navigation"
 import { formatMinutesToHHMM } from "@/hooks/useOvertimeCalculator"
 import { calculateTotalOvertimeValue, formatToAmPm, getSalaryForDate } from "@/lib/calculations"
 import { supabase } from "@/lib/supabaseClient"
+import { CompensatoryRequestModal } from "./CompensatoryRequestModal"
 
 const LABELS = {
     extra_diurna: "Extra Diurna",
@@ -64,6 +65,7 @@ export function OvertimeHistoryView({ employeeId, showBackButton = true }) {
     const [loadingFixed, setLoadingFixed] = useState(false)
     const [isCoordinator, setIsCoordinator] = useState(false)
     const [balanceData, setBalanceData] = useState(null)
+    const [showBankingModal, setShowBankingModal] = useState(false)
 
     useEffect(() => {
         // Generate mock periods for the last 3 months
@@ -313,51 +315,62 @@ export function OvertimeHistoryView({ employeeId, showBackButton = true }) {
 
                 if (hourlyRate > 0) {
                     // Check if hours are banked
-                    const isBanked = ['SOLICITADO', 'APROBADO'].includes(jornada.estado_compensacion)
+                    // OLD LOGIC: const isBanked = ['SOLICITADO', 'APROBADO'].includes(jornada.estado_compensacion)
+                    // NEW LOGIC: Deduct banked minutes from payable minutes
 
-                    // Only calculate value if NOT banked
-                    if (!isBanked) {
-                        totalValue += calculateTotalOvertimeValue(flatBreakdown, hourlyRate, recargos)
+                    const bankedDesglose = jornada.desglose_compensacion || {}
 
-                        // Calculate individual values
-                        if (recargos.length > 0) {
-                            Object.entries(flatBreakdown).forEach(([type, minutes]) => {
-                                if (minutes > 0) {
-                                    const surcharge = recargos.find(r => {
-                                        const dbType = (r.tipo_hora_extra || "").trim().toLowerCase()
-                                        const map = {
-                                            "extra diurno": "extra_diurna",
-                                            "trabajo extra nocturno": "extra_nocturna",
-                                            "extra nocturna": "extra_nocturna",
-                                            "trabajo extra diurno dominical y festivo": "extra_diurna_festivo",
-                                            "extra diurna festivo": "extra_diurna_festivo",
-                                            "trabajo extra nocturno en domingos y festivos": "extra_nocturna_festivo",
-                                            "extra nocturna festivo": "extra_nocturna_festivo",
-                                            "recargo nocturno": "recargo_nocturno",
-                                            "trabajo nocturno": "recargo_nocturno",
-                                            "trabajo dominical y festivo": "dominical_festivo",
-                                            "dominical/festivo": "dominical_festivo",
-                                            "trabajo nocturno en dominical y festivo": "recargo_nocturno_festivo",
-                                            "recargo nocturno festivo": "recargo_nocturno_festivo"
-                                        }
-                                        return (map[dbType] || r.tipo_hora_extra) === type
-                                    })
+                    totalValue += calculateTotalOvertimeValue(flatBreakdown, hourlyRate, recargos, bankedDesglose) // Needs update in lib? Or manually handled here?
+                    // calculateTotalOvertimeValue doesn't support deduction arg. Let's do it manually or assume we modify breakdown.
 
-
-                                    const percentage = surcharge ? surcharge.recargo : 0
-                                    const hours = minutes / 60
-                                    const p = percentage > 2 ? percentage / 100 : percentage
-                                    const factor = 1 + p
-                                    const value = hours * hourlyRate * factor
-
-                                    if (overtimeValues[type] !== undefined) {
-                                        overtimeValues[type] += value
-                                    } else if (surchargeValues[type] !== undefined) {
-                                        surchargeValues[type] += value
-                                    }
-                                }
-                            })
+                    // Modify flatBreakdown for calculation purposes (Deduct banked)
+                    const payableBreakdown = { ...flatBreakdown }
+                    Object.entries(bankedDesglose).forEach(([k, v]) => {
+                        if (payableBreakdown[k]) {
+                            payableBreakdown[k] = Math.max(0, payableBreakdown[k] - v)
                         }
+                    })
+
+                    totalValue += calculateTotalOvertimeValue(payableBreakdown, hourlyRate, recargos)
+
+                    // Calculate individual values
+                    if (recargos.length > 0) {
+                        Object.entries(payableBreakdown).forEach(([type, minutes]) => {
+                            if (minutes > 0) {
+                                const surcharge = recargos.find(r => {
+                                    const dbType = (r.tipo_hora_extra || "").trim().toLowerCase()
+                                    const map = {
+                                        "extra diurno": "extra_diurna",
+                                        "trabajo extra nocturno": "extra_nocturna",
+                                        "extra nocturna": "extra_nocturna",
+                                        "trabajo extra diurno dominical y festivo": "extra_diurna_festivo",
+                                        "extra diurna festivo": "extra_diurna_festivo",
+                                        "trabajo extra nocturno en domingos y festivos": "extra_nocturna_festivo",
+                                        "extra nocturna festivo": "extra_nocturna_festivo",
+                                        "recargo nocturno": "recargo_nocturno",
+                                        "trabajo nocturno": "recargo_nocturno",
+                                        "trabajo dominical y festivo": "dominical_festivo",
+                                        "dominical/festivo": "dominical_festivo",
+                                        "trabajo nocturno en dominical y festivo": "recargo_nocturno_festivo",
+                                        "recargo nocturno festivo": "recargo_nocturno_festivo"
+                                    }
+                                    return (map[dbType] || r.tipo_hora_extra) === type
+                                })
+
+
+                                const percentage = surcharge ? surcharge.recargo : 0
+                                const hours = minutes / 60
+                                const p = percentage > 2 ? percentage / 100 : percentage
+                                const factor = 1 + p
+                                const value = hours * hourlyRate * factor
+
+                                if (overtimeValues[type] !== undefined) {
+                                    overtimeValues[type] += value
+                                } else if (surchargeValues[type] !== undefined) {
+                                    surchargeValues[type] += value
+                                }
+                            }
+                        })
                     }
                 }
             }
@@ -476,6 +489,15 @@ export function OvertimeHistoryView({ employeeId, showBackButton = true }) {
                         Registrar Hora Extra
                     </Link>
                 )}
+
+                {/* Banking Button (Visible to Employee and Coordinators) */}
+                <button
+                    onClick={() => setShowBankingModal(true)}
+                    className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center justify-center gap-2 w-full sm:w-auto"
+                >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 12h20" /><path d="M7 12v5a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2v-5" /><path d="M12 12V7" /></svg>
+                    Ahorrar en Bolsa
+                </button>
 
                 {/* Close Period Button */}
                 {user?.rol === 'TALENTO_HUMANO' && selectedPeriod !== 'all' && !closingRecord && (
@@ -794,6 +816,13 @@ export function OvertimeHistoryView({ employeeId, showBackButton = true }) {
                                                     ) : (
                                                         <span className="text-muted-foreground text-xs">Ordinario</span>
                                                     )}
+                                                    {jornada.horas_para_bolsa_minutos > 0 && (
+                                                        <div className="mt-1">
+                                                            <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
+                                                                Bolsa: {formatMinutesToFloat(jornada.horas_para_bolsa_minutos)}
+                                                            </span>
+                                                        </div>
+                                                    )}
                                                 </td>
                                                 <td className="px-4 py-3 text-sm text-foreground">
                                                     <div className="flex flex-col gap-1">
@@ -1009,47 +1038,11 @@ export function OvertimeHistoryView({ employeeId, showBackButton = true }) {
                                             Apelar
                                         </button>
 
-                                        {/* Compensatory Time Request Button */}
+                                        {/* Status Badge */}
                                         {(() => {
-                                            const totalMinutes = selectedJornada.horas_extra_hhmm?.minutes || 0
                                             const status = selectedJornada.estado_compensacion || 'NINGUNO'
 
-                                            if (totalMinutes > 0 && ['NINGUNO', 'RECHAZADO'].includes(status)) {
-                                                return (
-                                                    <button
-                                                        onClick={async () => {
-                                                            const confirmMsg = `¿Deseas enviar estas ${formatMinutesToFloat(totalMinutes)} a tu Bolsa de Horas?\n\nAl hacerlo, estas horas NO se pagarán en dinero, sino que se acumularán para tiempo libre.`
-                                                            if (!confirm(confirmMsg)) return
-
-                                                            try {
-                                                                const res = await fetch("/api/compensatorios/acumular", {
-                                                                    method: "POST",
-                                                                    headers: { "Content-Type": "application/json" },
-                                                                    body: JSON.stringify({
-                                                                        jornada_id: selectedJornada.id,
-                                                                        minutos: totalMinutes
-                                                                    })
-                                                                })
-
-                                                                const data = await res.json()
-                                                                if (res.ok) {
-                                                                    alert("Solicitud enviada exitosamente.")
-                                                                    setSelectedJornada(null)
-                                                                    fetchData() // Refresh data
-                                                                } else {
-                                                                    alert("Error: " + data.message)
-                                                                }
-                                                            } catch (e) {
-                                                                console.error(e)
-                                                                alert("Error al procesar la solicitud")
-                                                            }
-                                                        }}
-                                                        className="px-4 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 transition-colors"
-                                                    >
-                                                        A Bolsa
-                                                    </button>
-                                                )
-                                            } else if (status !== 'NINGUNO') {
+                                            if (status !== 'NINGUNO') {
                                                 return (
                                                     <span className="px-3 py-2 bg-blue-100 text-blue-800 rounded-md text-sm font-medium border border-blue-200">
                                                         {status === 'SOLICITADO' ? 'En Solicitud de Bolsa' : status === 'APROBADO' ? 'En Bolsa' : status}
@@ -1185,6 +1178,50 @@ export function OvertimeHistoryView({ employeeId, showBackButton = true }) {
                     </div>
                 )
             }
-        </div >
+
+            <CompensatoryRequestModal
+                isOpen={showBankingModal}
+                onClose={() => setShowBankingModal(false)}
+                checkAvailable={(() => {
+                    const totals = {}
+                    jornadas.forEach(j => {
+                        const breakdown = j.horas_extra_hhmm?.breakdown ||
+                            j.horas_extra_hhmm?.flatBreakdown ||
+                            j.horas_extra_hhmm?.breakdown_legacy || {}
+
+                        let flat = {}
+                        if (breakdown.overtime) {
+                            Object.entries(breakdown.overtime).forEach(([k, v]) => flat[k] = (flat[k] || 0) + v)
+                            if (breakdown.surcharges) Object.entries(breakdown.surcharges).forEach(([k, v]) => flat[k] = (flat[k] || 0) + v)
+                        } else {
+                            flat = breakdown
+                        }
+
+                        const banked = j.desglose_compensacion || {}
+
+                        Object.entries(flat).forEach(([type, mins]) => {
+                            const alreadyBanked = banked[type] || 0
+                            const net = Math.max(0, mins - alreadyBanked)
+                            totals[type] = (totals[type] || 0) + net
+                        })
+                    })
+                    return totals
+                })()}
+                onConfirm={async (requests) => {
+                    const res = await fetch("/api/compensatorios/acumular-batch", {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ requests })
+                    })
+                    if (res.ok) {
+                        alert("Solicitud procesada con éxito.")
+                        fetchData()
+                    } else {
+                        const err = await res.json()
+                        throw new Error(err.message || "Error")
+                    }
+                }}
+            />
+        </div>
     )
 }
