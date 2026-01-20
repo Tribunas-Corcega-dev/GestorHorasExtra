@@ -11,6 +11,7 @@ import { formatMinutesToHHMM } from "@/hooks/useOvertimeCalculator"
 import { calculateTotalOvertimeValue, formatToAmPm, getSalaryForDate } from "@/lib/calculations"
 import { supabase } from "@/lib/supabaseClient"
 import { CompensatoryRequestModal } from "./CompensatoryRequestModal"
+import { BalanceManagementModal } from "./BalanceManagementModal"
 
 const LABELS = {
     extra_diurna: "Extra Diurna",
@@ -66,6 +67,7 @@ export function OvertimeHistoryView({ employeeId, showBackButton = true }) {
     const [isCoordinator, setIsCoordinator] = useState(false)
     const [balanceData, setBalanceData] = useState(null)
     const [showBankingModal, setShowBankingModal] = useState(false)
+    const [showManageModal, setShowManageModal] = useState(false)
 
     useEffect(() => {
         // Generate mock periods for the last 3 months
@@ -450,13 +452,13 @@ export function OvertimeHistoryView({ employeeId, showBackButton = true }) {
                                     )}
                                     {isCoordinator && (
                                         <div className="mt-2 text-center">
-                                            <a
-                                                href={`/horas-extra?action=manage&employeeId=${employeeId}`}
-                                                className="text-xs text-blue-600 dark:text-blue-400 font-medium hover:underline flex items-center justify-center gap-1"
+                                            <button
+                                                onClick={() => setShowManageModal(true)}
+                                                className="text-xs text-blue-600 dark:text-blue-400 font-medium hover:underline flex items-center justify-center gap-1 w-full"
                                             >
                                                 Gestionar Bolsa
                                                 <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" /><polyline points="15 3 21 3 21 9" /><line x1="10" y1="14" x2="21" y2="3" /></svg>
-                                            </a>
+                                            </button>
                                         </div>
                                     )}
                                 </div>
@@ -1221,6 +1223,13 @@ export function OvertimeHistoryView({ employeeId, showBackButton = true }) {
                         throw new Error(err.message || "Error")
                     }
                 }}
+            />
+
+            <BalanceManagementModal
+                isOpen={showManageModal}
+                onClose={() => setShowManageModal(false)}
+                employee={empleado}
+                onUpdate={fetchData}
             />
         </div>
     )
