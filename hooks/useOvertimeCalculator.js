@@ -230,6 +230,7 @@ export function getDayId(dateString) {
 
 export function getIntervals(schedule) {
     if (!schedule) return []
+    if (schedule.enabled === false) return []
     const intervals = []
     if (schedule.morning?.enabled && schedule.morning.start && schedule.morning.end) {
         intervals.push({ start: timeToMinutes(schedule.morning.start), end: timeToMinutes(schedule.morning.end) })

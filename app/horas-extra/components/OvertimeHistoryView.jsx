@@ -134,6 +134,19 @@ export function OvertimeHistoryView({ employeeId, showBackButton = true }) {
     const [closingRecord, setClosingRecord] = useState(null)
     const [loadingClosing, setLoadingClosing] = useState(false)
 
+    const [balanceSummary, setBalanceSummary] = useState({})
+
+    const fetchBalanceSummary = async () => {
+        try {
+            const res = await fetch(`/api/compensatorios/resumen?empleado_id=${employeeId}`)
+            if (res.ok) {
+                const data = await res.json()
+                setBalanceSummary(data)
+            }
+        } catch (error) {
+            console.error("Error fetching balance summary:", error)
+        }
+    }
     // Fetch fixed surcharges and closing record when period changes
     useEffect(() => {
         if (selectedPeriod !== 'all' && employeeId) {
@@ -494,7 +507,10 @@ export function OvertimeHistoryView({ employeeId, showBackButton = true }) {
 
                 {/* Banking Button (Visible to Employee and Coordinators) */}
                 <button
-                    onClick={() => setShowBankingModal(true)}
+                    onClick={() => {
+                        fetchBalanceSummary()
+                        setShowBankingModal(true)
+                    }}
                     className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center justify-center gap-2 w-full sm:w-auto"
                 >
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 12h20" /><path d="M7 12v5a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2v-5" /><path d="M12 12V7" /></svg>
@@ -1184,31 +1200,8 @@ export function OvertimeHistoryView({ employeeId, showBackButton = true }) {
             <CompensatoryRequestModal
                 isOpen={showBankingModal}
                 onClose={() => setShowBankingModal(false)}
-                checkAvailable={(() => {
-                    const totals = {}
-                    jornadas.forEach(j => {
-                        const breakdown = j.horas_extra_hhmm?.breakdown ||
-                            j.horas_extra_hhmm?.flatBreakdown ||
-                            j.horas_extra_hhmm?.breakdown_legacy || {}
-
-                        let flat = {}
-                        if (breakdown.overtime) {
-                            Object.entries(breakdown.overtime).forEach(([k, v]) => flat[k] = (flat[k] || 0) + v)
-                            if (breakdown.surcharges) Object.entries(breakdown.surcharges).forEach(([k, v]) => flat[k] = (flat[k] || 0) + v)
-                        } else {
-                            flat = breakdown
-                        }
-
-                        const banked = j.desglose_compensacion || {}
-
-                        Object.entries(flat).forEach(([type, mins]) => {
-                            const alreadyBanked = banked[type] || 0
-                            const net = Math.max(0, mins - alreadyBanked)
-                            totals[type] = (totals[type] || 0) + net
-                        })
-                    })
-                    return totals
-                })()}
+                // Data is now fetched from server when modal opens
+                checkAvailable={balanceSummary}
                 onConfirm={async (requests) => {
                     const res = await fetch("/api/compensatorios/acumular-batch", {
                         method: "POST",

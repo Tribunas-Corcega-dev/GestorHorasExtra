@@ -31,22 +31,11 @@ export async function POST(request) {
         }
 
         const body = await request.json()
-        const { requests } = body // e.g., { "extra_diurna": 120, "extra_nocturna": 60 }
+        const { requests } = body
 
         if (!requests || Object.keys(requests).length === 0) {
             return NextResponse.json({ message: "No se enviaron datos para procesar" }, { status: 400 })
         }
-
-        // 1. Fetch all open jornadas (not closed in payroll)
-        // We assume 'open' means not in a closed payroll period or simply checking `estado_compensacion`?
-        // Ideally we filter by checking if it's already fully compensated or if it's in a closed period.
-        // For now, let's fetch all jornadas that have ANY overtime > 0.
-        // We should probably filter by date/period if the UI enforces a period context, but the prompt implies a general "bag".
-        // Let's stick to "Current Period" or "Unpaid/Unclosed" jornadas.
-        // Since we don't have a rigid "Open Period" flag on jornadas, we rely on them not being in `cierres_quincenales` (which locks them effectively).
-        // However, checking `cierres_quincenales` for every jornada is expensive. 
-        // We'll rely on the client or business logic that you can only bank open items.
-        // Let's fetch the last 3 months of jornadas to be safe, ordered by date ASC (FIFO).
 
         const threeMonthsAgo = new Date()
         threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3)
@@ -60,12 +49,17 @@ export async function POST(request) {
 
         if (jornadasError) throw jornadasError
 
-        let processed = 0
+        let totalProcessedMinutes = 0
         const updates = []
 
-        // 2. Iterate through requests and allocate
+        console.log(`[Batch] Start processing. Requests:`, requests)
+        console.log(`[Batch] Found ${jornadas.length} eligible jornadas for user ${user.id}`)
+
+        // 2. Iterate through requests and allocate (FIFO)
         for (const [type, minutesRequested] of Object.entries(requests)) {
             let remainingToBank = parseInt(minutesRequested)
+            console.log(`[Batch] Processing Request type: ${type}, Amount: ${remainingToBank}`)
+
             if (remainingToBank <= 0) continue
 
             for (const jornada of jornadas) {
@@ -76,11 +70,14 @@ export async function POST(request) {
                     jornada.horas_extra_hhmm?.flatBreakdown ||
                     jornada.horas_extra_hhmm?.breakdown_legacy || {}
 
-                // Handle different breakdown structures (nested vs flat)
+                // console.log(`[Batch] Jornada ${jornada.date} breakdown:`, JSON.stringify(breakdown))
+
                 let availableTotal = 0
                 if (breakdown.overtime && breakdown.overtime[type]) availableTotal = breakdown.overtime[type]
                 else if (breakdown.surcharges && breakdown.surcharges[type]) availableTotal = breakdown.surcharges[type]
                 else if (breakdown[type]) availableTotal = breakdown[type]
+
+                // console.log(`[Batch] Jornada ${jornada.date} has available ${type}: ${availableTotal}`)
 
                 if (!availableTotal || availableTotal <= 0) continue
 
@@ -88,63 +85,97 @@ export async function POST(request) {
                 const currentDesglose = jornada.desglose_compensacion || {}
                 const alreadyBanked = currentDesglose[type] || 0
 
-                const netAvailable = availableTotal - alreadyBanked
-                if (netAvailable <= 0) continue
+                const availableForBanking = availableTotal - alreadyBanked
+
+                if (availableForBanking <= 0) continue
 
                 // Deduct
-                const take = Math.min(remainingToBank, netAvailable)
+                const take = Math.min(remainingToBank, availableForBanking)
 
-                // Update Local State for next iteration (if multiple types hit same jornada? No, loop is by type)
-                // But we need to track updates to push to DB
+                // Update Local & Track
                 currentDesglose[type] = alreadyBanked + take
+
+                // Track total added to pool across all types
+                totalProcessedMinutes += take
 
                 // Calculate new total banked for this jornada
                 const newTotalBanked = Object.values(currentDesglose).reduce((a, b) => a + b, 0)
+
+                // Update Jornada
+                // Crucial: Updating 'desglose_compensacion' triggers the DB function 'sync_resumen_horas'
+                // which automatically decreases the 'Available' balance in 'resumen_horas_extra'.
+                jornada.desglose_compensacion = currentDesglose
 
                 updates.push({
                     id: jornada.id,
                     desglose_compensacion: currentDesglose,
                     horas_para_bolsa_minutos: newTotalBanked,
-                    // If we have banked ANYTHING, mark as SOLICITADO. 
-                    // If we banked EVERYTHING? 
-                    // For now, simple state:
-                    estado_compensacion: 'SOLICITADO'
+                    estado_compensacion: 'APROBADO'
                 })
 
-                // Update the local jornada object in case another type in this loop hits it?
-                // Actually, the outer loop is by type. Distinct types won't collide on `currentDesglose[type]`, 
-                // but they will collide on the `currentDesglose` object reference.
-                jornada.desglose_compensacion = currentDesglose
                 remainingToBank -= take
             }
         }
 
-        // 3. Batch Update
-        // Supabase doesn't support bulk update of different values easily efficiently without RPC or loop.
-        // We'll loop update for now (or `upsert` if we map strictly).
+        if (totalProcessedMinutes > 0) {
+            // 3. Update Jornadas (Batch)
+            // Deduplicate logic: utilize the latest state of each jornada from `jornadas` array or `updates` list.
+            const uniqueUpdates = {}
+            updates.forEach(u => {
+                uniqueUpdates[u.id] = u // Last write wins, which has accumulated changes
+            })
 
-        // Deduplicate updates (last one wins for a given jornada ID) -> actually we updated the object reference `jornada` so `updates` might have duplicates.
-        // Let's Map by ID.
-        const updatesMap = {}
-        updates.forEach(u => {
-            updatesMap[u.id] = u
-        })
+            console.log(`Updating ${Object.keys(uniqueUpdates).length} jornadas with total ${totalProcessedMinutes} minutes banked.`)
 
-        for (const update of Object.values(updatesMap)) {
-            await supabaseAdmin
-                .from("jornadas")
-                .update({
-                    desglose_compensacion: update.desglose_compensacion,
-                    horas_para_bolsa_minutos: update.horas_para_bolsa_minutos,
-                    estado_compensacion: update.estado_compensacion
+            for (const update of Object.values(uniqueUpdates)) {
+                const { error: updateError } = await supabaseAdmin
+                    .from("jornadas")
+                    .update({
+                        desglose_compensacion: update.desglose_compensacion,
+                        horas_para_bolsa_minutos: update.horas_para_bolsa_minutos,
+                        estado_compensacion: update.estado_compensacion
+                    })
+                    .eq("id", update.id)
+
+                if (updateError) {
+                    console.error(`Error updating jornada ${update.id}:`, updateError)
+                    throw new Error(`Error updating jornada: ${updateError.message}`)
+                }
+            }
+
+            // 4. Update User Balance (Immediate)
+            const currentBalance = user.bolsa_horas_minutos || 0
+            const newBalance = currentBalance + totalProcessedMinutes
+
+            const { error: userUpdateError } = await supabaseAdmin
+                .from("usuarios")
+                .update({ bolsa_horas_minutos: newBalance })
+                .eq("id", user.id)
+
+            if (userUpdateError) {
+                console.error("Error updating user balance:", userUpdateError)
+                // Continue? Critical error.
+            }
+
+            // 5. Create History Record
+            const { error: historyError } = await supabaseAdmin
+                .from("historial_bolsa")
+                .insert({
+                    usuario_id: user.id,
+                    tipo_movimiento: 'ACUMULACION',
+                    minutos: totalProcessedMinutes,
+                    saldo_resultante: newBalance,
+                    observacion: 'Acumulación automática desde historial',
+                    realizado_por: user.id
                 })
-                .eq("id", update.id)
+
+            if (historyError) console.error("History logging error", historyError)
         }
 
-        // 4. Log to history (Optional but recommended)
-        // We'll skip detailed logging per jornada and look at aggregate history later or implemented elsewhere.
-
-        return NextResponse.json({ message: "Solicitud procesada correctamente" })
+        return NextResponse.json({
+            message: "Solicitud procesada y aprobada correctamente",
+            accumulated: totalProcessedMinutes
+        })
 
     } catch (error) {
         console.error("Error batch banking:", error)
