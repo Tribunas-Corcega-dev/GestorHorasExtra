@@ -78,7 +78,25 @@ export async function POST(request) {
 
         // Fetch Night Shift Parameters
         let nightShiftRange = { start: "21:00", end: "06:00" } // Default
-        const { data: params } = await supabase.from("parametros").select("jornada_nocturna").single()
+        const currentYear = new Date().getFullYear().toString()
+
+        let { data: params } = await supabase
+            .from("parametros")
+            .select("jornada_nocturna")
+            .eq("anio_vigencia", currentYear)
+            .single()
+
+        // Fallback to latest if current year not found
+        if (!params) {
+            const { data: latest } = await supabase
+                .from("parametros")
+                .select("jornada_nocturna")
+                .order("anio_vigencia", { ascending: false })
+                .limit(1)
+                .single()
+            params = latest
+        }
+
         if (params && params.jornada_nocturna) {
             nightShiftRange = params.jornada_nocturna
         }

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import { supabase } from "@/lib/supabaseClient"
-import { calculatePeriodFixedSurcharges } from "@/lib/calculations"
+import { calculatePeriodFixedSurcharges, getSalaryForDate } from "@/lib/calculations"
 
 export async function POST(request) {
     try {
@@ -43,7 +43,7 @@ export async function POST(request) {
         // 1. Fetch Employee Data
         const { data: empleado, error: empError } = await supabase
             .from("usuarios")
-            .select("*")
+            .select("*, hist_salarios")
             .eq("id", empleado_id)
             .single()
 
@@ -56,9 +56,10 @@ export async function POST(request) {
             try { fixedSchedule = JSON.parse(fixedSchedule) } catch (e) { }
         }
 
-        // 2. Fetch Parameters
+        // 2. Fetch Parameters & Recargos
         const { data: params } = await supabase.from("parametros").select("*").single()
         const nightShiftRange = params?.jornada_nocturna
+        const { data: recargos } = await supabase.from("recargos_he").select("*") // Fetch early
 
         // 3. Fetch Holidays
         let holidays = []
@@ -98,6 +99,7 @@ export async function POST(request) {
             extra_diurna: 0, extra_nocturna: 0, extra_diurna_festivo: 0, extra_nocturna_festivo: 0,
             recargo_nocturno: 0, dominical_festivo: 0, recargo_nocturno_festivo: 0
         }
+        let totalValue = 0
 
         jornadas?.forEach(jornada => {
             if (jornada.horas_extra_hhmm) {
@@ -107,11 +109,6 @@ export async function POST(request) {
                 // Compensatory Time Deduction Logic
                 if (jornada.horas_para_bolsa_minutos > 0 && ['SOLICITADO', 'APROBADO'].includes(jornada.estado_compensacion)) {
                     let minutesToDeduct = jornada.horas_para_bolsa_minutos
-
-                    // Priority of deduction: Diurna -> Nocturna -> Diurna Festivo -> Nocturna Festivo
-                    // We typically bank "extra" hours. Surcharges (recargos) are often paid regardless, 
-                    // but if the employee is absent (Compensatory), they effectively traded the whole overtime event.
-                    // Implementation: Subtract from pure overtime types first.
                     const typesToDeduct = ['extra_diurna', 'extra_nocturna', 'extra_diurna_festivo', 'extra_nocturna_festivo']
 
                     for (const type of typesToDeduct) {
@@ -124,51 +121,49 @@ export async function POST(request) {
                     }
                 }
 
-                Object.entries(flatBreakdown).forEach(([k, v]) => {
+                // Determine effective rate for this jornada
+                let jornadaRate = 0
+                const historySalary = getSalaryForDate(empleado.hist_salarios, jornada.fecha)
+                if (historySalary) {
+                    jornadaRate = Number(historySalary.hourlyRate)
+                } else if (jornada.valor_hora_snapshot) {
+                    jornadaRate = Number(jornada.valor_hora_snapshot)
+                } else {
+                    jornadaRate = Number(empleado.valor_hora)
+                }
+
+                Object.entries(flatBreakdown).forEach(([k, minutes]) => {
                     if (reportedOvertime[k] !== undefined) {
-                        reportedOvertime[k] += v
+                        reportedOvertime[k] += minutes
+                    }
+                    if (minutes > 0 && jornadaRate > 0 && recargos) {
+                        const surchargeType = recargos.find(r => normalizeType(r.tipo_hora_extra) === k)
+                        if (surchargeType) {
+                            const hours = minutes / 60
+                            const percentage = surchargeType.recargo > 2 ? surchargeType.recargo / 100 : surchargeType.recargo
+                            const factor = 1 + percentage
+                            totalValue += hours * jornadaRate * factor
+                        }
                     }
                 })
             }
         })
 
         // 6. Calculate Total Value
-        const { data: recargos } = await supabase.from("recargos_he").select("*")
-        let totalValue = 0
+        // 6. Calculate Value from Fixed Surcharges (Added to totalValue)
+        let fixedHourlyRate = empleado.valor_hora
+        if (empleado.hist_salarios && Array.isArray(empleado.hist_salarios)) {
+            const historySalary = getSalaryForDate(empleado.hist_salarios, endDate)
+            if (historySalary) fixedHourlyRate = historySalary.hourlyRate
+        }
 
-        if (empleado.valor_hora && recargos) {
-            // Value from Fixed Surcharges
+        if (fixedHourlyRate && recargos) {
             Object.entries(fixedSurcharges).forEach(([key, minutes]) => {
                 const surchargeType = recargos.find(r => normalizeType(r.tipo_hora_extra) === key)
                 if (surchargeType) {
                     const hours = minutes / 60
                     const percentage = surchargeType.recargo > 2 ? surchargeType.recargo / 100 : surchargeType.recargo
-                    totalValue += hours * empleado.valor_hora * percentage
-                }
-            })
-
-            // Value from Reported Overtime
-            // Use the same logic as in the UI or calculateTotalOvertimeValue
-            // We need to iterate reportedOvertime and calculate value
-            Object.entries(reportedOvertime).forEach(([key, minutes]) => {
-                if (minutes > 0) {
-                    const surchargeType = recargos.find(r => normalizeType(r.tipo_hora_extra) === key)
-                    if (surchargeType) {
-                        const percentage = surchargeType.recargo > 2 ? surchargeType.recargo / 100 : surchargeType.recargo
-                        const hours = minutes / 60
-
-                        // Factor logic: 
-                        // If it's overtime (extra_...), factor = 1 + percentage
-                        // If it's surcharge (recargo_...), factor = percentage (usually, but verify consistency)
-                        // In UI we used 1+p for everything in calculateTotalOvertimeValue? 
-                        // Let's stick to the logic: Overtime = 1+p, Surcharge = p.
-                        // Wait, previous UI logic (Step 589) used `1 + p` for everything.
-                        // "User requested formula: valor_hora + (valor_hora * recargo) => 1 + percentage"
-                        // I will respect that request for consistency.
-
-                        const factor = 1 + percentage
-                        totalValue += hours * empleado.valor_hora * factor
-                    }
+                    totalValue += hours * fixedHourlyRate * percentage
                 }
             })
         }

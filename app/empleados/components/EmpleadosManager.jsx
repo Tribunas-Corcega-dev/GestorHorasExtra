@@ -166,18 +166,35 @@ export function EmpleadosManager() {
                                     </div>
                                 </div>
 
-                                <div className="grid grid-cols-2 gap-3 mt-auto">
+                                <div className="mt-auto space-y-2">
+                                    <div className="grid grid-cols-2 gap-2">
+                                        <Link
+                                            href={`/empleados/${empleado.id}/detalles`}
+                                            className="flex items-center justify-center gap-1 px-3 py-2 border border-border rounded-md text-sm font-medium hover:bg-accent transition-colors"
+                                        >
+                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                                            </svg>
+                                            Perfil
+                                        </Link>
+                                        <Link
+                                            href={`/empleados/${empleado.id}`}
+                                            className="flex items-center justify-center gap-1 px-3 py-2 bg-primary text-primary-foreground rounded-md text-sm font-medium hover:opacity-90 transition-opacity"
+                                        >
+                                            <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                                            </svg>
+                                            Editar
+                                        </Link>
+                                    </div>
                                     <Link
-                                        href={`/empleados/${empleado.id}/detalles`}
-                                        className="flex items-center justify-center px-4 py-2 border border-border rounded-md text-sm font-medium hover:bg-accent transition-colors"
+                                        href={`/horas-extra/${empleado.id}/historial`}
+                                        className="flex items-center justify-center gap-2 border border-input bg-gray-200 hover:bg-accent text-foreground px-4 py-2 rounded-md text-sm font-medium transition-colors w-full"
                                     >
-                                        Ver Detalles
-                                    </Link>
-                                    <Link
-                                        href={`/empleados/${empleado.id}`}
-                                        className="flex items-center justify-center px-4 py-2 bg-primary text-primary-foreground rounded-md text-sm font-medium hover:opacity-90 transition-opacity"
-                                    >
-                                        Editar
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                        </svg>
+                                        Ver Historial HE
                                     </Link>
                                 </div>
                             </div>

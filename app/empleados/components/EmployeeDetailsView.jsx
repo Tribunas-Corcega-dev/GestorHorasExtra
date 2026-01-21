@@ -2,6 +2,7 @@ import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { useAuth } from "@/hooks/useAuth"
 import { canManageEmployees } from "@/lib/permissions"
+import { formatToAmPm } from "@/lib/calculations"
 
 const DAYS = [
     { id: "lunes", label: "Lunes" },
@@ -18,7 +19,7 @@ export function EmployeeDetailsView({ employeeId, showBackButton = true }) {
     const { user } = useAuth()
     const [loading, setLoading] = useState(true)
     const [empleado, setEmpleado] = useState(null)
-    const [uploading, setUploading] = useState(false)
+    const [showImageModal, setShowImageModal] = useState(false) // New state for image modal
 
     useEffect(() => {
         if (employeeId) {
@@ -56,52 +57,9 @@ export function EmployeeDetailsView({ employeeId, showBackButton = true }) {
         }
     }
 
-    async function handleImageSelect(e) {
-        const file = e.target.files[0]
-        if (!file || !empleado) return
 
-        try {
-            setUploading(true)
-            const fileExt = file.name.split('.').pop()
-            const fileName = `${Math.random()}.${fileExt}`
-            const filePath = `${empleado.cc}/${fileName}`
 
-            // 1. Upload file
-            const uploadFormData = new FormData()
-            uploadFormData.append("file", file)
-            uploadFormData.append("path", filePath)
 
-            const uploadRes = await fetch("/api/upload", {
-                method: "POST",
-                body: uploadFormData,
-            })
-
-            if (!uploadRes.ok) throw new Error("Error al subir imagen")
-
-            const { publicUrl } = await uploadRes.json()
-
-            // 2. Update user profile with new photo URL
-            const updateRes = await fetch(`/api/empleados/${employeeId}`, {
-                method: "PUT",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ foto_url: publicUrl })
-            })
-
-            if (!updateRes.ok) throw new Error("Error al actualizar perfil")
-
-            // 3. Update local state
-            setEmpleado(prev => ({ ...prev, foto_url: publicUrl }))
-            alert("Foto actualizada correctamente")
-
-        } catch (error) {
-            console.error("Error updating photo:", error)
-            alert("Error al actualizar la foto")
-        } finally {
-            setUploading(false)
-        }
-    }
-
-    const canEditPhoto = user && canManageEmployees(user.rol)
 
     if (loading) {
         return <div className="text-center py-8">Cargando...</div>
@@ -131,7 +89,10 @@ export function EmployeeDetailsView({ employeeId, showBackButton = true }) {
                 {/* Header / Banner */}
                 <div className="bg-primary/10 p-8 flex flex-col items-center border-b border-border">
                     <div className="relative group">
-                        <div className="h-32 w-32 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-5xl font-bold mb-4 shadow-md overflow-hidden border-4 border-background">
+                        <div
+                            onClick={() => empleado.foto_url && setShowImageModal(true)}
+                            className={`h-32 w-32 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-5xl font-bold mb-4 shadow-md overflow-hidden border-4 border-background ${empleado.foto_url ? 'cursor-pointer hover:opacity-90 transition-opacity' : ''}`}
+                        >
                             {empleado.foto_url ? (
                                 <img src={empleado.foto_url} alt={empleado.nombre} className="h-full w-full object-cover" />
                             ) : (
@@ -139,21 +100,8 @@ export function EmployeeDetailsView({ employeeId, showBackButton = true }) {
                             )}
                         </div>
 
-                        {/* Overlay for uploading */}
-                        {canEditPhoto && (
-                            <label className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-full opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer mb-4">
-                                <input
-                                    type="file"
-                                    className="hidden"
-                                    accept="image/*"
-                                    onChange={handleImageSelect}
-                                    disabled={uploading}
-                                />
-                                <span className="text-white text-xs font-medium px-2 text-center">
-                                    {uploading ? "Subiendo..." : "Cambiar Foto"}
-                                </span>
-                            </label>
-                        )}
+                        {/* Edit Button - Small Icon (Only if canEditPhoto) */}
+
                     </div>
 
                     <h2 className="text-2xl font-bold text-foreground">{empleado.nombre || empleado.username}</h2>
@@ -215,7 +163,7 @@ export function EmployeeDetailsView({ employeeId, showBackButton = true }) {
                                                         <span className="text-muted-foreground">M:</span>
                                                         <span className="font-medium">
                                                             {daySchedule.morning?.enabled
-                                                                ? `${daySchedule.morning.start} - ${daySchedule.morning.end}`
+                                                                ? `${formatToAmPm(daySchedule.morning.start)} - ${formatToAmPm(daySchedule.morning.end)}`
                                                                 : "No labora"}
                                                         </span>
                                                     </div>
@@ -223,7 +171,7 @@ export function EmployeeDetailsView({ employeeId, showBackButton = true }) {
                                                         <span className="text-muted-foreground">T:</span>
                                                         <span className="font-medium">
                                                             {daySchedule.afternoon?.enabled
-                                                                ? `${daySchedule.afternoon.start} - ${daySchedule.afternoon.end}`
+                                                                ? `${formatToAmPm(daySchedule.afternoon.start)} - ${formatToAmPm(daySchedule.afternoon.end)}`
                                                                 : "No labora"}
                                                         </span>
                                                     </div>
@@ -243,6 +191,27 @@ export function EmployeeDetailsView({ employeeId, showBackButton = true }) {
                     </div>
                 </div>
             </div>
+            {/* Image Modal */}
+            {showImageModal && empleado.foto_url && (
+                <div
+                    className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-in fade-in duration-200"
+                    onClick={() => setShowImageModal(false)}
+                >
+                    <div className="relative max-w-4xl w-full max-h-[90vh] flex items-center justify-center">
+                        <img
+                            src={empleado.foto_url}
+                            alt={empleado.nombre}
+                            className="max-w-full max-h-full rounded-md shadow-2xl object-contain"
+                        />
+                        <button
+                            onClick={() => setShowImageModal(false)}
+                            className="absolute top-4 right-4 text-white hover:text-gray-300 bg-black/50 hover:bg-black/70 rounded-full p-2 transition-colors"
+                        >
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                        </button>
+                    </div>
+                </div>
+            )}
         </div>
     )
 }

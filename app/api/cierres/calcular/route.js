@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import { supabase } from "@/lib/supabaseClient"
-import { calculatePeriodFixedSurcharges } from "@/lib/calculations"
+import { calculatePeriodFixedSurcharges, calculateEmployeeWorkValues, getSalaryForDate } from "@/lib/calculations"
 
 export async function GET(request) {
     try {
@@ -15,15 +15,23 @@ export async function GET(request) {
         const [year, month, quincena] = periodo.split('-').map(Number)
 
         // Determine start and end dates
+        // Determine start and end dates
         let startDate, endDate
         if (quincena === 1) {
             startDate = `${year}-${String(month + 1).padStart(2, '0')}-01`
             endDate = `${year}-${String(month + 1).padStart(2, '0')}-15`
-        } else {
+        } else if (quincena === 2) {
             startDate = `${year}-${String(month + 1).padStart(2, '0')}-16`
             // Get last day of month
             const lastDay = new Date(year, month + 1, 0).getDate()
             endDate = `${year}-${String(month + 1).padStart(2, '0')}-${lastDay}`
+        } else if (quincena === 0) {
+            // Full Month
+            startDate = `${year}-${String(month + 1).padStart(2, '0')}-01`
+            const lastDay = new Date(year, month + 1, 0).getDate()
+            endDate = `${year}-${String(month + 1).padStart(2, '0')}-${lastDay}`
+        } else {
+            return NextResponse.json({ message: "Quincena inválida" }, { status: 400 })
         }
 
         // 1. Fetch Employee Data (Schedule)
@@ -42,9 +50,27 @@ export async function GET(request) {
             try { fixedSchedule = JSON.parse(fixedSchedule) } catch (e) { }
         }
 
-        // 2. Fetch Parameters (Night Shift)
-        const { data: params } = await supabase.from("parametros").select("*").single()
-        const nightShiftRange = params?.jornada_nocturna
+        // 2. Fetch Parameters (Night Shift) for the Period Year
+        const { data: params } = await supabase
+            .from("parametros")
+            .select("*")
+            .eq("anio_vigencia", year)
+            .single()
+
+        // Fallback to latest if not found (or handle error)
+        let effectiveParams = params
+        if (!effectiveParams) {
+            const { data: latest } = await supabase.from("parametros").select("*").limit(1).single()
+            effectiveParams = latest
+        }
+
+        const nightShiftRange = effectiveParams?.jornada_nocturna || "21:00-06:00"
+
+        // Recalculate salary for this period if employee is on minimum wage
+        if (empleado.minimo && effectiveParams?.salario_minimo) {
+            const workValues = calculateEmployeeWorkValues(fixedSchedule, effectiveParams.salario_minimo)
+            empleado.valor_hora = workValues.valor_hora
+        }
 
         // 3. Fetch Holidays (Festivos)
         // Try to fetch from 'festivos' table if it exists, otherwise empty
@@ -73,11 +99,18 @@ export async function GET(request) {
         )
 
         // Calculate Value
+        // Determine effective hourly rate for this period (using End Date)
+        let hourlyRate = empleado.valor_hora
+        if (empleado.hist_salarios && Array.isArray(empleado.hist_salarios)) {
+            const historySalary = getSalaryForDate(empleado.hist_salarios, endDate)
+            if (historySalary) hourlyRate = historySalary.hourlyRate
+        }
+
         // Fetch surcharges percentages
         const { data: recargos } = await supabase.from("recargos_he").select("*")
         let totalValue = 0
 
-        if (empleado.valor_hora && recargos) {
+        if (hourlyRate && recargos) {
             Object.entries(fixedSurcharges).forEach(([key, minutes]) => {
                 const surchargeType = recargos.find(r => normalizeType(r.tipo_hora_extra) === key)
                 if (surchargeType) {
@@ -95,7 +128,7 @@ export async function GET(request) {
 
                     const hours = minutes / 60
                     const percentage = surchargeType.recargo > 2 ? surchargeType.recargo / 100 : surchargeType.recargo
-                    totalValue += hours * empleado.valor_hora * percentage
+                    totalValue += hours * hourlyRate * percentage
                 }
             })
         }

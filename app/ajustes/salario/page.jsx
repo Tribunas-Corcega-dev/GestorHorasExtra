@@ -8,6 +8,25 @@ import { canManageOvertime } from "@/lib/permissions"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 
+// Helpers
+function formatMinutesToHHMM(minutes) {
+    if (minutes === null || minutes === undefined || minutes === "") return ""
+    const h = Math.floor(minutes / 60)
+    const m = minutes % 60
+    return `${h}:${m.toString().padStart(2, '0')}`
+}
+
+function parseHHMMToMinutes(timeStr) {
+    if (!timeStr) return null
+    // If just number, assume hours
+    if (!timeStr.includes(':')) {
+        const num = parseInt(timeStr)
+        return isNaN(num) ? null : num * 60
+    }
+    const [h, m] = timeStr.split(':').map(val => parseInt(val) || 0)
+    return (h * 60) + m
+}
+
 export default function SalarioPage() {
     return (
         <ProtectedRoute>
@@ -30,7 +49,9 @@ function SalarioContent() {
     const [id, setId] = useState(null)
     const [salarioMinimo, setSalarioMinimo] = useState("")
     const [anioVigencia, setAnioVigencia] = useState(new Date().getFullYear().toString())
-    const [limiteBolsaHoras, setLimiteBolsaHoras] = useState("") // New state
+    const [limitHours, setLimitHours] = useState("")
+    const [limitMinutes, setLimitMinutes] = useState("")
+    const [fechaAplicacion, setFechaAplicacion] = useState(new Date().toISOString().split('T')[0])
 
     useEffect(() => {
         if (user && !canManageOvertime(user.rol)) {
@@ -40,24 +61,59 @@ function SalarioContent() {
         }
     }, [user, router])
 
-    async function fetchData() {
+    const [lastFetchedYear, setLastFetchedYear] = useState(null)
+
+    async function fetchByYear(year) {
+        if (!year || year.length !== 4) return
+        if (year === lastFetchedYear) return
+
+        setLoading(true)
         try {
-            const res = await fetch("/api/parametros")
+            const res = await fetch(`/api/parametros?year=${year}`)
             if (res.ok) {
                 const data = await res.json()
                 if (data && data.id) {
                     setId(data.id)
                     setSalarioMinimo(data.salario_minimo || "")
-                    setAnioVigencia(data.anio_vigencia || new Date().getFullYear().toString())
-                    setLimiteBolsaHoras(data.limite_bolsa_horas || "") // Load limit
+
+                    const totalMin = data.limite_bolsa_horas
+                    if (totalMin !== null && totalMin !== undefined) {
+                        setLimitHours(Math.floor(totalMin / 60).toString())
+                        setLimitMinutes((totalMin % 60).toString())
+                    } else {
+                        setLimitHours("")
+                        setLimitMinutes("")
+                    }
+                } else {
+                    setId(null)
+                    setSalarioMinimo(data.salario_minimo || "")
+
+                    const totalMin = data.limite_bolsa_horas
+                    if (totalMin !== null && totalMin !== undefined) {
+                        setLimitHours(Math.floor(totalMin / 60).toString())
+                        setLimitMinutes((totalMin % 60).toString())
+                    } else {
+                        setLimitHours("")
+                        setLimitMinutes("")
+                    }
+
+                    if (Object.keys(data).length === 0) {
+                        setId(null)
+                    }
                 }
+                setLastFetchedYear(year)
             }
         } catch (err) {
             console.error("Error fetching parameters:", err)
-            setError("No se pudo cargar la información actual.")
         } finally {
             setLoading(false)
         }
+    }
+
+    async function fetchData() {
+        const year = new Date().getFullYear().toString()
+        setAnioVigencia(year)
+        await fetchByYear(year)
     }
 
     async function handleSubmit(e) {
@@ -67,6 +123,13 @@ function SalarioContent() {
         setSaving(true)
 
         try {
+            let finalLimit = null
+            if (limitHours !== "" || limitMinutes !== "") {
+                const h = parseInt(limitHours) || 0
+                const m = parseInt(limitMinutes) || 0
+                finalLimit = (h * 60) + m
+            }
+
             const res = await fetch("/api/parametros", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -74,7 +137,8 @@ function SalarioContent() {
                     id,
                     salario_minimo: parseFloat(salarioMinimo),
                     anio_vigencia: anioVigencia,
-                    limite_bolsa_horas: limiteBolsaHoras ? parseInt(limiteBolsaHoras) : null // Save limit
+                    limite_bolsa_horas: finalLimit, // Send minutes
+                    fecha_aplicacion: fechaAplicacion
                 }),
             })
 
@@ -138,20 +202,60 @@ function SalarioContent() {
                     </div>
 
                     <div>
-                        <label htmlFor="limite" className="block text-sm font-medium text-foreground mb-2">
-                            Límite Bolsa de Horas (Minutos)
+                        <label htmlFor="fecha_aplicacion" className="block text-sm font-medium text-foreground mb-2">
+                            Fecha de Aplicación (Vigencia)
                         </label>
                         <input
-                            id="limite"
-                            type="number"
-                            value={limiteBolsaHoras}
-                            onChange={(e) => setLimiteBolsaHoras(e.target.value)}
-                            min="0"
+                            id="fecha_aplicacion"
+                            type="date"
+                            value={fechaAplicacion}
+                            onChange={(e) => setFechaAplicacion(e.target.value)}
+                            required
                             className="w-full px-3 py-2 border border-input bg-background text-foreground rounded-md focus:outline-none focus:ring-2 focus:ring-ring"
-                            placeholder="Ej: 2400 (40 horas)"
                         />
                         <p className="text-xs text-muted-foreground mt-1">
-                            Máximo de minutos acumulables por empleado. Deje en blanco para ilimitado.
+                            Fecha desde la cual es efectivo este nuevo salario mínimo (se usará en el historial).
+                        </p>
+                    </div>
+
+                    <div>
+                        <label htmlFor="limitHours" className="block text-sm font-medium text-foreground mb-2">
+                            Límite Bolsa de Horas
+                        </label>
+                        <div className="flex items-center gap-2">
+                            <div className="flex-1 relative">
+                                <input
+                                    id="limitHours"
+                                    type="number"
+                                    min="0"
+                                    value={limitHours}
+                                    onChange={(e) => setLimitHours(e.target.value)}
+                                    className="w-full px-3 py-2 border border-input bg-background text-foreground rounded-md focus:outline-none focus:ring-2 focus:ring-ring pr-8"
+                                    placeholder="Horas"
+                                />
+                                <span className="absolute right-3 top-2 text-xs text-muted-foreground font-medium pt-0.5">h</span>
+                            </div>
+                            <span className="text-xl font-bold pb-2 text-muted-foreground">:</span>
+                            <div className="w-28 relative">
+                                <input
+                                    type="number"
+                                    min="0"
+                                    max="59"
+                                    value={limitMinutes}
+                                    onChange={(e) => {
+                                        const val = parseInt(e.target.value)
+                                        if (!e.target.value || (val >= 0 && val <= 59)) {
+                                            setLimitMinutes(e.target.value)
+                                        }
+                                    }}
+                                    className="w-full px-3 py-2 border border-input bg-background text-foreground rounded-md focus:outline-none focus:ring-2 focus:ring-ring pr-8"
+                                    placeholder="Min"
+                                />
+                                <span className="absolute right-3 top-2 text-xs text-muted-foreground font-medium pt-0.5">m</span>
+                            </div>
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-1">
+                            Máximo de horas acumulables. Deje ambos en blanco para ilimitado.
                         </p>
                     </div>
 
@@ -168,6 +272,7 @@ function SalarioContent() {
                             min="2000"
                             max="2100"
                             className="w-full px-3 py-2 border border-input bg-background text-foreground rounded-md focus:outline-none focus:ring-2 focus:ring-ring"
+                            onBlur={(e) => fetchByYear(e.target.value)}
                         />
                     </div>
 

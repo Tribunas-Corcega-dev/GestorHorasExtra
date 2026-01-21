@@ -71,7 +71,7 @@ export async function PUT(request, props) {
     // Obtener empleado actual
     const { data: currentEmpleado, error: fetchError } = await supabase
       .from("usuarios")
-      .select("*")
+      .select("*, hist_salarios")
       .eq("id", id)
       .single()
 
@@ -128,6 +128,29 @@ export async function PUT(request, props) {
       updateData.horas_semanales = horas_semanales
       updateData.horas_mensuales = horas_mensuales
       updateData.valor_hora = valor_hora
+
+      // Append to salary history if salary or value changed
+      // (Even if salary is same but hours changed, rate changes)
+      let historyToUpdate = [...(currentEmpleado.hist_salarios || [])]
+
+      // If history is empty, assumes the current (old) salary was valid indefinitely in the past.
+      // We add a baseline entry to ensure calculations for past dates find this salary.
+      if (historyToUpdate.length === 0) {
+        historyToUpdate.push({
+          date: "2000-01-01T00:00:00.000Z", // Safe past date
+          salary: currentEmpleado.salario_base,
+          hourlyRate: Number(currentEmpleado.valor_hora), // Ensure number
+          reason: "Línea base inicial"
+        })
+      }
+
+      const newEntry = {
+        date: body.fecha_cambio || new Date().toISOString(),
+        salary: salaryToUse,
+        hourlyRate: valor_hora,
+        reason: "Actualización individual"
+      }
+      updateData.hist_salarios = [...historyToUpdate, newEntry]
     }
 
     // Si se proporciona nueva contraseña
@@ -193,41 +216,18 @@ export async function DELETE(request, props) {
       return NextResponse.json({ message: "Empleado no encontrado" }, { status: 404 })
     }
 
-    // Delete employee's photo folder from storage if they have a cc
-    if (empleado.cc && supabaseAdmin) {
-      try {
-        const { data: files } = await supabaseAdmin.storage
-          .from("fotos_trabajadores")
-          .list(empleado.cc)
-
-        if (files && files.length > 0) {
-          const filesToRemove = files.map(f => `${empleado.cc}/${f.name}`)
-          const { error: removeError } = await supabaseAdmin.storage
-            .from("fotos_trabajadores")
-            .remove(filesToRemove)
-
-          if (removeError) {
-            console.error("[v0] Error removing files:", removeError)
-          }
-        }
-      } catch (storageError) {
-        console.error("[v0] Error deleting employee photos:", storageError)
-        // Continue with employee deletion even if photo deletion fails
-      }
-    }
-
-    // Delete the employee
+    // Soft Delete: Deactivate the employee instead of deleting details
     const { error: deleteError } = await supabase
       .from("usuarios")
-      .delete()
+      .update({ is_active: false })
       .eq("id", id)
 
     if (deleteError) {
-      console.error("[v0] Error deleting employee:", deleteError)
-      return NextResponse.json({ message: `Error al eliminar el empleado: ${deleteError.message}` }, { status: 500 })
+      console.error("[v0] Error deactivating employee:", deleteError)
+      return NextResponse.json({ message: `Error al desactivar el empleado: ${deleteError.message}` }, { status: 500 })
     }
 
-    return NextResponse.json({ message: "Empleado eliminado exitosamente" })
+    return NextResponse.json({ message: "Empleado desactivado exitosamente. Su historial se preservará." })
   } catch (error) {
     console.error("[v0] Error in DELETE empleado:", error)
     return NextResponse.json({ message: "Error interno del servidor" }, { status: 500 })
