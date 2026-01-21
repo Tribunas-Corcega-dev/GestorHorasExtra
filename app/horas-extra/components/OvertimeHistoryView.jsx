@@ -1206,7 +1206,10 @@ export function OvertimeHistoryView({ employeeId, showBackButton = true }) {
                     const res = await fetch("/api/compensatorios/acumular-batch", {
                         method: "POST",
                         headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ requests })
+                        body: JSON.stringify({
+                            requests,
+                            target_user_id: employeeId
+                        })
                     })
                     if (res.ok) {
                         alert("Solicitud procesada con éxito.")

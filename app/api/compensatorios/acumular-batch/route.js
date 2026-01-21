@@ -25,26 +25,54 @@ export async function POST(request) {
             return NextResponse.json({ message: "Error de configuración del servidor" }, { status: 500 })
         }
 
-        const user = await getUserFromRequest(request)
-        if (!user) {
+        const currentUser = await getUserFromRequest(request)
+        if (!currentUser) {
             return NextResponse.json({ message: "No autorizado" }, { status: 401 })
         }
 
         const body = await request.json()
-        const { requests } = body
+        const { requests, target_user_id } = body
 
         if (!requests || Object.keys(requests).length === 0) {
             return NextResponse.json({ message: "No se enviaron datos para procesar" }, { status: 400 })
         }
 
-        const threeMonthsAgo = new Date()
-        threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3)
+        // Determine target user
+        let targetUserId = currentUser.id
+
+        if (target_user_id && target_user_id !== currentUser.id) {
+            // Check permissions
+            const allowedRoles = ['ADMIN', 'COORDINADOR', 'TALENTO_HUMANO', 'GERENTE']
+            if (!allowedRoles.includes(currentUser.rol) && !currentUser.is_admin) {
+                console.warn(`[Batch] Unauthorized attempt by ${currentUser.id} to bank for ${target_user_id}`)
+                return NextResponse.json({ message: "No tienes permisos para realizar esta acción para otro usuario." }, { status: 403 })
+            }
+            targetUserId = target_user_id
+            console.log(`[Batch] Admin Action: ${currentUser.email} (${currentUser.rol}) banking for ${targetUserId}`)
+        }
+
+        // Fetch Target User Profile (to get current balance)
+        const { data: targetUserProfile, error: targetUserError } = await supabaseAdmin
+            .from("usuarios")
+            .select("*")
+            .eq("id", targetUserId)
+            .single()
+
+        if (targetUserError || !targetUserProfile) {
+            console.error("Target user error:", targetUserError)
+            return NextResponse.json({ message: "Usuario destino no encontrado" }, { status: 404 })
+        }
+
+        const user = targetUserProfile // Use target user for the rest of logic
+
+        // const threeMonthsAgo = new Date()
+        // threeMonthsAgo.setMonth(threeMonthsAgo.getMonth() - 3)
 
         const { data: jornadas, error: jornadasError } = await supabaseAdmin
             .from("jornadas")
             .select("*")
             .eq("empleado_id", user.id)
-            .gte("fecha", threeMonthsAgo.toISOString().split('T')[0])
+            // .gte("fecha", threeMonthsAgo.toISOString().split('T')[0])
             .order("fecha", { ascending: true })
 
         if (jornadasError) throw jornadasError
@@ -72,10 +100,21 @@ export async function POST(request) {
 
                 // console.log(`[Batch] Jornada ${jornada.date} breakdown:`, JSON.stringify(breakdown))
 
+                // Helper to find value case-insensitive and snake/title friendly
+                const getValueFuzzy = (obj, key) => {
+                    if (!obj) return 0
+                    if (obj[key]) return obj[key]
+
+                    // Try to match by converting DB keys to snake_code
+                    const normalizedKey = key.toLowerCase().replace(/ /g, '_')
+                    const foundKey = Object.keys(obj).find(k => k.toLowerCase().replace(/ /g, '_') === normalizedKey)
+                    return foundKey ? obj[foundKey] : 0
+                }
+
                 let availableTotal = 0
-                if (breakdown.overtime && breakdown.overtime[type]) availableTotal = breakdown.overtime[type]
-                else if (breakdown.surcharges && breakdown.surcharges[type]) availableTotal = breakdown.surcharges[type]
-                else if (breakdown[type]) availableTotal = breakdown[type]
+                if (breakdown.overtime) availableTotal = getValueFuzzy(breakdown.overtime, type)
+                if (availableTotal === 0 && breakdown.surcharges) availableTotal = getValueFuzzy(breakdown.surcharges, type)
+                if (availableTotal === 0) availableTotal = getValueFuzzy(breakdown, type)
 
                 // console.log(`[Batch] Jornada ${jornada.date} has available ${type}: ${availableTotal}`)
 
@@ -91,6 +130,8 @@ export async function POST(request) {
 
                 // Deduct
                 const take = Math.min(remainingToBank, availableForBanking)
+
+                console.log(`[Batch] DEBUG: Taking ${take} mins from Jornada ${jornada.id} (Available: ${availableForBanking})`)
 
                 // Update Local & Track
                 currentDesglose[type] = alreadyBanked + take
