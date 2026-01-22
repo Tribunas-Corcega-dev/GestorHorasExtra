@@ -11,6 +11,15 @@ export function ApprovalFormatModal({ isOpen, onClose, employee, period, jefe, e
 
     if (!isOpen) return null
 
+    // Handle ESC key
+    useEffect(() => {
+        const handleEsc = (e) => {
+            if (e.key === "Escape") onClose()
+        }
+        window.addEventListener("keydown", handleEsc)
+        return () => window.removeEventListener("keydown", handleEsc)
+    }, [onClose])
+
     // Fetch hours for the period
     useEffect(() => {
         const load = async () => {
@@ -117,19 +126,19 @@ export function ApprovalFormatModal({ isOpen, onClose, employee, period, jefe, e
 
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm overflow-y-auto print:p-0 print:bg-white print:block print:relative">
-            <div className="bg-white text-black w-full max-w-4xl min-h-[80vh] shadow-2xl rounded-sm p-8 print:shadow-none print:w-full print:max-w-none">
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-black/50 backdrop-blur-sm p-4 flex justify-center items-start print:p-0 print:bg-white print:block">
+            <div className="bg-white text-black w-full max-w-5xl shadow-2xl rounded-sm p-4 my-8 relative print:shadow-none print:w-full print:max-w-none print:my-0 print:p-0">
 
                 {/* Close Button (Hide on Print) */}
-                <div className="flex justify-between mb-8 print:hidden">
+                <div className="flex justify-between mb-4 print:hidden">
                     <h2 className="text-xl font-bold">Vista Preliminar de Aprobación</h2>
-                    <button onClick={onClose} className="text-gray-500 hover:text-gray-800">
-                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                    <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full transition-colors" title="Cerrar (Esc)">
+                        <svg className="w-6 h-6 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                     </button>
                 </div>
 
                 {/* THE FORMAT (A4-ish) */}
-                <div className="border border-black p-1 max-w-[210mm] mx-auto bg-white print:border-0">
+                <div className="border border-black p-1 w-full max-w-[210mm] mx-auto bg-white print:border-0 overflow-x-auto">
 
                     {/* Header */}
                     <div className="border border-black flex">
@@ -166,7 +175,7 @@ export function ApprovalFormatModal({ isOpen, onClose, employee, period, jefe, e
 
                     {/* Table */}
                     <div className="mt-4 min-h-[400px]">
-                        <table className="w-full border-collapse border border-black text-sm">
+                        <table className="w-full border-collapse border border-black text-[10px] md:text-xs">
                             <thead>
                                 <tr className="bg-gray-100">
                                     <th className="border border-black p-1 w-24">FECHA</th>
