@@ -143,11 +143,12 @@ export function ApprovalFormatModal({ isOpen, onClose, employee, period, jefe, e
                     {/* Header */}
                     <div className="border border-black flex">
                         <div className="w-32 border-r border-black p-2 flex items-center justify-center">
-                            {/* Logo Placeholder */}
-                            <div className="text-center text-xs">
-                                <svg className="w-12 h-12 mx-auto mb-1" viewBox="0 0 24 24" fill="none" stroke="black" strokeWidth="1.5"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" /></svg>
-                                E.S.P.<br />TRIBUNAS CORCEGA
-                            </div>
+                            {/* Logo */}
+                            <img
+                                src="/assets/logo.png"
+                                alt="Logo Tribunas"
+                                className="w-full h-auto object-contain max-h-24"
+                            />
                         </div>
                         <div className="flex-1 text-center p-2 flex flex-col justify-center">
                             <h1 className="font-bold text-lg leading-tight">LA ASOCIACIÓN DE SUSCRIPTORES DE LA EMPRESA DE SERVICIOS TRIBUNAS CÓRCEGA E.S.P. <br /> NIT. 816.003.198-3</h1>
