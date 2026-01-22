@@ -440,53 +440,71 @@ function HorasExtraContent() {
                                 : nameB.localeCompare(nameA, 'es', { sensitivity: 'base' })
                         })
                         .map((empleado) => (
-                            <div key={empleado.id} className="bg-card border border-border rounded-lg shadow-sm hover:shadow-md transition-shadow p-6 flex flex-col items-center text-center">
-                                <div className="h-20 w-20 rounded-full bg-primary/10 flex items-center justify-center mb-4 overflow-hidden relative">
-                                    {empleado.foto_url ? (
-                                        <img
-                                            src={empleado.foto_url}
-                                            alt={`Foto de ${empleado.nombre || empleado.username}`}
-                                            className="h-full w-full object-cover"
-                                        />
-                                    ) : (
-                                        <span className="text-2xl font-bold text-primary">
-                                            {(empleado.nombre || empleado.username || "?").charAt(0).toUpperCase()}
-                                        </span>
-                                    )}
+                            <div key={empleado.id} className="bg-card border border-border rounded-lg shadow-sm hover:shadow-md transition-all p-6 relative group">
+                                <div className="flex items-start gap-4 mb-4">
+                                    <div
+                                        onClick={() => router.push(`/empleados/${empleado.id}/detalles`)}
+                                        className="h-16 w-16 min-w-[4rem] rounded-full bg-primary/10 flex items-center justify-center overflow-hidden border border-border cursor-pointer hover:opacity-80 transition-opacity"
+                                        title="Ver Detalles del Empleado"
+                                    >
+                                        {empleado.foto_url ? (
+                                            <img
+                                                src={empleado.foto_url}
+                                                alt={`Foto de ${empleado.nombre || empleado.username}`}
+                                                className="h-full w-full object-cover"
+                                            />
+                                        ) : (
+                                            <span className="text-xl font-bold text-primary">
+                                                {(empleado.nombre || empleado.username || "?").charAt(0).toUpperCase()}
+                                            </span>
+                                        )}
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                        <h3 className="font-bold text-lg text-foreground uppercase leading-tight truncate">
+                                            {empleado.nombre || empleado.username}
+                                        </h3>
+                                        <p className="text-muted-foreground text-sm">
+                                            @{empleado.username}
+                                        </p>
+                                        <p className="text-muted-foreground text-sm">
+                                            CC: {empleado.cedula || "N/A"}
+                                        </p>
+                                    </div>
                                 </div>
 
-                                <h3 className="font-semibold text-lg text-foreground mb-1">
-                                    {empleado.nombre || empleado.username}
-                                </h3>
-
-                                <div className="text-sm text-muted-foreground mb-4 space-y-1">
-                                    <p className="text-xs bg-muted px-2 py-1 rounded-full inline-block">
-                                        {empleado.area || "Sin área"}
-                                    </p>
+                                <div className="space-y-2 mb-6">
+                                    <div className="flex justify-between items-center text-sm">
+                                        <span className="text-muted-foreground">Área:</span>
+                                        <span className="font-medium text-foreground text-right">{empleado.area || "Sin área"}</span>
+                                    </div>
+                                    <div className="flex justify-between items-center text-sm">
+                                        <span className="text-muted-foreground">Rol:</span>
+                                        <span className="bg-muted px-2 py-0.5 rounded text-xs font-semibold uppercase">{empleado.rol}</span>
+                                    </div>
                                 </div>
 
-                                <div className="mt-auto w-full space-y-2">
+                                <div className="grid grid-cols-2 gap-3">
                                     <button
                                         onClick={() => handleRegistrarHoras(empleado)}
-                                        className="w-full bg-primary text-primary-foreground px-4 py-2 rounded-md text-sm font-medium hover:opacity-90 transition-opacity"
+                                        className="col-span-1 bg-foreground text-background hover:bg-foreground/90 py-2 rounded-md text-sm font-medium transition-colors border border-foreground"
                                     >
-                                        Registrar horas extra
+                                        Registrar
                                     </button>
                                     <button
                                         onClick={() => router.push(`/horas-extra/${empleado.id}/historial`)}
-                                        className="w-full bg-secondary text-secondary-foreground px-4 py-2 rounded-md text-sm font-medium hover:opacity-90 transition-opacity border border-border"
+                                        className="col-span-1 bg-background text-foreground hover:bg-accent py-2 rounded-md text-sm font-medium transition-colors border border-input"
                                     >
-                                        Ver historial
+                                        Historial
                                     </button>
                                     {canManageOvertime(user?.rol) && (
                                         <button
                                             onClick={() => handleOpenBalanceModal(empleado)}
-                                            className="w-full bg-gray-400 hover:bg-gray-500 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center justify-center gap-2"
+                                            className="col-span-2 bg-muted hover:bg-muted/80 text-foreground py-2 rounded-md text-sm font-medium transition-colors border border-transparent flex items-center justify-center gap-2"
                                         >
                                             <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
+                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                                             </svg>
-                                            Gestionar Bolsa
+                                            Ver Historial HE (Bolsa)
                                         </button>
                                     )}
                                 </div>

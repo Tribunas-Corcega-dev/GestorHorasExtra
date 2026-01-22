@@ -99,6 +99,7 @@ function EditarEmpleadoContent() {
         rol: data.rol || "",
         password: "",
         minimo: data.minimo || false,
+        fecha_cambio: data.fecha_cambio || new Date().toISOString().split('T')[0],
       })
     } catch (err) {
       setError(err.message)
