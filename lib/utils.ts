@@ -16,3 +16,13 @@ export function formatDateForDisplay(dateString: string) {
   const date = new Date(year, month - 1, day)
   return date.toLocaleDateString()
 }
+
+export const LABELS = {
+  extra_diurna: "Extra Diurna",
+  extra_nocturna: "Extra Nocturna",
+  extra_diurna_festivo: "Extra Diurna Festivo",
+  extra_nocturna_festivo: "Extra Nocturna Festivo",
+  recargo_nocturno: "Recargo Nocturno",
+  dominical_festivo: "Dominical/Festivo",
+  recargo_nocturno_festivo: "Recargo Nocturno Festivo"
+}
