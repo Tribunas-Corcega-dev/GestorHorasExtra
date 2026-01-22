@@ -76,6 +76,14 @@ function JefeContent() {
 
             setEmployees(emps)
             setApprovals(apps || [])
+
+            // 3. Fetch Active Employees (with hours)
+            const resActive = await fetch(`/api/reportes/empleados-activos?inicio=${period.start}&fin=${period.end}`)
+            if (resActive.ok) {
+                const activeIds = await resActive.json()
+                const filteredEmps = emps.filter(e => activeIds.includes(e.id) || apps.some(a => a.empleado_id === e.id))
+                setEmployees(filteredEmps)
+            }
         } catch (error) {
             console.error(error)
         } finally {
