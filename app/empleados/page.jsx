@@ -33,9 +33,6 @@ function EmpleadosContent() {
     return null
   }
 
-  if (isCoordinator(user?.rol)) {
-    return <EmpleadosCoordinador />
-  }
-
+  /* Combined View for all Managers and Coordinators */
   return <EmpleadosManager />
 }
