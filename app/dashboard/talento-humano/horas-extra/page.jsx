@@ -23,10 +23,11 @@ export default function ReporteHorasExtraPage() {
                 const data = await res.json()
                 setReportData(data)
             } else {
-                console.error("Error fetching report")
+                const errorText = await res.text()
+                console.error("Error fetching report:", res.status, res.statusText, errorText)
             }
         } catch (error) {
-            console.error("Error fetching report:", error)
+            console.error("Error executing fetch:", error)
         } finally {
             setLoading(false)
         }
