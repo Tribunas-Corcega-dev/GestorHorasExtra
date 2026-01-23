@@ -89,6 +89,12 @@ export function Layout({ children }) {
                   Apelaciones
                 </Link>
                 <Link
+                  href="/dashboard/talento-humano/horas-extra"
+                  className="block px-4 py-2 rounded-md hover:bg-accent hover:text-accent-foreground transition-colors"
+                >
+                  Reporte Consolidado
+                </Link>
+                <Link
                   href="/ajustes"
                   className="block px-4 py-2 rounded-md hover:bg-accent hover:text-accent-foreground transition-colors"
                 >
