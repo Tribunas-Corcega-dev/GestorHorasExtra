@@ -464,13 +464,13 @@ export function OvertimeHistoryView({ employeeId, showBackButton = true }) {
                                         </p>
                                     )}
                                     {isCoordinator && (
-                                        <div className="mt-2 text-center">
+                                        <div className="mt-3 text-center">
                                             <button
                                                 onClick={() => setShowManageModal(true)}
-                                                className="text-xs text-blue-600 dark:text-blue-400 font-medium hover:underline flex items-center justify-center gap-1 w-full"
+                                                className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold uppercase py-2 px-4 rounded w-full shadow hover:shadow-md transition-all flex items-center justify-center gap-2"
                                             >
                                                 Gestionar Bolsa
-                                                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" /><polyline points="15 3 21 3 21 9" /><line x1="10" y1="14" x2="21" y2="3" /></svg>
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" /><polyline points="15 3 21 3 21 9" /><line x1="10" y1="14" x2="21" y2="3" /></svg>
                                             </button>
                                         </div>
                                     )}
