@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { useAuth } from "@/hooks/useAuth"
 import { Layout } from "@/components/Layout"
 import { ProtectedRoute } from "@/components/ProtectedRoute"
@@ -23,6 +23,20 @@ function ApelacionesContent() {
     const [loading, setLoading] = useState(true)
     const [appeals, setAppeals] = useState([])
     const [filter, setFilter] = useState("PENDIENTE")
+
+    // Sliding Tabs Logic
+    const [tabStyle, setTabStyle] = useState({ left: 0, width: 0 })
+    const tabsRef = useRef([])
+
+    useEffect(() => {
+        const activeTab = tabsRef.current.find(tab => tab?.dataset?.filter === filter)
+        if (activeTab) {
+            setTabStyle({
+                left: activeTab.offsetLeft,
+                width: activeTab.offsetWidth
+            })
+        }
+    }, [filter, loading]) // Re-run when filter changes or loading finishes (layout might change)
 
     useEffect(() => {
         // Only HR and Coordinators can access
@@ -53,9 +67,7 @@ function ApelacionesContent() {
         }
     }
 
-    if (loading) {
-        return <div className="text-center py-8">Cargando...</div>
-    }
+
 
     return (
         <div className="max-w-7xl mx-auto">
@@ -64,45 +76,47 @@ function ApelacionesContent() {
             </div>
 
             {/* Filter Tabs */}
-            <div className="mb-6 flex gap-2 border-b border-border overflow-x-auto pb-1 scrollbar-hide">
-                <button
-                    onClick={() => setFilter("PENDIENTE")}
-                    className={`px-3 py-2 text-sm md:px-4 md:text-base font-medium transition-colors whitespace-nowrap ${filter === "PENDIENTE"
-                        ? "text-primary border-b-2 border-primary"
-                        : "text-muted-foreground hover:text-foreground"
-                        }`}
-                >
-                    Pendientes
-                </button>
-                <button
-                    onClick={() => setFilter("APROBADA")}
-                    className={`px-3 py-2 text-sm md:px-4 md:text-base font-medium transition-colors whitespace-nowrap ${filter === "APROBADA"
-                        ? "text-primary border-b-2 border-primary"
-                        : "text-muted-foreground hover:text-foreground"
-                        }`}
-                >
-                    Aprobadas
-                </button>
-                <button
-                    onClick={() => setFilter("RECHAZADA")}
-                    className={`px-3 py-2 text-sm md:px-4 md:text-base font-medium transition-colors whitespace-nowrap ${filter === "RECHAZADA"
-                        ? "text-primary border-b-2 border-primary"
-                        : "text-muted-foreground hover:text-foreground"
-                        }`}
-                >
-                    Rechazadas
-                </button>
+            {/* Filter Tabs */}
+            <div className="mb-6 relative border-b border-border">
+                <div className="flex overflow-x-auto scrollbar-hide relative z-10">
+                    {["PENDIENTE", "APROBADA", "RECHAZADA"].map((status, index) => (
+                        <button
+                            key={status}
+                            ref={el => tabsRef.current[index] = el}
+                            data-filter={status}
+                            onClick={() => setFilter(status)}
+                            className={`px-4 py-2 text-sm md:text-base font-medium transition-colors whitespace-nowrap ${filter === status
+                                ? "text-primary"
+                                : "text-muted-foreground hover:text-foreground"
+                                }`}
+                        >
+                            {status === "PENDIENTE" && "Pendientes"}
+                            {status === "APROBADA" && "Aprobadas"}
+                            {status === "RECHAZADA" && "Rechazadas"}
+                        </button>
+                    ))}
+                </div>
+                {/* Sliding Indicator */}
+                <span
+                    className="absolute bottom-0 h-0.5 bg-primary transition-all duration-300 ease-in-out z-20"
+                    style={{ left: tabStyle.left, width: tabStyle.width }}
+                />
             </div>
 
             {/* Appeals List */}
-            {appeals.length === 0 ? (
-                <div className="text-center py-12 bg-card border border-border rounded-lg">
+            {loading ? (
+                <div className="flex flex-col items-center justify-center py-12 bg-card border border-border rounded-lg">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mb-2"></div>
+                    <p className="text-muted-foreground">Cargando...</p>
+                </div>
+            ) : appeals.length === 0 ? (
+                <div key={filter} className="text-center py-12 bg-card border border-border rounded-lg animate-in fade-in slide-in-from-bottom-2 duration-300">
                     <p className="text-muted-foreground">
                         No hay apelaciones {filter.toLowerCase()}
                     </p>
                 </div>
             ) : (
-                <div className="grid gap-4">
+                <div key={filter} className="grid gap-4 animate-in fade-in slide-in-from-bottom-2 duration-300">
                     {appeals.map((appeal) => (
                         <div
                             key={appeal.id}
