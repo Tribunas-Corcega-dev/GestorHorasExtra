@@ -33,7 +33,16 @@ export async function GET(request) {
         }
 
         const { searchParams } = new URL(request.url)
-        const area = searchParams.get("area")
+        let area = searchParams.get("area")
+
+        // Enforce area filter for Coordinators
+        if (user.rol === "COORDINADOR") {
+            if (!user.area) {
+                return NextResponse.json({ message: "Usuario no tiene área asignada" }, { status: 400 })
+            }
+            area = user.area
+        }
+
         // Note: startDate and endDate are ignored for the totals because we are using the accumulated lifetime summary from resumen_horas_extra, as requested.
 
         // 1. Fetch employees

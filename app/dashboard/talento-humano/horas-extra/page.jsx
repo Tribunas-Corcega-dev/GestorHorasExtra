@@ -9,19 +9,58 @@ import Link from "next/link"
 export default function ReporteHorasExtraPage() {
     const { user } = useAuth()
     const [reportData, setReportData] = useState([])
+    const [filteredData, setFilteredData] = useState([])
     const [loading, setLoading] = useState(true)
+    const [areaFilter, setAreaFilter] = useState("")
+    const [areas, setAreas] = useState([])
 
     useEffect(() => {
-        fetchReport()
-    }, [])
+        if (user) {
+            if (user.rol === "COORDINADOR" && user.area) {
+                setAreaFilter(user.area)
+            }
+            fetchReport()
+        }
+    }, [user])
+
+    // Update filtered data when reportData or filters change
+    useEffect(() => {
+        if (reportData.length > 0) {
+            // Extract unique areas for the filter dropdown
+            const uniqueAreas = [...new Set(reportData.map(item => item.area).filter(Boolean))].sort()
+            setAreas(uniqueAreas)
+
+            // Client-side filtering (or API-side if we prefer refetching)
+            // Since we established API filtering, let's use API filtering for strictness, but we can also filter client side for responsiveness if we loaded ALL.
+            // Current approach: Fetch ALL for HR, then client filter? Or fetch with param?
+            // The user request implies "Show only employees of their area".
+            // Backend ALREADY enforces it for Coordinator.
+            // For HR, they might want to see specific area.
+            // Let's rely on backend filtering if the user selects an area, OR client side?
+            // Client side is faster if we already have the data.
+            // BUT, the Coordinator implementation forces backend filter.
+            // So: Coordinator gets filtered data from backend. HR gets ALL data from backend.
+            // HR can then client-filter the large list.
+
+            let data = reportData
+            if (areaFilter && user.rol !== "COORDINADOR") { // For coordinator, data is ALREADY filtered by backend
+                data = data.filter(item => item.area === areaFilter)
+            }
+            setFilteredData(data)
+        }
+    }, [reportData, areaFilter, user])
+
 
     async function fetchReport() {
         setLoading(true)
         try {
+            // For Coordinator, backend enforces area, so we don't strictly NEED to pass specific param unless we want to be explicit.
+            // For HR, fetching without param = ALL data.
             const res = await fetch(`/api/reportes/horas-extra`)
             if (res.ok) {
                 const data = await res.json()
                 setReportData(data)
+                setFilteredData(data)
             } else {
                 const errorText = await res.text()
                 console.error("Error fetching report:", res.status, res.statusText, errorText)
@@ -42,24 +81,48 @@ export default function ReporteHorasExtraPage() {
     }
 
     return (
-        <ProtectedRoute allowedRoles={["TALENTO_HUMANO", "ASISTENTE_GERENCIA"]}>
+        <ProtectedRoute allowedRoles={["TALENTO_HUMANO", "ASISTENTE_GERENCIA", "COORDINADOR"]}>
             <Layout>
                 <div className="p-6">
-                    <div className="flex justify-between items-center mb-6">
+                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
                         <h1 className="text-2xl font-bold">Reporte de Horas Extra (Acumulado)</h1>
-                        <Link href="/dashboard/talento-humano" className="text-sm text-blue-600 hover:underline">
+                        <Link href={user?.rol === "COORDINADOR" ? "/dashboard/coordinador" : "/dashboard/talento-humano"} className="text-sm text-blue-600 hover:underline">
                             &larr; Volver al Dashboard
                         </Link>
                     </div>
 
-                    <div className="mb-4 text-sm text-gray-600">
-                        <p>Este reporte muestra el balance acumulado de horas extra y recargos pendientes por compensar para cada empleado.</p>
+                    <div className="bg-card border border-border rounded-lg p-4 mb-6 flex flex-col md:flex-row gap-4 items-end md:items-center justify-between">
+                        <div className="text-sm text-muted-foreground max-w-2xl">
+                            <p>Este reporte muestra el balance acumulado de horas extra y recargos pendientes por compensar para cada empleado.</p>
+                        </div>
+
+                        {/* Area Filter */}
+                        {user?.rol !== "COORDINADOR" && (
+                            <div className="w-full md:w-64">
+                                <label className="block text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1">
+                                    Filtrar por Área
+                                </label>
+                                <select
+                                    value={areaFilter}
+                                    onChange={(e) => setAreaFilter(e.target.value)}
+                                    className="w-full px-3 py-2 border border-input bg-background/50 rounded-md text-sm focus:ring-2 focus:ring-primary"
+                                >
+                                    <option value="">Todas las Áreas</option>
+                                    {areas.map(area => (
+                                        <option key={area} value={area}>{area}</option>
+                                    ))}
+                                </select>
+                            </div>
+                        )}
                     </div>
 
                     {loading ? (
-                        <div className="text-center py-8">Cargando reporte...</div>
-                    ) : reportData.length === 0 ? (
-                        <div className="text-center py-8 text-gray-500">No hay registros de horas extra acumuladas.</div>
+                        <div className="flex flex-col items-center justify-center py-12">
+                            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mb-4"></div>
+                            <p className="text-muted-foreground animate-pulse">Cargando reporte consolidado...</p>
+                        </div>
+                    ) : filteredData.length === 0 ? (
+                        <div className="text-center py-8 text-muted-foreground">No hay registros para los filtros seleccionados.</div>
                     ) : (
                         <div className="overflow-x-auto bg-white rounded-lg shadow">
                             <table className="min-w-full divide-y divide-gray-200">
@@ -80,7 +143,7 @@ export default function ReporteHorasExtraPage() {
                                     </tr>
                                 </thead>
                                 <tbody className="bg-white divide-y divide-gray-200">
-                                    {reportData.map((row) => (
+                                    {filteredData.map((row) => (
                                         <tr key={row.id}>
                                             <td className="px-6 py-4 whitespace-nowrap">
                                                 <Link href={`/horas-extra/${row.id}/historial`} className="text-sm font-medium text-gray-900 hover:text-blue-600 hover:underline">

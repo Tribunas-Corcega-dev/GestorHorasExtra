@@ -88,12 +88,14 @@ export function Layout({ children }) {
                 >
                   Apelaciones
                 </Link>
-                <Link
-                  href="/dashboard/talento-humano/horas-extra"
-                  className="block px-4 py-2 rounded-md hover:bg-accent hover:text-accent-foreground transition-colors"
-                >
-                  Reporte Consolidado
-                </Link>
+                {["TALENTO_HUMANO", "ASISTENTE_GERENCIA", "COORDINADOR"].includes(user.rol) && (
+                  <Link
+                    href="/dashboard/talento-humano/horas-extra"
+                    className="block px-4 py-2 rounded-md hover:bg-accent hover:text-accent-foreground transition-colors"
+                  >
+                    Reporte Consolidado
+                  </Link>
+                )}
                 <Link
                   href="/ajustes"
                   className="block px-4 py-2 rounded-md hover:bg-accent hover:text-accent-foreground transition-colors"
@@ -154,6 +156,6 @@ export function Layout({ children }) {
         {/* Main Content */}
         <main className="flex-1 p-4 md:p-8 min-w-0">{children}</main>
       </div>
-    </div>
+    </div >
   )
 }
