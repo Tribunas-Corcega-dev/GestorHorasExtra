@@ -113,17 +113,32 @@ export function ApprovalFormatModal({ isOpen, onClose, employee, period, jefe, e
     }
 
     // Calculate total hours sum for footer
-    const totalMinutes = jornadas.reduce((acc, j) => {
+    const { totalGrossMinutes, totalBankedMinutes } = jornadas.reduce((acc, j) => {
         const h = j.horas_extra_hhmm || {}
-        // Rough sum of all relevant fields
-        let sum = 0;
-        const flat = { ...h.breakdown, ...(h.breakdown?.overtime || {}), ...(h.breakdown?.surcharges || {}) }
-        Object.values(flat).forEach(v => { if (typeof v === 'number') sum += v })
-        return acc + sum
-    }, 0)
-    const totalH = Math.floor(totalMinutes / 60)
-    const totalM = totalMinutes % 60
+        const banked = j.desglose_compensacion || {}
 
+        // Gross Sum
+        let gross = 0;
+        const flatGross = { ...h.breakdown, ...(h.breakdown?.overtime || {}), ...(h.breakdown?.surcharges || {}) }
+        Object.values(flatGross).forEach(v => { if (typeof v === 'number') gross += v })
+
+        // Banked Sum
+        let bankedSum = 0;
+        Object.values(banked).forEach(v => { if (typeof v === 'number') bankedSum += v })
+
+        return {
+            totalGrossMinutes: acc.totalGrossMinutes + gross,
+            totalBankedMinutes: acc.totalBankedMinutes + bankedSum
+        }
+    }, { totalGrossMinutes: 0, totalBankedMinutes: 0 })
+
+    const formatTime = (minutes) => {
+        const h = Math.floor(minutes / 60)
+        const m = minutes % 60
+        return `${h}h ${m}m`
+    }
+
+    const netPayableMinutes = totalGrossMinutes - totalBankedMinutes
 
     return (
         <div className="fixed inset-0 z-50 overflow-y-auto bg-black/50 backdrop-blur-sm p-4 flex justify-center items-start print:p-0 print:bg-white print:block">
@@ -217,10 +232,28 @@ export function ApprovalFormatModal({ isOpen, onClose, employee, period, jefe, e
                         </table>
                     </div>
 
-                    {/* Totals */}
-                    <div className="border border-black border-t-0 p-1 flex font-bold text-sm">
-                        <div className="w-[60%]">TOTAL HORAS PERIODO</div>
-                        <div className="flex-1 text-right px-4">{totalH} Horas {totalM} Minutos</div>
+                    {/* Totals Section */}
+                    <div className="border border-black border-t-0 p-1 font-bold text-sm">
+
+                        {/* 1. Gross Total */}
+                        <div className="flex border-b border-black/20 pb-1 mb-1">
+                            <div className="w-[60%] text-gray-700">TOTAL HORAS TRABAJADAS (BRUTO)</div>
+                            <div className="flex-1 text-right px-4 text-gray-700">{formatTime(totalGrossMinutes)}</div>
+                        </div>
+
+                        {/* 2. Deductions (Banked) - Only show if > 0 */}
+                        {totalBankedMinutes > 0 && (
+                            <div className="flex border-b border-black/20 pb-1 mb-1 text-red-600">
+                                <div className="w-[60%] pl-4">- MENOS: HORAS ENVIADAS A BOLSA</div>
+                                <div className="flex-1 text-right px-4">({formatTime(totalBankedMinutes)})</div>
+                            </div>
+                        )}
+
+                        {/* 3. Net Payable */}
+                        <div className="flex bg-gray-100 py-1">
+                            <div className="w-[60%] text-black uppercase">TOTAL A PAGAR EN NÓMINA (NETO)</div>
+                            <div className="flex-1 text-right px-4 text-black border-black">{formatTime(netPayableMinutes)}</div>
+                        </div>
                     </div>
 
                     {/* Signatures */}
