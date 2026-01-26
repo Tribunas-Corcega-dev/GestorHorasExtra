@@ -464,13 +464,13 @@ export function OvertimeHistoryView({ employeeId, showBackButton = true }) {
                                         </p>
                                     )}
                                     {isCoordinator && (
-                                        <div className="mt-2 text-center">
+                                        <div className="mt-3 text-center">
                                             <button
                                                 onClick={() => setShowManageModal(true)}
-                                                className="text-xs text-blue-600 dark:text-blue-400 font-medium hover:underline flex items-center justify-center gap-1 w-full"
+                                                className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold uppercase py-2 px-4 rounded w-full shadow hover:shadow-md transition-all flex items-center justify-center gap-2"
                                             >
                                                 Gestionar Bolsa
-                                                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" /><polyline points="15 3 21 3 21 9" /><line x1="10" y1="14" x2="21" y2="3" /></svg>
+                                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" /><polyline points="15 3 21 3 21 9" /><line x1="10" y1="14" x2="21" y2="3" /></svg>
                                             </button>
                                         </div>
                                     )}
@@ -724,24 +724,29 @@ export function OvertimeHistoryView({ employeeId, showBackButton = true }) {
                         </div>
 
                         {/* Total Summary */}
-                        <div className="bg-primary/10 border border-primary/20 rounded-lg p-6 shadow-sm mb-8 flex flex-col md:flex-row items-center justify-between gap-4 text-center md:text-left">
-                            <div className="flex-1 min-w-0">
-                                <h3 className="text-lg font-bold text-primary uppercase tracking-wider break-words">Total General a Pagar</h3>
-                                <p className="text-sm text-muted-foreground break-words">
-                                    {selectedPeriod !== 'all'
-                                        ? "Suma de Nómina Fija + Nómina Variable (Reportada)"
-                                        : "Suma de todas las horas extra reportadas (Selecciona periodo para ver total real)"}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+                            {/* Card 1: Total Overtime Only */}
+                            <div className="bg-blue-50 border border-blue-100 dark:bg-blue-900/10 dark:border-blue-800 rounded-lg p-6 shadow-sm flex flex-col items-center justify-center text-center">
+                                <h3 className="text-sm font-bold text-blue-800 dark:text-blue-300 uppercase tracking-wider mb-2">Total Solo Horas Extra</h3>
+                                <div className="text-2xl font-bold text-blue-700 dark:text-blue-400">
+                                    {formatCurrency(Object.values(filteredSummary.overtimeValues).reduce((a, b) => a + b, 0))}
+                                </div>
+                                <p className="text-xs text-blue-600/80 dark:text-blue-400/70 mt-1">
+                                    Suma exclusiva de horas extra (Sin recargos)
                                 </p>
                             </div>
-                            <div className="text-center md:text-right w-full md:w-auto">
-                                <div className="text-3xl font-bold text-primary break-all">
+
+                            {/* Card 2: Total General (Variable + Fixed) */}
+                            <div className="bg-primary/10 border border-primary/20 rounded-lg p-6 shadow-sm flex flex-col items-center justify-center text-center">
+                                <h3 className="text-sm font-bold text-primary uppercase tracking-wider mb-2">Total General a Pagar</h3>
+                                <div className="text-3xl font-bold text-primary">
                                     {formatCurrency(filteredSummary.totalValue + (mockFixedSurcharges?.value || 0))}
                                 </div>
-                                {selectedPeriod !== 'all' && (
-                                    <div className="text-xs text-muted-foreground mt-1 break-words">
-                                        Variable: {formatCurrency(filteredSummary.totalValue)} + Fijo: {formatCurrency(mockFixedSurcharges?.value || 0)}
-                                    </div>
-                                )}
+                                <p className="text-xs text-muted-foreground mt-1">
+                                    {selectedPeriod !== 'all'
+                                        ? `Variable: ${formatCurrency(filteredSummary.totalValue)} + Fijo: ${formatCurrency(mockFixedSurcharges?.value || 0)}`
+                                        : "Total acumulado (Variable + Fijo)"}
+                                </p>
                             </div>
                         </div>
                     </>

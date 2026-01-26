@@ -77,6 +77,16 @@ function AjustesContent() {
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                 </svg>
             )
+        },
+        {
+            title: "Firma Digital",
+            description: "Configure su firma digital para la aprobación de documentos.",
+            href: "/ajustes/firma",
+            icon: (
+                <svg className="w-8 h-8 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                </svg>
+            )
         }
     ]
 
