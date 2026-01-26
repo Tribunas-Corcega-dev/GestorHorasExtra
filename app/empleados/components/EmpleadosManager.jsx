@@ -348,8 +348,8 @@ export function EmpleadosManager() {
                                         </button>
                                     )}
 
-                                    {/* Botón Editar (Solo Admin/TH) */}
-                                    {canManageEmployees(user?.rol) && (
+                                    {/* Botón Editar (Solo Admin/TH - No Coordinadores) */}
+                                    {canManageEmployees(user?.rol) && !isCoordinator(user?.rol) && (
                                         <button
                                             onClick={() => router.push(`/empleados/${empleado.id}`)}
                                             className="col-span-2 flex items-center justify-center gap-1 py-2 text-primary hover:text-primary/80 transition-colors text-sm font-medium border-t border-border mt-1"
