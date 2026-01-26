@@ -83,7 +83,9 @@ export default function ReporteHorasExtraPage() {
                                     {reportData.map((row) => (
                                         <tr key={row.id}>
                                             <td className="px-6 py-4 whitespace-nowrap">
-                                                <div className="text-sm font-medium text-gray-900">{row.nombre || row.username}</div>
+                                                <Link href={`/horas-extra/${row.id}/historial`} className="text-sm font-medium text-gray-900 hover:text-blue-600 hover:underline">
+                                                    {row.nombre || row.username}
+                                                </Link>
                                                 <div className="text-xs text-gray-500">{row.cc}</div>
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{row.area}</td>
