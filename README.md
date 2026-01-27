@@ -1,75 +1,92 @@
-# Gestor de Horas Extra
+# Gestor de Horas Extra - Tribunas Córcega
 
-Aplicación web para la gestión, registro y aprobación de horas extra de empleados, diseñada para optimizar el flujo de trabajo entre coordinadores, talento humano y gerencia.
+Sistema integral para la gestión de jornadas laborales, horas extra y nómina, diseñado para optimizar el flujo de aprobación y reporte entre empleados, coordinadores y la gerencia.
 
-## Características Principales
+## 🚀 Tecnologías Principales
 
-- **Gestión de Roles**: Paneles específicos para Coordinadores, Talento Humano, Jefes y Gerencia.
-- **Registro de Jornadas**: Interfaz intuitiva para registrar horas de entrada y salida, incluyendo cálculo automático de días de la semana.
-- **Historial**: Visualización detallada del historial de horas extra por empleado.
-- **Seguridad**: Autenticación y rutas protegidas basadas en roles.
+- **Framework**: [Next.js 16](https://nextjs.org/) (App Router, Turbopack)
+- **Lenguaje**: JavaScript (ES6+)
+- **Base de Datos**: [Supabase](https://supabase.com/) (PostgreSQL)
+- **Autenticación**: JWT + Supabase Auth (Custom Implementation)
+- **UI/UX**: 
+  - [Tailwind CSS v4](https://tailwindcss.com/)
+  - [Shadcn UI](https://ui.shadcn.com/) (Radix Primitives)
+  - [Lucide React](https://lucide.dev/) (Iconografía)
+- **Manejo de Fechas**: `dayjs` (anteriormente `date-fns` en migración)
+- **Validación**: `zod` + `react-hook-form`
 
-## Guía de Instalación
+## 👥 Gestión de Roles y Permisos
 
-Sigue estos pasos para configurar el proyecto en tu entorno local:
+El sistema implementa un control de acceso basado en roles (`RBAC`) definido en `lib/permissions.js`.
 
-### 1. Clonar el Repositorio
+| Rol | Descripción | Permisos Clave |
+| :--- | :--- | :--- |
+| **ADMINISTRADOR** | Superusuario del sistema | Acceso total a configuraciones y base de datos. |
+| **GERENCIA** | Alta dirección | Visualización global, reportes financieros. |
+| **TALENTO_HUMANO** | Gestión de personal | ABM de empleados, aprobación final de horas, reportes de nómina. |
+| **JEFE** | Supervisores de área | Aprobación de horas de su equipo, visualización de reportes de área. |
+| **COORDINADOR** | Líderes operativos | Gestión diaria de jornadas, validación inicial de horas extra. |
+| **OPERARIO** | Empleados base | Registro de entrada/salida, visualización de historial propio. |
 
-```bash
-git clone https://github.com/Tribunas-Corcega-dev/GestorHorasExtra.git
-cd GestorHorasExtra
-```
+## 🛠️ Scripts de Mantenimiento
 
-### 2. Instalar Dependencias
+El proyecto incluye herramientas de administración en la carpeta `scripts/` para tareas de base de datos y depuración:
 
-Este proyecto utiliza `npm` como gestor de paquetes.
+- `force_populate_resumen.js`: Recalcula y llena la tabla `resumen_horas_extra` con los acumulados históricos. Útil tras correcciones manuales en jornadas.
+- `check_schema.js`: Verifica la integridad del esquema de la base de datos.
+- `debug_data.js`: Script para inspeccionar el estado actual de los datos sin acceder a la DB directamente.
+- `create_automatic_balance_trigger.sql`: Define los triggers de PostgreSQL para actualizaciones automáticas.
 
-```bash
-npm install
-```
-
-### 3. Configuración de Variables de Entorno
-
-Crea un archivo `.env` en la raíz del proyecto y configura las siguientes variables (necesitarás credenciales de Supabase):
-
-```env
-NEXT_PUBLIC_SUPABASE_URL=tu_url_de_supabase
-NEXT_PUBLIC_SUPABASE_ANON_KEY=tu_clave_anonima_de_supabase
-JWT_SECRET=tu_secreto_jwt
-SUPABASE_SERVICE_ROLE_KEY=tu_clave_de_rol_de_servicio_de_supabase
-```
-
-### 4. Ejecutar el Servidor de Desarrollo
+## 📂 Estructura del Proyecto
 
 ```bash
-npm run dev
-```
-
-La aplicación estará disponible en `http://localhost:3000`.
-
-## Estructura del Código
-
-El proyecto sigue la arquitectura de **Next.js App Router**.
-
-```
 GestorHorasExtra/
-├── app/                    # Rutas y páginas de la aplicación (App Router)
-│   ├── api/                # Endpoints de la API (Backend)
-│   ├── dashboard/          # Paneles principales por rol
-│   ├── empleados/          # Gestión de empleados
-│   ├── horas-extra/        # Módulo de registro e historial de horas
-│   ├── login/              # Página de inicio de sesión
-│   └── layout.jsx          # Layout principal
-├── components/             # Componentes reutilizables (UI, Layouts, Selectors)
-├── hooks/                  # Custom Hooks (useAuth, etc.)
-├── lib/                    # Utilidades y configuración (Supabase, Permisos)
-├── public/                 # Archivos estáticos
-└── styles/                 # Estilos globales
+├── app/                        # Next.js App Router
+│   ├── api/                    # API Routes (Backend logic)
+│   ├── dashboard/              # Vistas protegidas por rol
+│   │   ├── talento-humano/     # Panel de RRHH
+│   │   ├── coordinadores/      # Panel de Coordinación
+│   │   └── ...
+│   └── login/                  # Autenticación
+├── components/                 # Componentes React (Atomic Design)
+│   ├── ui/                     # Primitivas de diseño (Botones, Inputs - Shadcn)
+│   └── ...
+├── context/                    # React Context (AuthContext, etc.)
+├── lib/                        # Lógica de negocio y utilidades
+│   ├── permissions.js          # Definiciones de roles
+│   └── supabaseClient.js       # Cliente DB
+├── scripts/                    # Herramientas de administración (Node.js)
+└── public/                     # Assets estáticos
 ```
 
-## Tecnologías Utilizadas
+## ⚙️ Instalación y Configuración
 
-- **Framework**: Next.js 14
-- **Lenguaje**: JavaScript / React
-- **Estilos**: Tailwind CSS
-- **Base de Datos / Auth**: Supabase
+1. **Clonar repositorio**
+   ```bash
+   git clone https://github.com/Tribunas-Corcega-dev/GestorHorasExtra.git
+   cd GestorHorasExtra
+   ```
+
+2. **Instalar dependencias**
+   ```bash
+   npm install
+   ```
+
+3. **Variables de Entorno**
+   Crear archivo `.env` en la raíz:
+   ```env
+   NEXT_PUBLIC_SUPABASE_URL=https://tu-proyecto.supabase.co
+   NEXT_PUBLIC_SUPABASE_ANON_KEY=tu-anon-key
+   SUPABASE_SERVICE_ROLE_KEY=tu-service-role-key
+   JWT_SECRET=tu-secreto-seguro
+   ```
+
+4. **Ejecutar en desarrollo**
+   ```bash
+   npm run dev
+   ```
+
+## 📝 Notas de Desarrollo
+
+- **Manejo de Horarios**: El sistema calcula automáticamente recargos nocturnos, dominicales y festivos basándose en la legislación laboral vigente configurada en los utilitarios de fecha.
+- **Seguridad**: Todas las rutas de API y Páginas están protegidas mediante `middleware` y verificaciones de sesión en servidor (`VerifyToken`).
