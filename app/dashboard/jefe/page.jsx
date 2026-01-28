@@ -74,7 +74,6 @@ function JefeContent() {
             const resApp = await fetch(`/api/aprobaciones/firma?inicio=${period.start}&fin=${period.end}`)
             const apps = await resApp.json()
 
-            setEmployees(emps)
             setApprovals(apps || [])
 
             // 3. Fetch Active Employees (with hours)
@@ -83,6 +82,8 @@ function JefeContent() {
                 const activeIds = await resActive.json()
                 const filteredEmps = emps.filter(e => activeIds.includes(e.id) || apps.some(a => a.empleado_id === e.id))
                 setEmployees(filteredEmps)
+            } else {
+                setEmployees([])
             }
         } catch (error) {
             console.error(error)
@@ -137,34 +138,51 @@ function JefeContent() {
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-border">
-                        {employees.map(emp => {
-                            const { status, fecha_aprobacion } = getApprovalStatus(emp.id)
-                            return (
-                                <tr key={emp.id} className="hover:bg-accent/50">
-                                    <td className="px-4 py-3 font-medium">{emp.nombre}</td>
-                                    <td className="px-4 py-3 text-muted-foreground">{emp.cedula || "-"}</td>
-                                    <td className="px-4 py-3 text-center">
-                                        <span className={`px-2 py-1 rounded-full text-xs font-bold ${status === 'APROBADO' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'
-                                            }`}>
-                                            {status}
-                                        </span>
-                                        {fecha_aprobacion && (
-                                            <div className="text-[10px] text-muted-foreground mt-1">
-                                                {new Date(fecha_aprobacion).toLocaleDateString()}
-                                            </div>
-                                        )}
-                                    </td>
-                                    <td className="px-4 py-3 text-right">
-                                        <button
-                                            onClick={() => setSelectedEmployee(emp)}
-                                            className="px-3 py-1 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded border border-blue-200 transition-colors font-medium"
-                                        >
-                                            Ver Formato
-                                        </button>
-                                    </td>
-                                </tr>
-                            )
-                        })}
+                        {loading ? (
+                            <tr>
+                                <td colSpan="4" className="py-12 text-center">
+                                    <div className="flex flex-col items-center justify-center gap-3">
+                                        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                                        <p className="text-muted-foreground text-sm">Cargando empleados...</p>
+                                    </div>
+                                </td>
+                            </tr>
+                        ) : employees.length === 0 ? (
+                            <tr>
+                                <td colSpan="4" className="py-12 text-center text-muted-foreground">
+                                    No se encontraron empleados con horas extra en este periodo.
+                                </td>
+                            </tr>
+                        ) : (
+                            employees.map(emp => {
+                                const { status, fecha_aprobacion } = getApprovalStatus(emp.id)
+                                return (
+                                    <tr key={emp.id} className="hover:bg-accent/50">
+                                        <td className="px-4 py-3 font-medium">{emp.nombre}</td>
+                                        <td className="px-4 py-3 text-muted-foreground">{emp.cedula || "-"}</td>
+                                        <td className="px-4 py-3 text-center">
+                                            <span className={`px-2 py-1 rounded-full text-xs font-bold ${status === 'APROBADO' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'
+                                                }`}>
+                                                {status}
+                                            </span>
+                                            {fecha_aprobacion && (
+                                                <div className="text-[10px] text-muted-foreground mt-1">
+                                                    {new Date(fecha_aprobacion).toLocaleDateString()}
+                                                </div>
+                                            )}
+                                        </td>
+                                        <td className="px-4 py-3 text-right">
+                                            <button
+                                                onClick={() => setSelectedEmployee(emp)}
+                                                className="px-3 py-1 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded border border-blue-200 transition-colors font-medium"
+                                            >
+                                                Ver Formato
+                                            </button>
+                                        </td>
+                                    </tr>
+                                )
+                            })
+                        )}
                     </tbody>
                 </table>
             </div>

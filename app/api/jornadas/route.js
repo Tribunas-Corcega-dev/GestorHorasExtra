@@ -27,7 +27,7 @@ export async function POST(request) {
         }
 
         const body = await request.json()
-        const { empleado_id, fecha, jornada_base_calcular, horas_extra_hhmm, es_festivo } = body
+        const { empleado_id, fecha, jornada_base_calcular, horas_extra_hhmm, es_festivo, observaciones } = body
 
         if (!empleado_id || !fecha || !jornada_base_calcular) {
             return NextResponse.json({ message: "Faltan datos requeridos" }, { status: 400 })
@@ -54,6 +54,7 @@ export async function POST(request) {
                     jornada_base_calcular,
                     horas_extra_hhmm: horas_extra_hhmm || {},
                     es_festivo: es_festivo || false,
+                    observaciones: observaciones || "",
                     registrado_por: user.id,
                     valor_hora_snapshot: empleado.valor_hora // Save snapshot
                 },

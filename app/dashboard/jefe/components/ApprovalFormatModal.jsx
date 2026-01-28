@@ -205,9 +205,26 @@ export function ApprovalFormatModal({ isOpen, onClose, employee, period, jefe, e
                                 {loading && <tr><td colSpan="5" className="p-4 text-center">Cargando datos...</td></tr>}
                                 {!loading && jornadas.length === 0 && <tr><td colSpan="5" className="p-8 text-center italic">No se registraron horas extra en este período.</td></tr>}
                                 {jornadas.map(j => {
-                                    // Calculate time range (assuming single chunk or summary)
-                                    const entry = j.hora_entrada_turno ? j.hora_entrada_turno.slice(0, 5) : ""
-                                    const exit = j.hora_salida_turno ? j.hora_salida_turno.slice(0, 5) : ""
+                                    // Calculate time range from JSON
+                                    let entry = ""
+                                    let exit = ""
+
+                                    if (j.jornada_base_calcular) {
+                                        const schedule = j.jornada_base_calcular
+                                        // Determine start (Morning start if enabled, else Afternoon start)
+                                        if (schedule.morning?.enabled) {
+                                            entry = schedule.morning.start
+                                        } else if (schedule.afternoon?.enabled) {
+                                            entry = schedule.afternoon.start
+                                        }
+
+                                        // Determine end (Afternoon end if enabled, else Morning end)
+                                        if (schedule.afternoon?.enabled) {
+                                            exit = schedule.afternoon.end
+                                        } else if (schedule.morning?.enabled) {
+                                            exit = schedule.morning.end
+                                        }
+                                    }
                                     return (
                                         <tr key={j.id}>
                                             <td className="border border-black p-1 text-center">{new Date(j.fecha).toLocaleDateString()}</td>

@@ -34,6 +34,7 @@ function RegistrarHorasExtraContent() {
         morning: { start: "07:30", end: "12:00", enabled: true },
         afternoon: { start: "13:45", end: "17:00", enabled: true },
     })
+    const [observaciones, setObservaciones] = useState("")
 
     const [nightShiftRange, setNightShiftRange] = useState(null)
 
@@ -128,6 +129,7 @@ function RegistrarHorasExtraContent() {
                     empleado_id: params.id,
                     fecha,
                     jornada_base_calcular: jornada,
+                    observaciones,
                     es_festivo: jornada.es_festivo,
                     horas_extra_hhmm: {
                         minutes: overtimeResults.totalMinutes,
@@ -216,6 +218,19 @@ function RegistrarHorasExtraContent() {
                             value={jornada}
                             onChange={setJornada}
                             date={fecha}
+                        />
+                    </div>
+
+                    <div>
+                        <label htmlFor="observaciones" className="block text-sm font-medium text-foreground mb-2">
+                            Observaciones / Justificación
+                        </label>
+                        <textarea
+                            id="observaciones"
+                            value={observaciones}
+                            onChange={(e) => setObservaciones(e.target.value)}
+                            placeholder="Describa el motivo de las horas extra..."
+                            className="w-full px-3 py-2 border border-input bg-background text-foreground rounded-md focus:outline-none focus:ring-2 focus:ring-ring min-h-[80px]"
                         />
                     </div>
 
