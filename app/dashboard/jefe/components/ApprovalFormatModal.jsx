@@ -141,8 +141,40 @@ export function ApprovalFormatModal({ isOpen, onClose, employee, period, jefe, e
     const netPayableMinutes = totalGrossMinutes - totalBankedMinutes
 
     return (
-        <div className="fixed inset-0 z-50 overflow-y-auto bg-black/50 backdrop-blur-sm p-4 flex justify-center items-start print:p-0 print:bg-white print:block">
-            <div className="bg-white text-black w-full max-w-5xl shadow-2xl rounded-sm p-4 my-8 relative print:shadow-none print:w-full print:max-w-none print:my-0 print:p-0">
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-black/50 backdrop-blur-sm p-4 flex justify-center items-start print:p-0 print:bg-white print:block print:overflow-visible print:static print:z-auto">
+            <style jsx global>{`
+                @media print {
+                    @page { margin: 5mm; size: auto; }
+                    body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+                    
+                    /* Hide everything by default */
+                    body * {
+                        visibility: hidden;
+                    }
+                    
+                    /* Show only the format content and its children */
+                    #approval-format-content, #approval-format-content * {
+                        visibility: visible;
+                    }
+                    
+                    /* Position the format at the top-left of the page */
+                    #approval-format-content {
+                        position: fixed;
+                        left: 20px;
+                        top: -300px;
+                        width: 100%;
+                        height: 100%;
+                        margin: 0 !important;
+                        padding: 0 !important;
+                        border: none !important;
+                        transform: scale(0.95);
+                        transform-origin: top left;
+                        background: white; /* Ensure non-transparent background */
+                        z-index: 9999;
+                    }
+                }
+            `}</style>
+            <div className="bg-white text-black w-full max-w-5xl shadow-2xl rounded-sm p-4 my-8 relative print:shadow-none print:w-full print:max-w-none print:my-0 print:p-0 print:border-none">
 
                 {/* Close Button (Hide on Print) */}
                 <div className="flex justify-between mb-4 print:hidden">
@@ -153,7 +185,7 @@ export function ApprovalFormatModal({ isOpen, onClose, employee, period, jefe, e
                 </div>
 
                 {/* THE FORMAT (A4-ish) */}
-                <div className="border border-black p-1 w-full max-w-[210mm] mx-auto bg-white print:border-0 overflow-x-auto">
+                <div id="approval-format-content" className="border border-black p-1 w-full max-w-[210mm] mx-auto bg-white print:border-0 overflow-x-auto print:overflow-visible">
 
                     {/* Header */}
                     <div className="border border-black flex">
