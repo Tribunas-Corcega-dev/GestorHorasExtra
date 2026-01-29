@@ -39,25 +39,36 @@ El proyecto incluye herramientas de administración en la carpeta `scripts/` par
 
 ## 📂 Estructura del Proyecto
 
-```bash
 GestorHorasExtra/
 ├── app/                        # Next.js App Router
+│   ├── ajustes/                # Configuración de usuario (Firma digital, etc.)
+│   ├── apelaciones/            # Gestión de reclamos y correcciones de horas
 │   ├── api/                    # API Routes (Backend logic)
+│   │   ├── aprobaciones/       # Endpoints de firma digital
+│   │   ├── cierre/             # Lógica de cierre de quincena
+│   │   ├── jornadas/           # CRUD de jornadas laborales
+│   │   └── reportes/           # Generación de datos para dashboards
 │   ├── dashboard/              # Vistas protegidas por rol
+│   │   ├── jefe/               # Panel de Aprobación (Gerencia/Jefes)
 │   │   ├── talento-humano/     # Panel de RRHH
-│   │   ├── coordinadores/      # Panel de Coordinación
-│   │   └── ...
+│   │   ├── coordinador/        # Panel de Coordinación
+│   │   └── operario/           # Vista de empleado
+│   ├── empleados/              # Gestión de usuarios (CRUD)
+│   ├── horas-extra/            # Flujo de registro y visualización de horas
 │   └── login/                  # Autenticación
-├── components/                 # Componentes React (Atomic Design)
-│   ├── ui/                     # Primitivas de diseño (Botones, Inputs - Shadcn)
-│   └── ...
-├── context/                    # React Context (AuthContext, etc.)
+├── components/                 # Componentes React
+│   ├── ui/                     # Primitivas Shadcn UI (Button, Card, Dialog...)
+│   ├── Layout.js               # Layout principal con navegación lateral
+│   ├── ScheduleSelector.jsx    # Componente complejo de selección de horas
+│   └── SignatureCanvas.jsx     # Pad de firma digital
+├── context/                    # React Context (AuthContext)
+├── hooks/                      # Custom Hooks (useAuth)
 ├── lib/                        # Lógica de negocio y utilidades
-│   ├── permissions.js          # Definiciones de roles
+│   ├── calculations.js         # MOTOR DE CÁLCULO (Horas extra, recargos, festivos)
+│   ├── permissions.js          # Definiciones de roles y acceso (RBAC)
 │   └── supabaseClient.js       # Cliente DB
 ├── scripts/                    # Herramientas de administración (Node.js)
-└── public/                     # Assets estáticos
-```
+└── public/                     # Assets estáticos (Logos, iconos)
 
 ## ⚙️ Instalación y Configuración
 
