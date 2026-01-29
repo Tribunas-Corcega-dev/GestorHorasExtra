@@ -179,7 +179,7 @@ export function ApprovalFormatModal({ isOpen, onClose, employee, period, jefe, e
                 {/* Close Button (Hide on Print) */}
                 <div className="flex justify-between mb-4 print:hidden">
                     <h2 className="text-xl font-bold">Vista Preliminar de Aprobación</h2>
-                    <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-full transition-colors" title="Cerrar (Esc)">
+                    <button onClick={onClose} className="p-2 hover: rounded-full transition-colors" title="Cerrar (Esc)">
                         <svg className="w-6 h-6 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                     </button>
                 </div>
@@ -202,21 +202,22 @@ export function ApprovalFormatModal({ isOpen, onClose, employee, period, jefe, e
                             <p className="text-xs mt-1">VIGILADA POR LA SUPERINTENDENCIA DE SERVICIOS PÚBLICOS - SSP ID. 3013</p>
                             <h2 className="font-bold text-md mt-2 border-t border-black pt-1 block w-full">REGISTRO DE HORA EXTRA</h2>
                         </div>
-                        <div className="w-48 border-l border-black text-[10px]">
+                        <div className="w-51 border-l border-black text-[14px]">
                             <div className="border-b border-black p-1">Código: GA - AP - R - RHE - 01</div>
                             <div className="border-b border-black p-1">Fecha creación: 30 abril 2014</div>
                             <div className="p-1">Fecha actualización: 1 julio 2017</div>
                         </div>
                     </div>
 
+
                     {/* Employee Info */}
                     <div className="border border-t-0 border-black text-sm">
                         <div className="flex border-b border-black">
-                            <div className="w-48 font-bold p-1 border-r border-black bg-gray-100">NOMBRE DEL EMPLEADO</div>
+                            <div className="w-48 font-bold p-1 border-r border-black ">NOMBRE DEL EMPLEADO</div>
                             <div className="p-1 px-2 flex-1 uppercase">{employee.nombre}</div>
                         </div>
                         <div className="flex">
-                            <div className="w-48 font-bold p-1 border-r border-black bg-gray-100">FECHA DE AUTORIZACIÓN</div>
+                            <div className="w-48 font-bold p-1 border-r border-black ">FECHA DE AUTORIZACIÓN</div>
                             <div className="p-1 px-2 flex-1">{new Date().toLocaleDateString()}</div>
                         </div>
                     </div>
@@ -225,7 +226,7 @@ export function ApprovalFormatModal({ isOpen, onClose, employee, period, jefe, e
                     <div className="mt-4 min-h-[400px]">
                         <table className="w-full border-collapse border border-black text-[10px] md:text-xs">
                             <thead>
-                                <tr className="bg-gray-100">
+                                <tr className="">
                                     <th className="border border-black p-1 w-24">FECHA</th>
                                     <th className="border border-black p-1 w-24">DESDE LAS</th>
                                     <th className="border border-black p-1 w-24">HASTA LAS</th>
@@ -299,7 +300,7 @@ export function ApprovalFormatModal({ isOpen, onClose, employee, period, jefe, e
                         )}
 
                         {/* 3. Net Payable */}
-                        <div className="flex bg-gray-100 py-1">
+                        <div className="flex  py-1">
                             <div className="w-[60%] text-black uppercase">TOTAL A PAGAR EN NÓMINA (NETO)</div>
                             <div className="flex-1 text-right px-4 text-black border-black">{formatTime(netPayableMinutes)}</div>
                         </div>
