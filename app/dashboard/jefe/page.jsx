@@ -159,7 +159,7 @@ function JefeContent() {
                                 return (
                                     <tr key={emp.id} className="hover:bg-accent/50">
                                         <td className="px-4 py-3 font-medium">{emp.nombre}</td>
-                                        <td className="px-4 py-3 text-muted-foreground">{emp.cedula || "-"}</td>
+                                        <td className="px-4 py-3 text-muted-foreground">{emp.cc || "-"}</td>
                                         <td className="px-4 py-3 text-center">
                                             <span className={`px-2 py-1 rounded-full text-xs font-bold ${status === 'APROBADO' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'
                                                 }`}>
