@@ -1076,6 +1076,17 @@ export function OvertimeHistoryView({ employeeId, showBackButton = true }) {
                                         })()}
                                     </div>
                                 )}
+
+                                {isCoordinator && (
+                                    <Link
+                                        href={`/horas-extra/${employeeId}/registrar?fecha=${selectedJornada.fecha}`}
+                                        className="px-4 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 transition-colors flex items-center gap-2"
+                                    >
+                                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" /><path d="m15 5 4 4" /></svg>
+                                        Editar Jornada
+                                    </Link>
+                                )}
+
                                 <button
                                     onClick={() => setSelectedJornada(null)}
                                     className="px-4 py-2 bg-primary text-primary-foreground rounded-md text-sm font-medium hover:opacity-90 transition-opacity ml-auto"

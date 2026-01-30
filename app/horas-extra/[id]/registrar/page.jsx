@@ -5,7 +5,8 @@ import { useAuth } from "@/hooks/useAuth"
 import { Layout } from "@/components/Layout"
 import { ProtectedRoute } from "@/components/ProtectedRoute"
 import { canManageOvertime } from "@/lib/permissions"
-import { useRouter, useParams } from "next/navigation"
+// ... (previous imports)
+import { useRouter, useParams, useSearchParams } from "next/navigation"
 import { DailyScheduleSelector } from "@/components/DailyScheduleSelector"
 import { calculateOvertimeForDay, getDayId, formatMinutesToHHMM } from "@/hooks/useOvertimeCalculator"
 
@@ -21,6 +22,9 @@ export default function RegistrarHorasExtraPage() {
 
 function RegistrarHorasExtraContent() {
     const params = useParams()
+    const searchParams = useSearchParams()
+    const editDate = searchParams.get("fecha")
+
     const { user } = useAuth()
     const router = useRouter()
     const [loading, setLoading] = useState(true)
@@ -28,7 +32,9 @@ function RegistrarHorasExtraContent() {
     const [error, setError] = useState("")
     const [empleado, setEmpleado] = useState(null)
 
-    const [fecha, setFecha] = useState("")
+    const [fecha, setFecha] = useState(editDate || "")
+    const [isEditMode, setIsEditMode] = useState(!!editDate)
+
     const [jornada, setJornada] = useState({
         enabled: true,
         morning: { start: "07:30", end: "12:00", enabled: true },
@@ -45,8 +51,36 @@ function RegistrarHorasExtraContent() {
         if (params?.id) {
             fetchEmpleado()
             fetchParametros()
+
+            if (editDate) {
+                fetchExistingJornada(editDate)
+            }
         }
-    }, [user, router, params?.id])
+    }, [user, router, params?.id, editDate])
+
+    async function fetchExistingJornada(dateStr) {
+        try {
+            // Re-use GET endpoint with filters? Currently GET fetches all. 
+            // Better to optimize or filter client side if fetching all is cheap, or add filter to API.
+            // The API supports ?empleado_id=... so we get all for employee. 
+            // We can iterate to find the specific date.
+
+            const res = await fetch(`/api/jornadas?empleado_id=${params.id}`)
+            if (res.ok) {
+                const data = await res.json()
+                const found = data.find(j => j.fecha === dateStr)
+                if (found) {
+                    setJornada({
+                        ...found.jornada_base_calcular,
+                        es_festivo: found.es_festivo // Ensure festivo state is synced
+                    })
+                    setObservaciones(found.observaciones || "")
+                }
+            }
+        } catch (err) {
+            console.error("Error fetching existing jornada:", err)
+        }
+    }
 
     async function fetchParametros() {
         try {
@@ -122,6 +156,18 @@ function RegistrarHorasExtraContent() {
                 }
             }
 
+            // --- USER REQUEST: Delete old and create new to ensure fresh calculation/snapshot ---
+            if (isEditMode) {
+                const deleteRes = await fetch(`/api/jornadas?empleado_id=${params.id}&fecha=${fecha}`, {
+                    method: "DELETE"
+                })
+
+                if (!deleteRes.ok) {
+                    const deleteErr = await deleteRes.json()
+                    throw new Error("Error al limpiar registro anterior: " + (deleteErr.message || "Desconocido"))
+                }
+            }
+
             const res = await fetch("/api/jornadas", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
@@ -147,8 +193,8 @@ function RegistrarHorasExtraContent() {
                 throw new Error(errorData.message || "Error al registrar jornada")
             }
 
-            alert("Jornada registrada exitosamente")
-            router.push("/horas-extra")
+            alert(isEditMode ? "Jornada actualizada exitosamente" : "Jornada registrada exitosamente")
+            router.push(`/empleados/${params.id}/detalles`)
         } catch (err) {
             setError(err.message)
         } finally {
@@ -166,7 +212,9 @@ function RegistrarHorasExtraContent() {
 
     return (
         <div className="max-w-2xl mx-auto">
-            <h1 className="text-3xl font-bold mb-6 text-foreground">Registrar Horas Extra</h1>
+            <h1 className="text-3xl font-bold mb-6 text-foreground">
+                {isEditMode ? "Editar Jornada" : "Registrar Horas Extra"}
+            </h1>
 
             {empleado && (
                 <div className="mb-6 bg-muted/30 p-4 rounded-lg border border-border flex items-center gap-4">
@@ -205,8 +253,9 @@ function RegistrarHorasExtraContent() {
                             value={fecha}
                             onChange={(e) => setFecha(e.target.value)}
                             required
+                            disabled={isEditMode} // Disable date change in edit mode to prevent pk conflict or confusion
                             max={new Date().toISOString().split("T")[0]}
-                            className="w-full px-3 py-2 border border-input bg-background text-foreground rounded-md focus:outline-none focus:ring-2 focus:ring-ring"
+                            className="w-full px-3 py-2 border border-input bg-background text-foreground rounded-md focus:outline-none focus:ring-2 focus:ring-ring disabled:opacity-50"
                         />
                     </div>
 
@@ -239,7 +288,7 @@ function RegistrarHorasExtraContent() {
                     <div className="flex flex-col sm:flex-row gap-3 pt-4">
                         <button
                             type="button"
-                            onClick={() => router.push("/horas-extra")}
+                            onClick={() => router.back()}
                             className="w-full sm:w-auto px-6 py-2 border border-border rounded-md hover:bg-accent transition-colors text-foreground font-medium"
                         >
                             Cancelar
@@ -249,7 +298,7 @@ function RegistrarHorasExtraContent() {
                             disabled={saving}
                             className="w-full sm:flex-1 bg-primary text-primary-foreground py-2 px-4 rounded-md hover:opacity-90 transition-opacity disabled:opacity-50 font-medium"
                         >
-                            {saving ? "Guardando..." : "Guardar Jornada"}
+                            {saving ? "Guardando..." : (isEditMode ? "Actualizar Jornada" : "Guardar Jornada")}
                         </button>
                     </div>
                 </form>

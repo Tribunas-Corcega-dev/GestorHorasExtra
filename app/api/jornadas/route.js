@@ -74,6 +74,52 @@ export async function POST(request) {
     }
 }
 
+export async function PUT(request) {
+    try {
+        const user = await getUserFromRequest(request)
+
+        if (!user || !canManageOvertime(user.rol)) {
+            return NextResponse.json({ message: "No autorizado" }, { status: 403 })
+        }
+
+        const body = await request.json()
+        const { empleado_id, fecha, jornada_base_calcular, horas_extra_hhmm, es_festivo, observaciones } = body
+
+        if (!empleado_id || !fecha) {
+            return NextResponse.json({ message: "Faltan datos requeridos (empleado_id, fecha)" }, { status: 400 })
+        }
+
+        // Update existing jornada
+        const { data: updatedJornada, error } = await supabase
+            .from("jornadas")
+            .update({
+                jornada_base_calcular,
+                horas_extra_hhmm: horas_extra_hhmm || {},
+                es_festivo: es_festivo || false,
+                observaciones: observaciones || "",
+                // Do not update registrado_por or valor_hora_snapshot to preserve audit trail/history
+            })
+            .eq("empleado_id", empleado_id)
+            .eq("fecha", fecha)
+            .select()
+            .single()
+
+        if (error) {
+            console.error("[v0] Error updating jornada:", error)
+            return NextResponse.json({ message: `Error al actualizar jornada: ${error.message}` }, { status: 500 })
+        }
+
+        if (!updatedJornada) {
+            return NextResponse.json({ message: "Jornada no encontrada" }, { status: 404 })
+        }
+
+        return NextResponse.json(updatedJornada)
+    } catch (error) {
+        console.error("[v0] Error in PUT jornadas:", error)
+        return NextResponse.json({ message: "Error interno del servidor" }, { status: 500 })
+    }
+}
+
 export async function GET(request) {
     try {
         const user = await getUserFromRequest(request)
@@ -131,6 +177,40 @@ export async function GET(request) {
         return NextResponse.json(jornadas)
     } catch (error) {
         console.error("[v0] Error in GET jornadas:", error)
+        return NextResponse.json({ message: "Error interno del servidor" }, { status: 500 })
+    }
+}
+
+export async function DELETE(request) {
+    try {
+        const user = await getUserFromRequest(request)
+
+        if (!user || !canManageOvertime(user.rol)) {
+            return NextResponse.json({ message: "No autorizado" }, { status: 403 })
+        }
+
+        const { searchParams } = new URL(request.url)
+        const empleado_id = searchParams.get("empleado_id")
+        const fecha = searchParams.get("fecha")
+
+        if (!empleado_id || !fecha) {
+            return NextResponse.json({ message: "Faltan datos requeridos (empleado_id, fecha)" }, { status: 400 })
+        }
+
+        const { error } = await supabase
+            .from("jornadas")
+            .delete()
+            .eq("empleado_id", empleado_id)
+            .eq("fecha", fecha)
+
+        if (error) {
+            console.error("[v0] Error deleting jornada:", error)
+            return NextResponse.json({ message: `Error al eliminar jornada: ${error.message}` }, { status: 500 })
+        }
+
+        return NextResponse.json({ message: "Jornada eliminada exitosamente" })
+    } catch (error) {
+        console.error("[v0] Error in DELETE jornadas:", error)
         return NextResponse.json({ message: "Error interno del servidor" }, { status: 500 })
     }
 }
