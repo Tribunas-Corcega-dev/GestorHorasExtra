@@ -206,6 +206,39 @@ export function calculateOvertimeForDay(recordedSchedule, fixedScheduleDay, nigh
     // but we prefer the structured one.
     const flatBreakdown = { ...overtimeBreakdown, ...surchargesBreakdown }
 
+    // 5. Generate Fragments (New)
+    let fragments = []
+
+    // Helper to map
+    const mapToFragment = (intervals, type) => intervals.map(i => ({
+        start: i.start,
+        end: i.end,
+        minutes: i.end - i.start,
+        type: type,
+        startTime: formatMinutesToHHMM(i.start),
+        endTime: formatMinutesToHHMM(i.end)
+    }))
+
+    if (isFestivo) {
+        fragments = [
+            ...mapToFragment(extraDayIntervals, 'extra_diurna_festivo'),
+            ...mapToFragment(extraNightIntervals, 'extra_nocturna_festivo'),
+            // Ordinary hours on festivos are surcharges
+            ...mapToFragment(ordinaryDayIntervals, 'dominical_festivo'),
+            ...mapToFragment(ordinaryNightIntervals, 'recargo_nocturno_festivo')
+        ]
+    } else {
+        fragments = [
+            ...mapToFragment(extraDayIntervals, 'extra_diurna'),
+            ...mapToFragment(extraNightIntervals, 'extra_nocturna'),
+            // Ordinary Night -> Recargo Nocturno
+            ...mapToFragment(ordinaryNightIntervals, 'recargo_nocturno')
+        ]
+    }
+
+    // Sort fragments by time
+    fragments.sort((a, b) => a.start - b.start)
+
     return {
         totalMinutes,
         overtimeMinutes,
@@ -214,6 +247,7 @@ export function calculateOvertimeForDay(recordedSchedule, fixedScheduleDay, nigh
             overtime: overtimeBreakdown,
             surcharges: surchargesBreakdown
         },
+        fragments, // New field containing precise time intervals
         // Keep flat breakdown for legacy support in some views if they just iterate keys
         flatBreakdown
     }

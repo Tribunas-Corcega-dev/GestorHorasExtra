@@ -10,51 +10,65 @@ const DEFAULT_SCHEDULE = {
 }
 
 export function DailyScheduleSelector({ value, onChange, date }) {
-    const [schedule, setSchedule] = useState(() => {
-        if (value) {
-            try {
-                // If value is a string, parse it. If it's an object, use it.
-                // If it's empty/null, use default.
-                const parsed = typeof value === "string" ? JSON.parse(value) : value
+    // 1. Derive state directly from props (Controlled Component)
+    // We do not use internal useState for 'schedule' to avoid sync loops.
+    // Instead we merge the incoming prop with defaults on every render.
 
-                // Merge with defaults to ensure all fields exist (especially new ones like es_festivo)
-                return {
-                    ...DEFAULT_SCHEDULE,
-                    ...parsed,
-                    // Explicitly ensure es_festivo is a boolean if it's missing or null
-                    es_festivo: parsed?.es_festivo ?? false
-                }
-            } catch (e) {
-                console.error("Error parsing daily schedule value:", e)
-                return { ...DEFAULT_SCHEDULE }
-            }
-        }
-        return { ...DEFAULT_SCHEDULE }
-    })
+    // Helper to safely parse if string
+    const safeParse = (v) => {
+        try {
+            return typeof v === 'string' ? JSON.parse(v) : v
+        } catch { return {} }
+    }
 
+    const raw = safeParse(value) || {}
+
+    // Deep merge to ensure all fields exist
+    const schedule = {
+        ...DEFAULT_SCHEDULE,
+        ...raw,
+        // Override nested objects only if present, but keep defaults if missing keys
+        morning: { ...DEFAULT_SCHEDULE.morning, ...(raw.morning || {}) },
+        afternoon: { ...DEFAULT_SCHEDULE.afternoon, ...(raw.afternoon || {}) },
+        // Ensure es_festivo is explicit
+        es_festivo: raw.es_festivo ?? DEFAULT_SCHEDULE.es_festivo
+    }
+
+    // 2. Handle Date Changes (Auto-detect Sunday)
+    // We only trigger onChange if the computed requirements (DayOfWeek/Festivo) differ from current data.
+    // This allows the Parent to update the source of truth.
     useEffect(() => {
         if (date) {
             const dayOfWeek = getDayOfWeek(date)
-            // Auto-set es_festivo if it's Sunday (Domingo)
             const isSunday = dayOfWeek === "Domingo"
 
-            setSchedule(prev => ({
-                ...prev,
-                dayOfWeek,
-                es_festivo: isSunday ? true : prev.es_festivo
-            }))
-        }
-    }, [date])
+            // Check if we need to update the parent to reflect the date context
+            // We use the derived 'schedule' here.
+            const needsUpdate =
+                schedule.dayOfWeek !== dayOfWeek ||
+                (isSunday && !schedule.es_festivo)
 
-    useEffect(() => {
-        onChange(schedule)
-    }, [schedule])
+            if (needsUpdate) {
+                onChange({
+                    ...schedule,
+                    dayOfWeek,
+                    es_festivo: isSunday ? true : schedule.es_festivo
+                })
+            }
+        }
+        // ESLint warning about dependencies: 
+        // We knowingly use 'date' as the trigger. 'schedule' and 'onChange' are used but 
+        // including them (especially schedule, which changes on every parent update) can cause loops 
+        // if we are not careful. However, since we have the `needsUpdate` guard, it *should* be safe 
+        // even with them, but relying on 'date' change is the intended trigger logic here.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [date])
 
     function getDayOfWeek(dateString) {
         if (!dateString) return ""
         // Create date object and adjust for timezone offset to get correct local day
-        const date = new Date(dateString)
-        const day = date.getUTCDay()
+        const d = new Date(dateString)
+        const day = d.getUTCDay()
 
         const days = [
             "Domingo",
@@ -69,24 +83,25 @@ export function DailyScheduleSelector({ value, onChange, date }) {
         return days[day]
     }
 
+    // 3. Handlers call onChange directly with the new object
     const handleShiftToggle = (period) => {
-        setSchedule((prev) => ({
-            ...prev,
+        onChange({
+            ...schedule,
             [period]: {
-                ...prev[period],
-                enabled: !prev[period].enabled,
+                ...schedule[period],
+                enabled: !schedule[period].enabled,
             },
-        }))
+        })
     }
 
     const handleTimeChange = (period, field, time) => {
-        setSchedule((prev) => ({
-            ...prev,
+        onChange({
+            ...schedule,
             [period]: {
-                ...prev[period],
+                ...schedule[period],
                 [field]: time,
             },
-        }))
+        })
     }
 
     const handleFestivoChange = (e) => {
@@ -94,10 +109,10 @@ export function DailyScheduleSelector({ value, onChange, date }) {
         // Prevent unchecking if it's Sunday
         if (isSunday && !e.target.checked) return
 
-        setSchedule(prev => ({
-            ...prev,
+        onChange({
+            ...schedule,
             es_festivo: e.target.checked
-        }))
+        })
     }
 
     return (

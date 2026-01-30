@@ -28,15 +28,22 @@ export function ApprovalFormatModal({ isOpen, onClose, employee, period, jefe, e
                 // Fetch Jornadas
                 const res = await fetch(`/api/jornadas?empleado_id=${employee.id}&inicio=${period.start}&fin=${period.end}`)
                 const data = await res.json()
-                // Filter only those with overtime
-                const relevant = data.filter(j => {
-                    const h = j.horas_extra_hhmm || {}
-                    // Check if has any value > 0 in breakdown
-                    const hasHours = Object.values(h.breakdown || {}).some(v => v > 0) ||
-                        Object.values(h.breakdown?.overtime || {}).some(v => v > 0) ||
-                        Object.values(h.breakdown?.surcharges || {}).some(v => v > 0)
-                    return hasHours
-                })
+                // Filter only those with overtime AND within period AND Sort Descending
+                const relevant = data
+                    .filter(j => {
+                        // Period Filter (API might return all history)
+                        if (period.start && j.fecha < period.start) return false
+                        if (period.end && j.fecha > period.end) return false
+
+                        const h = j.horas_extra_hhmm || {}
+                        // Check if has any value > 0
+                        const hasHours = Object.values(h.breakdown || {}).some(v => v > 0) ||
+                            Object.values(h.breakdown?.overtime || {}).some(v => v > 0) ||
+                            Object.values(h.breakdown?.surcharges || {}).some(v => v > 0) ||
+                            (h.fragments && h.fragments.length > 0)
+                        return hasHours
+                    })
+                    .sort((a, b) => new Date(b.fecha) - new Date(a.fecha)) // Descending Order
                 setJornadas(relevant)
 
                 // Fetch Jefe Signature
@@ -238,6 +245,43 @@ export function ApprovalFormatModal({ isOpen, onClose, employee, period, jefe, e
                                 {loading && <tr><td colSpan="5" className="p-4 text-center">Cargando datos...</td></tr>}
                                 {!loading && jornadas.length === 0 && <tr><td colSpan="5" className="p-8 text-center italic">No se registraron horas extra en este período.</td></tr>}
                                 {jornadas.map(j => {
+                                    // Helper to format time to AM/PM
+                                    const toAmPm = (time) => {
+                                        if (!time) return ""
+                                        const [h, m] = time.split(':')
+                                        const hour = parseInt(h, 10)
+                                        const ampm = hour >= 12 ? 'PM' : 'AM'
+                                        const hour12 = hour % 12 || 12
+                                        return `${hour12}:${m} ${ampm}`
+                                    }
+
+                                    // Helper to format date safely (avoid timezone shift)
+                                    const formatDate = (dateStr) => {
+                                        if (!dateStr) return ""
+                                        const [y, m, d] = dateStr.split('-')
+                                        return new Date(y, m - 1, d).toLocaleDateString()
+                                    }
+
+                                    const fragments = j.horas_extra_hhmm?.fragments
+
+                                    // Fragmented View (New)
+                                    if (fragments && fragments.length > 0) {
+                                        return fragments.map((frag, idx) => (
+                                            <tr key={`${j.id}-${idx}`}>
+                                                <td className="border border-black p-1 text-center">{formatDate(j.fecha)}</td>
+                                                <td className="border border-black p-1 text-center">{toAmPm(frag.startTime)}</td>
+                                                <td className="border border-black p-1 text-center">{toAmPm(frag.endTime)}</td>
+                                                <td className="border border-black p-1 text-xs text-center">
+                                                    {LABELS[frag.type] || frag.type}
+                                                </td>
+                                                <td className="border border-black p-1 text-xs">
+                                                    {idx === 0 ? (j.observaciones || "") : ""}
+                                                </td>
+                                            </tr>
+                                        ))
+                                    }
+
+                                    // Legacy View (Fallback for old records)
                                     // Calculate time range from JSON
                                     let entry = ""
                                     let exit = ""
@@ -258,11 +302,12 @@ export function ApprovalFormatModal({ isOpen, onClose, employee, period, jefe, e
                                             exit = schedule.morning.end
                                         }
                                     }
+
                                     return (
                                         <tr key={j.id}>
-                                            <td className="border border-black p-1 text-center">{new Date(j.fecha).toLocaleDateString()}</td>
-                                            <td className="border border-black p-1 text-center">{entry}</td>
-                                            <td className="border border-black p-1 text-center">{exit}</td>
+                                            <td className="border border-black p-1 text-center">{formatDate(j.fecha)}</td>
+                                            <td className="border border-black p-1 text-center">{toAmPm(entry)}</td>
+                                            <td className="border border-black p-1 text-center">{toAmPm(exit)}</td>
                                             <td className="border border-black p-1 text-xs">{getHours(j)}</td>
                                             <td className="border border-black p-1 text-xs">{j.observaciones || ""}</td>
                                         </tr>

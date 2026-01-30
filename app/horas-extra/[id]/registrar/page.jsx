@@ -183,6 +183,7 @@ function RegistrarHorasExtraContent() {
                         surchargeMinutes: overtimeResults.surchargeMinutes,
                         formatted: formatMinutesToHHMM(overtimeResults.totalMinutes),
                         breakdown: overtimeResults.breakdown,
+                        fragments: overtimeResults.fragments,
                         flatBreakdown: overtimeResults.flatBreakdown
                     }
                 }),
@@ -194,7 +195,7 @@ function RegistrarHorasExtraContent() {
             }
 
             alert(isEditMode ? "Jornada actualizada exitosamente" : "Jornada registrada exitosamente")
-            router.push(`/empleados/${params.id}/detalles`)
+            router.push(`/horas-extra/${params.id}/historial`)
         } catch (err) {
             setError(err.message)
         } finally {
