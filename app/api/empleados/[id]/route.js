@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server"
+import { createClient } from "@supabase/supabase-js"
 import jwt from "jsonwebtoken"
 import bcrypt from "bcryptjs"
 import { supabase } from "@/lib/supabaseClient"
@@ -174,11 +175,72 @@ export async function PUT(request, props) {
       return NextResponse.json({ message: `Error al actualizar el empleado: ${updateError.message}` }, { status: 500 })
     }
 
+    // Retroactive update of overtime records if salary changed
+    if (updateData.valor_hora !== undefined && body.fecha_cambio) {
+      const effectiveDate = formatToDateString(body.fecha_cambio)
+
+      // Determine client to use: Admin (Service Role) > Auth User (RLS)
+      const token = request.cookies.get("auth_token")?.value
+      const supabaseWithAuth = token
+        ? createClient(
+          process.env.NEXT_PUBLIC_SUPABASE_URL,
+          process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+          { global: { headers: { Authorization: `Bearer ${token}` } } }
+        )
+        : null
+
+      const dbClient = supabaseAdmin || supabaseWithAuth
+
+      if (effectiveDate && dbClient) {
+        console.log(`[v0] Updating retroactive jornadas STRICTLY for employee ${id} from ${effectiveDate} with rate ${updateData.valor_hora}`)
+
+        // 1. Fetch matching records explicitly
+        const { data: recordsToUpdate, error: fetchError } = await dbClient
+          .from("jornadas")
+          .select("id, fecha")
+          .eq("empleado_id", id)
+          .gte("fecha", effectiveDate)
+
+        if (fetchError) {
+          console.error("[v0] Error fetching retroactive records:", fetchError)
+        } else if (recordsToUpdate && recordsToUpdate.length > 0) {
+          console.log(`[v0] Found ${recordsToUpdate.length} records to update. Iterating...`)
+
+          // 2. Iterate and update one by one (to ensure success and satisfy user concern)
+          let successCount = 0
+          for (const r of recordsToUpdate) {
+            const { error: updateErr } = await dbClient
+              .from("jornadas")
+              .update({ valor_hora_snapshot: updateData.valor_hora })
+              .eq("id", r.id)
+
+            if (updateErr) {
+              console.error(`[v0] Failed to update record ${r.id} (${r.fecha}):`, updateErr)
+            } else {
+              successCount++
+            }
+          }
+          console.log(`[v0] Successfully updated ${successCount}/${recordsToUpdate.length} records.`)
+        } else {
+          console.log("[v0] No records found to update.")
+        }
+
+      } else {
+        console.warn("[v0] Skipping retroactive update: Missing date or client capabilities", { effectiveDate, hasAdmin: !!supabaseAdmin, hasAuth: !!supabaseWithAuth })
+      }
+    }
+
     return NextResponse.json(updatedEmpleado)
   } catch (error) {
     console.error("[v0] Error in PUT empleado:", error)
     return NextResponse.json({ message: "Error interno del servidor" }, { status: 500 })
   }
+}
+
+// Helper to format ISO/Date string to YYYY-MM-DD
+function formatToDateString(dateStr) {
+  if (!dateStr) return null
+  return new Date(dateStr).toISOString().split('T')[0]
 }
 
 export async function DELETE(request, props) {

@@ -320,10 +320,10 @@ export function OvertimeHistoryView({ employeeId, showBackButton = true }) {
                 let hourlyRate = 0
                 const historySalary = empleado ? getSalaryForDate(empleado.hist_salarios, jornada.fecha) : null
 
-                if (historySalary) {
-                    hourlyRate = Number(historySalary.hourlyRate)
-                } else if (jornada && jornada.valor_hora_snapshot) {
+                if (jornada && jornada.valor_hora_snapshot) {
                     hourlyRate = Number(jornada.valor_hora_snapshot)
+                } else if (historySalary) {
+                    hourlyRate = Number(historySalary.hourlyRate)
                 } else if (empleado) {
                     hourlyRate = Number(empleado.valor_hora)
                 }
