@@ -43,7 +43,7 @@ export function ApprovalFormatModal({ isOpen, onClose, employee, period, jefe, e
                             (h.fragments && h.fragments.length > 0)
                         return hasHours
                     })
-                    .sort((a, b) => new Date(b.fecha) - new Date(a.fecha)) // Descending Order
+                    .sort((a, b) => new Date(a.fecha) - new Date(b.fecha)) // Ascending Order (Oldest First)
                 setJornadas(relevant)
 
                 // Fetch Jefe Signature
@@ -273,6 +273,7 @@ export function ApprovalFormatModal({ isOpen, onClose, employee, period, jefe, e
                                                 <td className="border border-black p-1 text-center">{toAmPm(frag.endTime)}</td>
                                                 <td className="border border-black p-1 text-xs text-center">
                                                     {LABELS[frag.type] || frag.type}
+                                                    {frag.minutes > 0 && ` (${Math.floor(frag.minutes / 60)}h ${frag.minutes % 60}m / ${(frag.minutes / 60).toFixed(2)})`}
                                                 </td>
                                                 <td className="border border-black p-1 text-xs">
                                                     {idx === 0 ? (j.observaciones || "") : ""}
@@ -333,21 +334,27 @@ export function ApprovalFormatModal({ isOpen, onClose, employee, period, jefe, e
                         {/* 1. Gross Total */}
                         <div className="flex border-b border-black/20 pb-1 mb-1">
                             <div className="w-[60%] text-gray-700">TOTAL HORAS TRABAJADAS (BRUTO)</div>
-                            <div className="flex-1 text-right px-4 text-gray-700">{formatTime(totalGrossMinutes)}</div>
+                            <div className="flex-1 text-right px-4 text-gray-700">
+                                {formatTime(totalGrossMinutes)} / {(totalGrossMinutes / 60).toFixed(2)}
+                            </div>
                         </div>
 
                         {/* 2. Deductions (Banked) - Only show if > 0 */}
                         {totalBankedMinutes > 0 && (
                             <div className="flex border-b border-black/20 pb-1 mb-1 text-red-600">
                                 <div className="w-[60%] pl-4">- MENOS: HORAS ENVIADAS A BOLSA</div>
-                                <div className="flex-1 text-right px-4">({formatTime(totalBankedMinutes)})</div>
+                                <div className="flex-1 text-right px-4">
+                                    ({formatTime(totalBankedMinutes)} / {(totalBankedMinutes / 60).toFixed(2)})
+                                </div>
                             </div>
                         )}
 
                         {/* 3. Net Payable */}
                         <div className="flex  py-1">
                             <div className="w-[60%] text-black uppercase">TOTAL A PAGAR EN NÓMINA (NETO)</div>
-                            <div className="flex-1 text-right px-4 text-black border-black">{formatTime(netPayableMinutes)}</div>
+                            <div className="flex-1 text-right px-4 text-black border-black">
+                                {formatTime(netPayableMinutes)} / {(netPayableMinutes / 60).toFixed(2)}
+                            </div>
                         </div>
                     </div>
 

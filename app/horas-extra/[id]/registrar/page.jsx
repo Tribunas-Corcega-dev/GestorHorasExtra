@@ -42,7 +42,21 @@ function RegistrarHorasExtraContent() {
     })
     const [observaciones, setObservaciones] = useState("")
 
+    // Mode Toggle State
+    const [registrationMode, setRegistrationMode] = useState("exact")
+    const [exactTime, setExactTime] = useState({ start: "17:00", end: "19:00", es_festivo: false })
+
     const [nightShiftRange, setNightShiftRange] = useState(null)
+
+    // Auto-detect Sunday for Exact Mode
+    useEffect(() => {
+        if (fecha) {
+            const date = new Date(fecha)
+            if (date.getUTCDay() === 0) {
+                setExactTime(prev => ({ ...prev, es_festivo: true }))
+            }
+        }
+    }, [fecha])
 
     useEffect(() => {
         if (user && !canManageOvertime(user.rol)) {
@@ -60,11 +74,6 @@ function RegistrarHorasExtraContent() {
 
     async function fetchExistingJornada(dateStr) {
         try {
-            // Re-use GET endpoint with filters? Currently GET fetches all. 
-            // Better to optimize or filter client side if fetching all is cheap, or add filter to API.
-            // The API supports ?empleado_id=... so we get all for employee. 
-            // We can iterate to find the specific date.
-
             const res = await fetch(`/api/jornadas?empleado_id=${params.id}`)
             if (res.ok) {
                 const data = await res.json()
@@ -130,6 +139,22 @@ function RegistrarHorasExtraContent() {
                 flatBreakdown: {}
             }
 
+            // Determine effective schedule based on mode
+            let effectiveJornada = jornada
+            if (registrationMode === "exact") {
+                // ADDED: Calculate day of week for display
+                const dateObj = new Date(fecha + 'T12:00:00')
+                const dayName = dateObj.toLocaleDateString('es-ES', { weekday: 'long' })
+
+                effectiveJornada = {
+                    dayOfWeek: dayName.charAt(0).toUpperCase() + dayName.slice(1),
+                    enabled: true,
+                    es_festivo: exactTime.es_festivo,
+                    morning: { start: exactTime.start, end: exactTime.end, enabled: true },
+                    afternoon: { start: "", end: "", enabled: false }
+                }
+            }
+
             if (empleado && empleado.jornada_fija_hhmm) {
                 let fixedSchedule = empleado.jornada_fija_hhmm
                 if (typeof fixedSchedule === 'string') {
@@ -148,10 +173,10 @@ function RegistrarHorasExtraContent() {
 
                     // Use the new calculator signature
                     overtimeResults = calculateOvertimeForDay(
-                        jornada,
+                        effectiveJornada,
                         fixedDay,
                         nightShiftRange,
-                        jornada.es_festivo
+                        registrationMode === "exact" ? exactTime.es_festivo : jornada.es_festivo
                     )
                 }
             }
@@ -174,9 +199,10 @@ function RegistrarHorasExtraContent() {
                 body: JSON.stringify({
                     empleado_id: params.id,
                     fecha,
-                    jornada_base_calcular: jornada,
+                    // Save the effective schedule used for calculation
+                    jornada_base_calcular: effectiveJornada,
                     observaciones,
-                    es_festivo: jornada.es_festivo,
+                    es_festivo: registrationMode === "exact" ? exactTime.es_festivo : jornada.es_festivo,
                     horas_extra_hhmm: {
                         minutes: overtimeResults.totalMinutes,
                         overtimeMinutes: overtimeResults.overtimeMinutes,
@@ -264,11 +290,74 @@ function RegistrarHorasExtraContent() {
                         <label className="block text-sm font-medium text-foreground mb-2">
                             Configuración de horario
                         </label>
-                        <DailyScheduleSelector
-                            value={jornada}
-                            onChange={setJornada}
-                            date={fecha}
-                        />
+
+                        {/* Mode Toggle */}
+                        <div className="flex flex-col sm:flex-row gap-4 mb-4 bg-muted/20 p-3 rounded-lg border border-border/50">
+                            <label className="flex items-center gap-2 cursor-pointer">
+                                <input
+                                    type="radio"
+                                    name="mode"
+                                    value="exact"
+                                    checked={registrationMode === "exact"}
+                                    onChange={(e) => setRegistrationMode(e.target.value)}
+                                    className="text-primary focus:ring-primary"
+                                />
+                                <span className="font-medium">Registrar Hora Exacta</span>
+                            </label>
+                            <label className="flex items-center gap-2 cursor-pointer">
+                                <input
+                                    type="radio"
+                                    name="mode"
+                                    value="full"
+                                    checked={registrationMode === "full"}
+                                    onChange={(e) => setRegistrationMode(e.target.value)}
+                                    className="text-primary focus:ring-primary"
+                                />
+                                <span className="font-medium">Registrar Jornada Completa</span>
+                            </label>
+                        </div>
+
+                        {registrationMode === "exact" ? (
+                            <div className="p-4 border rounded-lg bg-card border-border space-y-4">
+                                <div className="flex items-start sm:items-center gap-4 flex-col sm:flex-row">
+                                    <div className="flex-1 w-full">
+                                        <label className="block text-xs font-medium mb-1 text-muted-foreground">Hora Inicio</label>
+                                        <input
+                                            type="time"
+                                            value={exactTime.start}
+                                            onChange={e => setExactTime({ ...exactTime, start: e.target.value })}
+                                            className="w-full px-3 py-2 border border-input rounded bg-background text-foreground"
+                                        />
+                                    </div>
+                                    <div className="flex-1 w-full">
+                                        <label className="block text-xs font-medium mb-1 text-muted-foreground">Hora Fin</label>
+                                        <input
+                                            type="time"
+                                            value={exactTime.end}
+                                            onChange={e => setExactTime({ ...exactTime, end: e.target.value })}
+                                            className="w-full px-3 py-2 border border-input rounded bg-background text-foreground"
+                                        />
+                                    </div>
+                                </div>
+                                <div className="flex items-center justify-end">
+                                    <label className="flex items-center gap-2 cursor-pointer">
+                                        <input
+                                            type="checkbox"
+                                            checked={exactTime.es_festivo}
+                                            onChange={e => setExactTime({ ...exactTime, es_festivo: e.target.checked })}
+                                            className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                                        />
+                                        <span className="text-sm font-medium">Es Festivo / Domingo</span>
+                                    </label>
+                                </div>
+                            </div>
+                        ) : (
+                            <DailyScheduleSelector
+                                value={jornada}
+                                onChange={setJornada}
+                                date={fecha}
+                            />
+                        )}
                     </div>
 
                     <div>
