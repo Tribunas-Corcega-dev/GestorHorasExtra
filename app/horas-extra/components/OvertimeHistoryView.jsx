@@ -729,9 +729,9 @@ export function OvertimeHistoryView({ employeeId, showBackButton = true }) {
                         </div>
 
                         {/* Total Summary */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+                        <div className="flex justify-center mb-8">
                             {/* Card 1: Total Overtime Only */}
-                            <div className="bg-blue-50 border border-blue-100 dark:bg-blue-900/10 dark:border-blue-800 rounded-lg p-6 shadow-sm flex flex-col items-center justify-center text-center">
+                            <div className="w-full md:w-2/3 bg-blue-50 border border-blue-100 dark:bg-blue-900/10 dark:border-blue-800 rounded-lg p-6 shadow-sm flex flex-col items-center justify-center text-center">
                                 <h3 className="text-sm font-bold text-blue-800 dark:text-blue-300 uppercase tracking-wider mb-2">Total Solo Horas Extra</h3>
                                 <div className="text-2xl font-bold text-blue-700 dark:text-blue-400">
                                     {formatCurrency(Object.values(filteredSummary.overtimeValues).reduce((a, b) => a + b, 0))}
@@ -740,22 +740,9 @@ export function OvertimeHistoryView({ employeeId, showBackButton = true }) {
                                     Suma exclusiva de horas extra (Sin recargos)
                                 </p>
                             </div>
-
-                            {/* Card 2: Total General (Variable + Fixed) 
-                            
-                            <div className="bg-primary/10 border border-primary/20 rounded-lg p-6 shadow-sm flex flex-col items-center justify-center text-center">
-                                <h3 className="text-sm font-bold text-primary uppercase tracking-wider mb-2">Total General a Pagar</h3>
-                                <div className="text-3xl font-bold text-primary">
-                                    {formatCurrency(filteredSummary.totalValue + (mockFixedSurcharges?.value || 0))}
-                                </div>
-                                <p className="text-xs text-muted-foreground mt-1">
-                                    {selectedPeriod !== 'all'
-                                        ? `Variable: ${formatCurrency(filteredSummary.totalValue)} + Fijo: ${formatCurrency(mockFixedSurcharges?.value || 0)}`
-                                        : "Total acumulado (Variable + Fijo)"}
-                                </p>
-                            </div>
-                            */}
                         </div>
+
+
                     </>
                 )
             }
@@ -1250,6 +1237,6 @@ export function OvertimeHistoryView({ employeeId, showBackButton = true }) {
                 employee={empleado}
                 onUpdate={fetchData}
             />
-        </div>
+        </div >
     )
 }
