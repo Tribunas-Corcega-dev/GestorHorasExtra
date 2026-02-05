@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { Layout } from "@/components/Layout"
 import { ProtectedRoute } from "@/components/ProtectedRoute"
 import { useAuth } from "@/hooks/useAuth"
-import { canManageOvertime } from "@/lib/permissions"
+import { canManageOvertime, isCoordinator } from "@/lib/permissions"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 
@@ -218,17 +218,21 @@ function RecargosContent() {
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
                         </svg>
                     </Link>
-                    <h1 className="text-3xl font-bold text-foreground">Recargos Horas Extra</h1>
+                    <h1 className="text-3xl font-bold text-foreground">
+                        Recargos Horas Extra {isCoordinator(user?.rol) && <span className="text-sm font-normal text-muted-foreground bg-muted px-2 py-1 rounded ml-2">Solo Lectura</span>}
+                    </h1>
                 </div>
-                <button
-                    onClick={() => setNightShiftModalOpen(true)}
-                    className="px-4 py-2 bg-secondary text-secondary-foreground rounded-md hover:opacity-90 font-medium text-sm flex items-center gap-2"
-                >
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
-                    </svg>
-                    Configurar Jornada Nocturna
-                </button>
+                {!isCoordinator(user?.rol) && (
+                    <button
+                        onClick={() => setNightShiftModalOpen(true)}
+                        className="px-4 py-2 bg-secondary text-secondary-foreground rounded-md hover:opacity-90 font-medium text-sm flex items-center gap-2"
+                    >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z" />
+                        </svg>
+                        Configurar Jornada Nocturna
+                    </button>
+                )}
             </div>
 
             <div className="bg-card border border-border rounded-lg shadow-sm overflow-hidden">
@@ -308,12 +312,14 @@ function RecargosContent() {
                                                 </button>
                                             </div>
                                         ) : (
-                                            <button
-                                                onClick={() => startEditing(recargo)}
-                                                className="text-primary hover:text-primary/80 font-medium text-sm hover:underline"
-                                            >
-                                                Editar
-                                            </button>
+                                            !isCoordinator(user?.rol) && (
+                                                <button
+                                                    onClick={() => startEditing(recargo)}
+                                                    className="text-primary hover:text-primary/80 font-medium text-sm hover:underline"
+                                                >
+                                                    Editar
+                                                </button>
+                                            )
                                         )}
                                     </td>
                                 </tr>

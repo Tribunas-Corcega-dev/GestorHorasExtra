@@ -32,19 +32,8 @@ function AjustesContent() {
         return null
     }
 
-    // Vista específica para Coordinadores
-    if (isCoordinator(user.rol)) {
-        return (
-            <div className="max-w-5xl mx-auto">
-                <h1 className="text-3xl font-bold mb-2 text-foreground">Ajustes de Coordinador</h1>
-                <p className="text-muted-foreground mb-8">Configuración de su área.</p>
-
-                <div className="bg-card border border-border rounded-lg p-8 text-center text-muted-foreground">
-                    <p>No hay ajustes disponibles por el momento.</p>
-                </div>
-            </div>
-        )
-    }
+    // Vista específica para Coordinadores - Se permite acceso pero limitado
+    const isCoord = isCoordinator(user.rol)
 
     const menuItems = [
         {
@@ -90,13 +79,17 @@ function AjustesContent() {
         }
     ]
 
+    const visibleItems = isCoord
+        ? menuItems.filter(item => item.href !== "/ajustes/salario")
+        : menuItems
+
     return (
         <div className="max-w-5xl mx-auto">
             <h1 className="text-3xl font-bold mb-2 text-foreground">Ajustes</h1>
-            <p className="text-muted-foreground mb-8">Configuración general del sistema de horas extra.</p>
+            <p className="text-muted-foreground mb-8">Configuración del sistema.</p>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {menuItems.map((item, index) => (
+                {visibleItems.map((item, index) => (
                     <Link
                         key={index}
                         href={item.href}

@@ -18,7 +18,7 @@ const DEFAULT_DAY_SCHEDULE = {
     afternoon: { start: "", end: "", enabled: false },
 }
 
-export function ScheduleSelector({ value, onChange }) {
+export function ScheduleSelector({ value, onChange, readOnly = false }) {
     // Derive schedule from value prop + defaults
     const schedule = useMemo(() => {
         let incoming = {}
@@ -68,6 +68,7 @@ export function ScheduleSelector({ value, onChange }) {
     const [selectedDaysForCopy, setSelectedDaysForCopy] = useState([])
 
     const handleDayToggle = (dayId) => {
+        if (readOnly) return
         const newSchedule = {
             ...schedule,
             [dayId]: {
@@ -79,6 +80,7 @@ export function ScheduleSelector({ value, onChange }) {
     }
 
     const handleShiftToggle = (dayId, period) => {
+        if (readOnly) return
         const newSchedule = {
             ...schedule,
             [dayId]: {
@@ -93,6 +95,7 @@ export function ScheduleSelector({ value, onChange }) {
     }
 
     const handleTimeChange = (dayId, period, field, time) => {
+        if (readOnly) return
         const newSchedule = {
             ...schedule,
             [dayId]: {
@@ -107,6 +110,7 @@ export function ScheduleSelector({ value, onChange }) {
     }
 
     const openCopyModal = (dayId) => {
+        if (readOnly) return
         setSourceDayForCopy(dayId)
         setSelectedDaysForCopy([])
         setCopyModalOpen(true)
@@ -207,14 +211,15 @@ export function ScheduleSelector({ value, onChange }) {
                                     id={`enable-${day.id}`}
                                     checked={schedule[day.id]?.enabled}
                                     onChange={() => handleDayToggle(day.id)}
-                                    className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+                                    disabled={readOnly}
+                                    className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary disabled:opacity-50"
                                 />
                                 <label htmlFor={`enable-${day.id}`} className="font-medium text-foreground cursor-pointer select-none">
                                     {day.label}
                                 </label>
                             </div>
 
-                            {schedule[day.id]?.enabled && (
+                            {schedule[day.id]?.enabled && !readOnly && (
                                 <button
                                     type="button"
                                     onClick={() => openCopyModal(day.id)}
@@ -237,7 +242,8 @@ export function ScheduleSelector({ value, onChange }) {
                                             type="checkbox"
                                             checked={schedule[day.id].morning.enabled}
                                             onChange={() => handleShiftToggle(day.id, "morning")}
-                                            className="h-3.5 w-3.5 rounded border-gray-300"
+                                            disabled={readOnly}
+                                            className="h-3.5 w-3.5 rounded border-gray-300 disabled:opacity-50"
                                             title="Activar/desactivar turno mañana"
                                         />
                                     </div>
@@ -248,14 +254,16 @@ export function ScheduleSelector({ value, onChange }) {
                                                 type="time"
                                                 value={schedule[day.id].morning.start}
                                                 onChange={(e) => handleTimeChange(day.id, "morning", "start", e.target.value)}
-                                                className="flex-1 px-2 py-1 text-sm border border-input rounded bg-background text-foreground focus:ring-1 focus:ring-primary w-full"
+                                                disabled={readOnly}
+                                                className="flex-1 px-2 py-1 text-sm border border-input rounded bg-background text-foreground focus:ring-1 focus:ring-primary w-full disabled:opacity-50"
                                             />
                                             <span className="text-muted-foreground hidden sm:block">-</span>
                                             <input
                                                 type="time"
                                                 value={schedule[day.id].morning.end}
                                                 onChange={(e) => handleTimeChange(day.id, "morning", "end", e.target.value)}
-                                                className="flex-1 px-2 py-1 text-sm border border-input rounded bg-background text-foreground focus:ring-1 focus:ring-primary w-full"
+                                                disabled={readOnly}
+                                                className="flex-1 px-2 py-1 text-sm border border-input rounded bg-background text-foreground focus:ring-1 focus:ring-primary w-full disabled:opacity-50"
                                             />
                                         </div>
                                     )}
@@ -275,7 +283,8 @@ export function ScheduleSelector({ value, onChange }) {
                                             type="checkbox"
                                             checked={schedule[day.id].afternoon.enabled}
                                             onChange={() => handleShiftToggle(day.id, "afternoon")}
-                                            className="h-3.5 w-3.5 rounded border-gray-300"
+                                            disabled={readOnly}
+                                            className="h-3.5 w-3.5 rounded border-gray-300 disabled:opacity-50"
                                             title="Activar/desactivar turno tarde"
                                         />
                                     </div>
@@ -286,14 +295,16 @@ export function ScheduleSelector({ value, onChange }) {
                                                 type="time"
                                                 value={schedule[day.id].afternoon.start}
                                                 onChange={(e) => handleTimeChange(day.id, "afternoon", "start", e.target.value)}
-                                                className="flex-1 px-2 py-1 text-sm border border-input rounded bg-background text-foreground focus:ring-1 focus:ring-primary w-full"
+                                                disabled={readOnly}
+                                                className="flex-1 px-2 py-1 text-sm border border-input rounded bg-background text-foreground focus:ring-1 focus:ring-primary w-full disabled:opacity-50"
                                             />
                                             <span className="text-muted-foreground hidden sm:block">-</span>
                                             <input
                                                 type="time"
                                                 value={schedule[day.id].afternoon.end}
                                                 onChange={(e) => handleTimeChange(day.id, "afternoon", "end", e.target.value)}
-                                                className="flex-1 px-2 py-1 text-sm border border-input rounded bg-background text-foreground focus:ring-1 focus:ring-primary w-full"
+                                                disabled={readOnly}
+                                                className="flex-1 px-2 py-1 text-sm border border-input rounded bg-background text-foreground focus:ring-1 focus:ring-primary w-full disabled:opacity-50"
                                             />
                                         </div>
                                     )}

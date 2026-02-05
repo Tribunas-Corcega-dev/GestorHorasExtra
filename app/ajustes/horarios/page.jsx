@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { Layout } from "@/components/Layout"
 import { ProtectedRoute } from "@/components/ProtectedRoute"
 import { useAuth } from "@/hooks/useAuth"
-import { canManageOvertime } from "@/lib/permissions"
+import { canManageOvertime, isCoordinator } from "@/lib/permissions"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { ScheduleSelector } from "@/components/ScheduleSelector"
@@ -178,13 +178,15 @@ function HorariosContent() {
                             <h2 className="text-xl font-semibold text-foreground">
                                 Horario: {selectedArea}
                             </h2>
-                            <button
-                                onClick={handleSubmit}
-                                disabled={saving}
-                                className="bg-primary text-primary-foreground px-4 py-2 rounded-md hover:opacity-90 transition-opacity disabled:opacity-50 font-medium text-sm"
-                            >
-                                {saving ? "Guardando..." : "Guardar Cambios"}
-                            </button>
+                            {!isCoordinator(user?.rol) && (
+                                <button
+                                    onClick={handleSubmit}
+                                    disabled={saving}
+                                    className="bg-primary text-primary-foreground px-4 py-2 rounded-md hover:opacity-90 transition-opacity disabled:opacity-50 font-medium text-sm"
+                                >
+                                    {saving ? "Guardando..." : "Guardar Cambios"}
+                                </button>
+                            )}
                         </div>
 
                         {error && (
@@ -203,6 +205,7 @@ function HorariosContent() {
                             <ScheduleSelector
                                 value={schedule}
                                 onChange={setSchedule}
+                                readOnly={isCoordinator(user?.rol)}
                             />
                         </div>
                     </div>
