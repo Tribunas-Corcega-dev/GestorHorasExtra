@@ -736,9 +736,6 @@ export function OvertimeHistoryView({ employeeId, showBackButton = true }) {
                                 <div className="text-2xl font-bold text-blue-700 dark:text-blue-400">
                                     {formatCurrency(Object.values(filteredSummary.overtimeValues).reduce((a, b) => a + b, 0))}
                                 </div>
-                                <p className="text-xs text-blue-600/80 dark:text-blue-400/70 mt-1">
-                                    Suma exclusiva de horas extra (Sin recargos)
-                                </p>
                             </div>
                         </div>
 
