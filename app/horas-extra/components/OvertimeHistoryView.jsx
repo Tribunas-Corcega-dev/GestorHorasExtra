@@ -403,7 +403,12 @@ export function OvertimeHistoryView({ employeeId, showBackButton = true }) {
     } : null
 
     if (loading) {
-        return <div className="text-center py-8">Cargando...</div>
+        return (
+            <div className="flex flex-col items-center justify-center py-12 min-h-[60vh]">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mb-4"></div>
+                <p className="text-muted-foreground animate-pulse">Cargando historial...</p>
+            </div>
+        )
     }
 
     return (
@@ -736,7 +741,8 @@ export function OvertimeHistoryView({ employeeId, showBackButton = true }) {
                                 </p>
                             </div>
 
-                            {/* Card 2: Total General (Variable + Fixed) */}
+                            {/* Card 2: Total General (Variable + Fixed) 
+                            
                             <div className="bg-primary/10 border border-primary/20 rounded-lg p-6 shadow-sm flex flex-col items-center justify-center text-center">
                                 <h3 className="text-sm font-bold text-primary uppercase tracking-wider mb-2">Total General a Pagar</h3>
                                 <div className="text-3xl font-bold text-primary">
@@ -748,6 +754,7 @@ export function OvertimeHistoryView({ employeeId, showBackButton = true }) {
                                         : "Total acumulado (Variable + Fijo)"}
                                 </p>
                             </div>
+                            */}
                         </div>
                     </>
                 )

@@ -225,7 +225,7 @@ export function EmpleadosManager() {
         <div>
             <div className="flex items-center justify-between mb-6">
                 <h1 className="text-3xl font-bold text-foreground">Gestión de Personal</h1>
-                {canManageEmployees(user?.rol) && (
+                {['JEFE', 'TALENTO_HUMANO'].includes(user?.rol) && (
                     <Link
                         href="/empleados/nuevo"
                         className="bg-primary text-primary-foreground px-4 py-2 rounded-md hover:opacity-90 transition-opacity font-medium"

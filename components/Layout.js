@@ -13,12 +13,25 @@ export function Layout({ children }) {
   const showEmployeesLink = !isWorker(user.rol)
   const showOvertimeLink = canManageOvertime(user.rol) || isWorker(user.rol)
 
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true)
+
   return (
     <div className="min-h-screen bg-background flex flex-col">
       {/* Header */}
       <header className="bg-primary text-primary-foreground shadow-md z-10">
         <div className="container mx-auto px-2 md:px-4 py-3 md:py-4 flex items-center justify-between">
           <div className="flex items-center gap-2 md:gap-3 flex-shrink-0">
+            {/* Desktop Menu Button */}
+            <button
+              onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+              className="hidden md:block p-1 mr-2 text-primary-foreground hover:bg-primary-foreground/10 rounded-md focus:outline-none transition-colors"
+              aria-label="Toggle Sidebar"
+              title={isSidebarOpen ? "Ocultar menú" : "Mostrar menú"}
+            >
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+            </button>
             <img src="/assets/logo.png" alt="TribunasClock Logo" className="h-6 w-6 md:h-8 md:w-8" />
             <h1 className="text-base md:text-xl font-bold">TribunasClock</h1>
           </div>
@@ -52,59 +65,66 @@ export function Layout({ children }) {
 
       <div className="flex flex-1 pb-16 md:pb-0">
         {/* Sidebar - Desktop */}
-        <aside className="hidden md:block w-64 bg-card border-r border-border min-h-[calc(100vh-73px)]">
-          <nav className="p-4 space-y-2">
-            <Link
-              href="/dashboard"
-              className="block px-4 py-2 rounded-md hover:bg-accent hover:text-accent-foreground transition-colors"
-            >
-              Dashboard
-            </Link>
-            {showEmployeesLink && (
+        <aside
+          className={`
+            hidden md:block bg-card border-r border-border min-h-[calc(100vh-73px)] transition-all duration-300 ease-in-out overflow-hidden
+            ${isSidebarOpen ? "w-64 opacity-100" : "w-0 opacity-0 border-none"}
+          `}
+        >
+          <div className="min-w-[16rem]"> {/* Wrapper to prevent text wrap during shrink */}
+            <nav className="p-4 space-y-2">
               <Link
-                href="/empleados"
-                className="block px-4 py-2 rounded-md hover:bg-accent hover:text-accent-foreground transition-colors"
+                href="/dashboard"
+                className="block px-4 py-2 rounded-md hover:bg-accent hover:text-accent-foreground transition-colors whitespace-nowrap"
               >
-                Empleados
+                Dashboard
               </Link>
-            )}
-            {/* Worker Specific Link */}
-            {isWorker(user.rol) && (
-              <Link
-                href={`/horas-extra/${user.id}/historial`}
-                className="block px-4 py-2 rounded-md hover:bg-accent hover:text-accent-foreground transition-colors"
-              >
-                Mis Horas Extra
-              </Link>
-            )}
+              {showEmployeesLink && (
+                <Link
+                  href="/empleados"
+                  className="block px-4 py-2 rounded-md hover:bg-accent hover:text-accent-foreground transition-colors whitespace-nowrap"
+                >
+                  Empleados
+                </Link>
+              )}
+              {/* Worker Specific Link */}
+              {isWorker(user.rol) && (
+                <Link
+                  href={`/horas-extra/${user.id}/historial`}
+                  className="block px-4 py-2 rounded-md hover:bg-accent hover:text-accent-foreground transition-colors whitespace-nowrap"
+                >
+                  Mis Horas Extra
+                </Link>
+              )}
 
-            {/* Manager specific links previously grouped under showOvertimeLink */}
-            {canManageOvertime(user.rol) && (
-              <>
-                {/* Managers use Empleados for Overtime now, so no separate link needed */}
-                <Link
-                  href="/apelaciones"
-                  className="block px-4 py-2 rounded-md hover:bg-accent hover:text-accent-foreground transition-colors"
-                >
-                  Apelaciones
-                </Link>
-                {["TALENTO_HUMANO", "ASISTENTE_GERENCIA", "COORDINADOR"].includes(user.rol) && (
+              {/* Manager specific links previously grouped under showOvertimeLink */}
+              {canManageOvertime(user.rol) && (
+                <>
+                  {/* Managers use Empleados for Overtime now, so no separate link needed */}
                   <Link
-                    href="/dashboard/talento-humano/horas-extra"
-                    className="block px-4 py-2 rounded-md hover:bg-accent hover:text-accent-foreground transition-colors"
+                    href="/apelaciones"
+                    className="block px-4 py-2 rounded-md hover:bg-accent hover:text-accent-foreground transition-colors whitespace-nowrap"
                   >
-                    Reporte Consolidado
+                    Apelaciones
                   </Link>
-                )}
-                <Link
-                  href="/ajustes"
-                  className="block px-4 py-2 rounded-md hover:bg-accent hover:text-accent-foreground transition-colors"
-                >
-                  Ajustes
-                </Link>
-              </>
-            )}
-          </nav>
+                  {["TALENTO_HUMANO", "ASISTENTE_GERENCIA", "COORDINADOR"].includes(user.rol) && (
+                    <Link
+                      href="/dashboard/talento-humano/horas-extra"
+                      className="block px-4 py-2 rounded-md hover:bg-accent hover:text-accent-foreground transition-colors whitespace-nowrap"
+                    >
+                      Reporte Consolidado
+                    </Link>
+                  )}
+                  <Link
+                    href="/ajustes"
+                    className="block px-4 py-2 rounded-md hover:bg-accent hover:text-accent-foreground transition-colors whitespace-nowrap"
+                  >
+                    Ajustes
+                  </Link>
+                </>
+              )}
+            </nav>
+          </div>
         </aside>
 
         {/* Mobile Tab Navigator */}
