@@ -327,16 +327,32 @@ function EditarEmpleadoContent() {
                   </div>
                 )}
               </div>
-              <label className="cursor-pointer bg-primary text-primary-foreground px-3 py-1 rounded-md text-xs font-medium hover:opacity-90 transition-opacity">
-                Cambiar Foto
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={handleImageSelect}
-                  className="hidden"
-                  disabled={uploading}
-                />
-              </label>
+              <div className="flex gap-2">
+                <label className="cursor-pointer bg-primary text-primary-foreground px-3 py-1 rounded-md text-xs font-medium hover:opacity-90 transition-opacity">
+                  {previewUrl || formData.foto_url ? "Cambiar Foto" : "Agregar Foto"}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleImageSelect}
+                    className="hidden"
+                    disabled={uploading}
+                  />
+                </label>
+                {(previewUrl || formData.foto_url) && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setFile(null)
+                      setPreviewUrl(null)
+                      setFormData(prev => ({ ...prev, foto_url: null }))
+                    }}
+                    className="bg-destructive text-white px-3 py-1 rounded-md text-xs font-medium hover:opacity-90 transition-opacity"
+                    title="Eliminar foto de perfil"
+                  >
+                    Eliminar
+                  </button>
+                )}
+              </div>
             </div>
           </div>
 

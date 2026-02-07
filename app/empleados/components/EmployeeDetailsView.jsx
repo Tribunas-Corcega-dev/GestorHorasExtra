@@ -62,7 +62,12 @@ export function EmployeeDetailsView({ employeeId, showBackButton = true }) {
 
 
     if (loading) {
-        return <div className="text-center py-8">Cargando...</div>
+        return (
+            <div className="flex flex-col items-center justify-center py-12 min-h-[50vh]">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mb-4"></div>
+                <p className="text-muted-foreground animate-pulse">Cargando información del empleado...</p>
+            </div>
+        )
     }
 
     if (!empleado) {
