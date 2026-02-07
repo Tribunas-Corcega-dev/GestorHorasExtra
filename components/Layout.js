@@ -3,7 +3,9 @@
 import Link from "next/link"
 import { useAuth } from "@/hooks/useAuth"
 import { isWorker, canManageOvertime } from "@/lib/permissions"
-import { useState } from "react"
+import { useState, useRef, useEffect } from "react"
+import { usePathname } from "next/navigation"
+import { useSidebar } from "@/context/SidebarContext"
 
 export function Layout({ children }) {
   const { user, logout } = useAuth()
@@ -23,6 +25,46 @@ export function Layout({ children }) {
     OPERARIO: "/dashboard/operario",
   }
   const dashboardHref = roleRoutes[user.rol] || "/dashboard"
+
+  const pathname = usePathname()
+  const linksRef = useRef({})
+  const { indicatorStyle, setIndicatorStyle } = useSidebar()
+
+  useEffect(() => {
+    // Reset refs on each render/path change to ensure stale refs don't cause issues?
+    // Actually React handles ref assignment. Clean keys?
+    // Better to just iterate available keys.
+
+    // Logic to find active link
+    let activeHref = null
+    const keys = Object.keys(linksRef.current)
+
+    // Prioritize exact match, then startsWith
+    if (keys.includes(pathname)) {
+      activeHref = pathname
+    } else {
+      // Find by startsWith, but pick the longest match to be specific
+      activeHref = keys
+        .filter(href => pathname.startsWith(href))
+        .sort((a, b) => b.length - a.length)[0]
+    }
+
+    if (!activeHref && pathname === "/dashboard") {
+      activeHref = dashboardHref // Fallback if pathname is simple /dashboard
+    }
+
+    const activeEl = linksRef.current[activeHref]
+
+    if (activeEl) {
+      setIndicatorStyle({
+        top: activeEl.offsetTop,
+        height: activeEl.offsetHeight,
+        opacity: 1
+      })
+    } else {
+      setIndicatorStyle(prev => ({ ...prev, opacity: 0 }))
+    }
+  }, [pathname, isSidebarOpen, dashboardHref])
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -81,17 +123,36 @@ export function Layout({ children }) {
           `}
         >
           <div className="min-w-[16rem]"> {/* Wrapper to prevent text wrap during shrink */}
-            <nav className="p-4 space-y-2">
+            <nav className="p-4 space-y-2 relative">
+              {/* Sliding Indicator */}
+              <div
+                className="absolute left-0 w-1 bg-primary rounded-r-md transition-all duration-300 ease-in-out z-10"
+                style={{
+                  top: indicatorStyle.top,
+                  height: indicatorStyle.height,
+                  opacity: indicatorStyle.opacity,
+                  left: '0.5rem' // Adjust based on padding
+                }}
+              />
+
               <Link
                 href={dashboardHref}
-                className="block px-4 py-2 rounded-md hover:bg-accent hover:text-accent-foreground transition-colors whitespace-nowrap"
+                ref={el => linksRef.current[dashboardHref] = el}
+                className={`block px-4 py-2 rounded-md transition-colors whitespace-nowrap ${pathname === dashboardHref // Exact match for dashboard to avoid highlighting on other pages if strict needed, or startsWith
+                  ? "text-primary bg-primary/10 font-medium"
+                  : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                  }`}
               >
                 Dashboard
               </Link>
               {showEmployeesLink && (
                 <Link
                   href="/empleados"
-                  className="block px-4 py-2 rounded-md hover:bg-accent hover:text-accent-foreground transition-colors whitespace-nowrap"
+                  ref={el => linksRef.current["/empleados"] = el}
+                  className={`block px-4 py-2 rounded-md transition-colors whitespace-nowrap ${pathname.startsWith("/empleados")
+                    ? "text-primary bg-primary/10 font-medium"
+                    : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                    }`}
                 >
                   Empleados
                 </Link>
@@ -100,7 +161,11 @@ export function Layout({ children }) {
               {isWorker(user.rol) && (
                 <Link
                   href={`/horas-extra/${user.id}/historial`}
-                  className="block px-4 py-2 rounded-md hover:bg-accent hover:text-accent-foreground transition-colors whitespace-nowrap"
+                  ref={el => linksRef.current[`/horas-extra/${user.id}/historial`] = el}
+                  className={`block px-4 py-2 rounded-md transition-colors whitespace-nowrap ${pathname.startsWith(`/horas-extra/${user.id}/historial`)
+                    ? "text-primary bg-primary/10 font-medium"
+                    : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                    }`}
                 >
                   Mis Horas Extra
                 </Link>
@@ -112,21 +177,33 @@ export function Layout({ children }) {
                   {/* Managers use Empleados for Overtime now, so no separate link needed */}
                   <Link
                     href="/apelaciones"
-                    className="block px-4 py-2 rounded-md hover:bg-accent hover:text-accent-foreground transition-colors whitespace-nowrap"
+                    ref={el => linksRef.current["/apelaciones"] = el}
+                    className={`block px-4 py-2 rounded-md transition-colors whitespace-nowrap ${pathname.startsWith("/apelaciones")
+                      ? "text-primary bg-primary/10 font-medium"
+                      : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                      }`}
                   >
                     Apelaciones
                   </Link>
                   {["TALENTO_HUMANO", "ASISTENTE_GERENCIA", "COORDINADOR"].includes(user.rol) && (
                     <Link
                       href="/dashboard/talento-humano/horas-extra"
-                      className="block px-4 py-2 rounded-md hover:bg-accent hover:text-accent-foreground transition-colors whitespace-nowrap"
+                      ref={el => linksRef.current["/dashboard/talento-humano/horas-extra"] = el}
+                      className={`block px-4 py-2 rounded-md transition-colors whitespace-nowrap ${pathname.startsWith("/dashboard/talento-humano/horas-extra")
+                        ? "text-primary bg-primary/10 font-medium"
+                        : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                        }`}
                     >
                       Reporte Consolidado
                     </Link>
                   )}
                   <Link
                     href="/ajustes"
-                    className="block px-4 py-2 rounded-md hover:bg-accent hover:text-accent-foreground transition-colors whitespace-nowrap"
+                    ref={el => linksRef.current["/ajustes"] = el}
+                    className={`block px-4 py-2 rounded-md transition-colors whitespace-nowrap ${pathname.startsWith("/ajustes")
+                      ? "text-primary bg-primary/10 font-medium"
+                      : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                      }`}
                   >
                     Ajustes
                   </Link>
