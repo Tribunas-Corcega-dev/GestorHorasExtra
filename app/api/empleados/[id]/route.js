@@ -242,9 +242,6 @@ export async function PUT(request, props) {
       }
     })
 
-    console.log("[DEBUG Audit] UpdateData Keys:", Object.keys(updateData))
-    console.log("[DEBUG Audit] Changes detected:", changes)
-
     if (body.password) {
       changes['password'] = { old: '******', new: '******' }
     }
