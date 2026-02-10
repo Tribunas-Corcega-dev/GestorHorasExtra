@@ -234,10 +234,16 @@ export async function PUT(request, props) {
     // Audit Log
     const changes = {}
     Object.keys(updateData).forEach(key => {
+      // Skip large derived arrays or fields that are just system consequences
+      if (key === 'hist_salarios') return
+
       if (JSON.stringify(updateData[key]) !== JSON.stringify(currentEmpleado[key])) {
         changes[key] = { old: currentEmpleado[key], new: updateData[key] }
       }
     })
+
+    console.log("[DEBUG Audit] UpdateData Keys:", Object.keys(updateData))
+    console.log("[DEBUG Audit] Changes detected:", changes)
 
     if (body.password) {
       changes['password'] = { old: '******', new: '******' }
