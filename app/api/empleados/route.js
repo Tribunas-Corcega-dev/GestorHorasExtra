@@ -4,6 +4,7 @@ import bcrypt from "bcryptjs"
 import { supabase } from "@/lib/supabaseClient"
 import { canManageEmployees, isCoordinator } from "@/lib/permissions"
 import { calculateEmployeeWorkValues, calculateScheduleSurcharges } from "@/lib/calculations"
+import { logAudit } from "@/lib/logger"
 
 const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key-change-in-production"
 
@@ -165,6 +166,21 @@ export async function POST(request) {
       console.error("[v0] Error creating employee:", error)
       return NextResponse.json({ message: "Error al crear el empleado" }, { status: 500 })
     }
+
+    // Audit Log
+    await logAudit({
+      action: "CREATE",
+      entity: "EMPLEADO",
+      entityId: newUser.id,
+      details: {
+        nombre: newUser.nombre,
+        cc: newUser.cc,
+        area: newUser.area,
+        rol: newUser.rol,
+        salario_base: newUser.salario_base
+      },
+      user: user
+    })
 
     return NextResponse.json(newUser, { status: 201 })
   } catch (error) {

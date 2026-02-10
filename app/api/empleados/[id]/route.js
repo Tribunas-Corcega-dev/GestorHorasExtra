@@ -6,6 +6,7 @@ import { supabase } from "@/lib/supabaseClient"
 import { supabaseAdmin } from "@/lib/supabaseAdmin"
 import { canManageEmployees, isCoordinator } from "@/lib/permissions"
 import { calculateEmployeeWorkValues, calculateScheduleSurcharges } from "@/lib/calculations"
+import { logAudit } from "@/lib/logger"
 
 const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key-change-in-production"
 
@@ -230,6 +231,28 @@ export async function PUT(request, props) {
       }
     }
 
+    // Audit Log
+    const changes = {}
+    Object.keys(updateData).forEach(key => {
+      if (JSON.stringify(updateData[key]) !== JSON.stringify(currentEmpleado[key])) {
+        changes[key] = { old: currentEmpleado[key], new: updateData[key] }
+      }
+    })
+
+    if (body.password) {
+      changes['password'] = { old: '******', new: '******' }
+    }
+
+    if (Object.keys(changes).length > 0) {
+      await logAudit({
+        action: "UPDATE",
+        entity: "EMPLEADO",
+        entityId: id,
+        details: { diff: changes },
+        user: user
+      })
+    }
+
     return NextResponse.json(updatedEmpleado)
   } catch (error) {
     console.error("[v0] Error in PUT empleado:", error)
@@ -288,6 +311,14 @@ export async function DELETE(request, props) {
       console.error("[v0] Error deactivating employee:", deleteError)
       return NextResponse.json({ message: `Error al desactivar el empleado: ${deleteError.message}` }, { status: 500 })
     }
+
+    await logAudit({
+      action: "DELETE",
+      entity: "EMPLEADO",
+      entityId: id,
+      details: { reason: "Soft Delete (Deactivation)", cc: empleado.cc },
+      user: user
+    })
 
     return NextResponse.json({ message: "Empleado desactivado exitosamente. Su historial se preservará." })
   } catch (error) {
