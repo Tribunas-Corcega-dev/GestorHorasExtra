@@ -3,6 +3,7 @@ import jwt from "jsonwebtoken"
 import { supabase } from "@/lib/supabaseClient"
 import { canManageOvertime } from "@/lib/permissions"
 import { calculateEmployeeWorkValues } from "@/lib/calculations"
+import { logAudit } from "@/lib/logger"
 
 const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key-change-in-production"
 
@@ -129,10 +130,18 @@ export async function POST(request) {
                 .single()
         }
 
-        if (result.error) {
-            console.error("Error saving parameters:", result.error)
-            return NextResponse.json({ message: "Error al guardar parámetros" }, { status: 500 })
-        }
+        // Audit Log
+        await logAudit({
+            action: "UPDATE",
+            entity: "CONFIGURACION",
+            entityId: result.data.id,
+            details: {
+                target: "PARAMETROS_GLOBALES",
+                anio: anio_vigencia,
+                updates: updates
+            },
+            user: user
+        })
 
         // Auto-update employees logic...
         // Only if updating CURRENT YEAR or FUTURE YEAR? 

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import jwt from "jsonwebtoken"
 import { supabase } from "@/lib/supabaseClient"
 import { canManageOvertime } from "@/lib/permissions"
+import { logAudit } from "@/lib/logger"
 
 const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key-change-in-production"
 
@@ -69,6 +70,19 @@ export async function PUT(request) {
             console.error("Error updating recargo:", error)
             return NextResponse.json({ message: "Error al actualizar recargo" }, { status: 500 })
         }
+
+        // Audit Log
+        await logAudit({
+            action: "UPDATE",
+            entity: "CONFIGURACION",
+            entityId: id,
+            details: {
+                target: "RECARGO",
+                tipo_hora_extra: tipo_hora_extra,
+                nuevo_recargo: recargo
+            },
+            user: user
+        })
 
         return NextResponse.json(data)
     } catch (error) {
