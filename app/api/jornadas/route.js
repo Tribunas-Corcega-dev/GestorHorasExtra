@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import jwt from "jsonwebtoken"
 import { supabase } from "@/lib/supabaseClient"
 import { canManageOvertime } from "@/lib/permissions"
+import { logAudit } from "@/lib/logger"
 
 const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key-change-in-production"
 
@@ -67,6 +68,22 @@ export async function POST(request) {
             return NextResponse.json({ message: `Error al registrar jornada: ${error.message}` }, { status: 500 })
         }
 
+        // Audit Log
+        await logAudit({
+            action: "CREATE",
+            entity: "JORNADA",
+            entityId: newJornada.id,
+            details: {
+                fecha: newJornada.fecha,
+                empleado_id: newJornada.empleado_id,
+                horas: newJornada.horas_extra_hhmm,
+                es_festivo: newJornada.es_festivo,
+                observaciones: newJornada.observaciones,
+                snapshot_valor_hora: newJornada.valor_hora_snapshot
+            },
+            user: user
+        })
+
         return NextResponse.json(newJornada, { status: 201 })
     } catch (error) {
         console.error("[v0] Error in POST jornadas:", error)
@@ -112,6 +129,21 @@ export async function PUT(request) {
         if (!updatedJornada) {
             return NextResponse.json({ message: "Jornada no encontrada" }, { status: 404 })
         }
+
+        // Audit Log
+        await logAudit({
+            action: "UPDATE",
+            entity: "JORNADA",
+            entityId: updatedJornada.id,
+            details: {
+                fecha: updatedJornada.fecha,
+                empleado_id: updatedJornada.empleado_id,
+                new_horas: updatedJornada.horas_extra_hhmm,
+                new_observaciones: updatedJornada.observaciones,
+                es_festivo: updatedJornada.es_festivo
+            },
+            user: user
+        })
 
         return NextResponse.json(updatedJornada)
     } catch (error) {
@@ -207,6 +239,18 @@ export async function DELETE(request) {
             console.error("[v0] Error deleting jornada:", error)
             return NextResponse.json({ message: `Error al eliminar jornada: ${error.message}` }, { status: 500 })
         }
+
+        // Audit Log
+        await logAudit({
+            action: "DELETE",
+            entity: "JORNADA",
+            entityId: `${empleado_id}_${fecha}`,
+            details: {
+                fecha: fecha,
+                empleado_id: empleado_id
+            },
+            user: user
+        })
 
         return NextResponse.json({ message: "Jornada eliminada exitosamente" })
     } catch (error) {
