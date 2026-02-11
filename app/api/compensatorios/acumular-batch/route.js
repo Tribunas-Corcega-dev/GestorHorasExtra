@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import jwt from "jsonwebtoken"
 import { supabase } from "@/lib/supabaseClient"
 import { supabaseAdmin } from "@/lib/supabaseAdmin"
+import { logAudit } from "@/lib/logger"
 
 const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key-change-in-production"
 
@@ -211,6 +212,19 @@ export async function POST(request) {
                 })
 
             if (historyError) console.error("History logging error", historyError)
+
+            // Audit Log
+            await logAudit({
+                action: "ACUMULAR_BOLSA",
+                entity: "BOLSA_HORAS",
+                entityId: user.id,
+                details: {
+                    minutos_acumulados: totalProcessedMinutes,
+                    saldo_resultante: newBalance,
+                    solicitado_por: currentUser.email
+                },
+                user: currentUser
+            })
         }
 
         return NextResponse.json({
