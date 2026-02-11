@@ -3,6 +3,7 @@ import jwt from "jsonwebtoken"
 import { supabase } from "@/lib/supabaseClient"
 import { canManageOvertime } from "@/lib/permissions"
 import { calculateScheduleSurcharges } from "@/lib/calculations"
+import { logAudit } from "@/lib/logger"
 
 const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key-change-in-production"
 
@@ -137,6 +138,19 @@ export async function POST(request) {
             console.error("Error saving horario:", result.error)
             return NextResponse.json({ message: "Error al guardar horario" }, { status: 500 })
         }
+
+        // Audit Log
+        await logAudit({
+            action: "UPDATE",
+            entity: "CONFIGURACION",
+            entityId: result.data.id,
+            details: {
+                target: "HORARIO_BASE",
+                area: areaColumn,
+                nuevo_horario: enrichedSchedule
+            },
+            user: user
+        })
 
         return NextResponse.json(result.data)
     } catch (error) {
