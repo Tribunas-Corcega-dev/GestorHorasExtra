@@ -7,7 +7,7 @@ export function BalanceManagementModal({ isOpen, onClose, employee, onUpdate }) 
     const [loading, setLoading] = useState(false)
 
     // Form State
-    const [tipo, setTipo] = useState("DIA_COMPLETO")
+    const [tipo, setTipo] = useState("SALIDA_TEMPRANA")
     const [fechaSingle, setFechaSingle] = useState("")
     const [horaLlegada, setHoraLlegada] = useState("")
     const [horaSalida, setHoraSalida] = useState("")
@@ -33,7 +33,7 @@ export function BalanceManagementModal({ isOpen, onClose, employee, onUpdate }) 
         setLoading(true)
 
         // Reset Form
-        setTipo("DIA_COMPLETO")
+        setTipo("SALIDA_TEMPRANA")
         setFechaSingle("")
         setHoraLlegada("")
         setHoraSalida("")
@@ -223,7 +223,7 @@ export function BalanceManagementModal({ isOpen, onClose, employee, onUpdate }) 
                 if (onUpdate) onUpdate()
 
                 // Reset form
-                setTipo("DIA_COMPLETO")
+                setTipo("SALIDA_TEMPRANA")
                 setFechaSingle("")
                 setHoraLlegada("")
                 setHoraSalida("")

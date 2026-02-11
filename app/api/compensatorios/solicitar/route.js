@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server"
 import jwt from "jsonwebtoken"
 import { supabase } from "@/lib/supabaseClient"
+import { supabaseAdmin } from "@/lib/supabaseAdmin"
 import { canManageOvertime } from "@/lib/permissions"
+import { logAudit } from "@/lib/logger"
 
 const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key-change-in-production"
 
@@ -48,10 +50,13 @@ export async function POST(request) {
             autoApprove = false
         }
 
+        // Use Admin client for interactions involving other users or critical balance updates
+        const dbClient = targetId !== user.id ? supabaseAdmin : supabase
+
         // Fetch target user if different
         let targetUser = user
         if (targetId !== user.id) {
-            const { data: tUser } = await supabase.from("usuarios").select("*").eq("id", targetId).single()
+            const { data: tUser } = await supabaseAdmin.from("usuarios").select("*").eq("id", targetId).single()
             if (!tUser) return NextResponse.json({ message: "Usuario no encontrado" }, { status: 404 })
             targetUser = tUser
         }
@@ -61,7 +66,7 @@ export async function POST(request) {
         const dayStart = `${dateOnly}T00:00:00`
         const dayEnd = `${dateOnly}T23:59:59`
 
-        const { data: duplicateRequests } = await supabase
+        const { data: duplicateRequests } = await dbClient
             .from("solicitudes_tiempo")
             .select("id")
             .eq("usuario_id", targetId)
@@ -77,7 +82,7 @@ export async function POST(request) {
         const currentBalance = targetUser.bolsa_horas_minutos || 0
 
         // Count pending requests to avoid "double spending"
-        const { data: pendingRequests } = await supabase
+        const { data: pendingRequests } = await dbClient
             .from("solicitudes_tiempo")
             .select("minutos_solicitados")
             .eq("usuario_id", targetId)
@@ -99,7 +104,7 @@ export async function POST(request) {
             fecha_aprobacion: new Date().toISOString()
         } : {}
 
-        const { data: newRequest, error: insertError } = await supabase
+        const { data: newRequest, error: insertError } = await dbClient
             .from("solicitudes_tiempo")
             .insert({
                 usuario_id: targetId,
@@ -123,8 +128,8 @@ export async function POST(request) {
         if (autoApprove) {
             const newBalance = currentBalance - minutos_solicitados
 
-            // Update user balance
-            const { error: updateError } = await supabase
+            // Update user balance (Use Admin to bypass RLS if updating another user)
+            const { error: updateError } = await supabaseAdmin
                 .from("usuarios")
                 .update({ bolsa_horas_minutos: newBalance })
                 .eq("id", targetId)
@@ -136,7 +141,7 @@ export async function POST(request) {
             }
 
             // Create History Log
-            await supabase.from("historial_bolsa").insert({
+            await supabaseAdmin.from("historial_bolsa").insert({
                 usuario_id: targetId,
                 tipo_operacion: 'REDENCION',
                 cantidad_minutos: -minutos_solicitados,
@@ -145,6 +150,21 @@ export async function POST(request) {
                 descripcion: `Canjeo directo por ${user.nombre || user.username}`,
                 entidad_referencia: 'solicitudes_tiempo',
                 referencia_id: newRequest.id
+            })
+
+            // Audit Log
+            await logAudit({
+                action: "REDENCION",
+                entity: "BOLSA_HORAS",
+                entityId: targetId,
+                details: {
+                    minutos_redimidos: minutos_solicitados,
+                    saldo_resultante: newBalance,
+                    solicitado_por: user.email,
+                    motivo: motivo,
+                    tipo: tipo
+                },
+                user: user
             })
         }
 

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import jwt from "jsonwebtoken"
 import { supabase } from "@/lib/supabaseClient"
 import { supabaseAdmin } from "@/lib/supabaseAdmin"
+import { logAudit } from "@/lib/logger"
 
 const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key-change-in-production"
 
@@ -108,6 +109,19 @@ export async function POST(request) {
                 message: `Error al crear apelación: ${apealError.message}`
             }, { status: 500 })
         }
+
+        // Audit Log
+        await logAudit({
+            action: "CREATE",
+            entity: "APELACION",
+            entityId: newApeal.id,
+            details: {
+                jornada_id: jornadaId,
+                motivo: motivo,
+                has_files: !!docsUrl
+            },
+            user: user
+        })
 
         return NextResponse.json({
             message: "Apelación enviada exitosamente",
