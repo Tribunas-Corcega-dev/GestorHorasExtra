@@ -42,7 +42,7 @@ export async function POST(request) {
 
         if (target_user_id && target_user_id !== currentUser.id) {
             // Check permissions
-            const allowedRoles = ['ADMIN', 'COORDINADOR', 'TALENTO_HUMANO', 'GERENTE']
+            const allowedRoles = ['ADMIN', 'COORDINADOR', 'TALENTO_HUMANO', 'GERENTE', 'JEFE']
             if (!allowedRoles.includes(currentUser.rol) && !currentUser.is_admin) {
                 console.warn(`[Batch] Unauthorized attempt by ${currentUser.id} to bank for ${target_user_id}`)
                 return NextResponse.json({ message: "No tienes permisos para realizar esta acción para otro usuario." }, { status: 403 })
