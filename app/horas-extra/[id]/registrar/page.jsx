@@ -129,6 +129,9 @@ function RegistrarHorasExtraContent() {
             if (!fecha) {
                 throw new Error("Debes seleccionar una fecha")
             }
+            if (!observaciones || observaciones.trim() === "") {
+                throw new Error("Debes ingresar un motivo o justificación")
+            }
 
             // Calculate overtime
             let overtimeResults = {
@@ -367,12 +370,13 @@ function RegistrarHorasExtraContent() {
 
                     <div>
                         <label htmlFor="observaciones" className="block text-sm font-medium text-foreground mb-2">
-                            Observaciones / Justificación
+                            Observaciones / Justificación <span className="text-red-500">*</span>
                         </label>
                         <textarea
                             id="observaciones"
                             value={observaciones}
                             onChange={(e) => setObservaciones(e.target.value)}
+                            required
                             placeholder="Describa el motivo de las horas extra..."
                             className="w-full px-3 py-2 border border-input bg-background text-foreground rounded-md focus:outline-none focus:ring-2 focus:ring-ring min-h-[80px]"
                         />
