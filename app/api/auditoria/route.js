@@ -55,7 +55,23 @@ export async function GET(request) {
             return NextResponse.json({ message: "Error al obtener logs" }, { status: 500 })
         }
 
-        return NextResponse.json({ logs, total: count, page, totalPages: Math.ceil(count / limit) })
+        // Fetch user directory for resolving IDs in frontend
+        const { data: users } = await supabaseAdmin
+            .from("usuarios")
+            .select("id, nombre, username")
+
+        const userDirectory = {}
+        users?.forEach(u => {
+            userDirectory[u.id] = u.nombre || u.username
+        })
+
+        return NextResponse.json({
+            logs,
+            total: count,
+            page,
+            totalPages: Math.ceil(count / limit),
+            userDirectory
+        })
     } catch (error) {
         console.error("[Audit API] Exception:", error)
         return NextResponse.json({ message: "Error interno del servidor" }, { status: 500 })
