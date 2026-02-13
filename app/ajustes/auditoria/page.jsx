@@ -138,6 +138,34 @@ function AuditoriaContent() {
                                         displayNew = formatCurrency(newVal)
                                     }
 
+                                    // Special formatting for foto_url
+                                    if (field === 'foto_url') {
+                                        return (
+                                            <li key={field} className="flex flex-col gap-2 p-2 bg-muted/50 rounded border border-border">
+                                                <span className="font-semibold capitalize text-muted-foreground">Foto de Perfil:</span>
+                                                <div className="flex items-center gap-4">
+                                                    <div className="relative group">
+                                                        <span className="absolute -top-2 left-0 text-[10px] bg-red-100 text-red-800 px-1 rounded border border-red-200">Antes</span>
+                                                        {oldVal ? (
+                                                            <img src={oldVal} alt="Foto anterior" className="h-16 w-16 object-cover rounded-full border-2 border-red-200 opacity-60 grayscale" />
+                                                        ) : (
+                                                            <div className="h-16 w-16 rounded-full bg-muted flex items-center justify-center border-2 border-red-200 border-dashed text-xs text-muted-foreground">Sin Foto</div>
+                                                        )}
+                                                    </div>
+                                                    <div className="text-muted-foreground">→</div>
+                                                    <div className="relative group">
+                                                        <span className="absolute -top-2 left-0 text-[10px] bg-green-100 text-green-800 px-1 rounded border border-green-200">Después</span>
+                                                        {newVal ? (
+                                                            <img src={newVal} alt="Nueva foto" className="h-20 w-20 object-cover rounded-full border-2 border-green-500 shadow-sm" />
+                                                        ) : (
+                                                            <div className="h-20 w-20 rounded-full bg-muted flex items-center justify-center border-2 border-green-200 border-dashed text-xs text-muted-foreground">Eliminada</div>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </li>
+                                        )
+                                    }
+
                                     return (
                                         <li key={field} className="flex flex-col sm:flex-row sm:gap-2">
                                             <span className="font-semibold capitalize text-muted-foreground">{field.replace(/_/g, " ")}:</span>
