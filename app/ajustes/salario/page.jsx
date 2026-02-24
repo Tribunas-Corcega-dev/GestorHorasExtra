@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { Layout } from "@/components/Layout"
 
 import { useAuth } from "@/hooks/useAuth"
-import { canManageOvertime } from "@/lib/permissions"
+import { canManageOvertime, isCoordinator } from "@/lib/permissions"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
 
@@ -289,13 +289,15 @@ function SalarioContent() {
                     )}
 
                     <div className="pt-4">
-                        <button
-                            type="submit"
-                            disabled={saving}
-                            className="w-full bg-primary text-primary-foreground py-2 px-4 rounded-md hover:opacity-90 transition-opacity disabled:opacity-50 font-medium"
-                        >
-                            {saving ? "Guardando..." : "Guardar Configuración"}
-                        </button>
+                        {!isCoordinator(user?.rol) && (
+                            <button
+                                type="submit"
+                                disabled={saving}
+                                className="w-full bg-primary text-primary-foreground py-2 px-4 rounded-md hover:opacity-90 transition-opacity disabled:opacity-50 font-medium"
+                            >
+                                {saving ? "Guardando..." : "Guardar Configuración"}
+                            </button>
+                        )}
                     </div>
                 </form>
             </div>

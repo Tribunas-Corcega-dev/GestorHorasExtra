@@ -25,17 +25,35 @@ export async function middleware(request) {
   try {
     const secret = new TextEncoder().encode(JWT_SECRET)
     const { payload } = await jwt.jwtVerify(token, secret)
+    const rol = payload.rol
+    const userId = payload.id?.toString()
     
-    // Authorization / Role-based routing
-    // Proteger /ajustes para todos excepto TALENTO_HUMANO y ASISTENTE_GERENCIA
-    if (pathname.startsWith('/ajustes') && !['TALENTO_HUMANO', 'ASISTENTE_GERENCIA'].includes(payload.rol)) {
-        return NextResponse.redirect(new URL('/dashboard', request.url))
+    // REGLA 1: Ajustes
+    // Permitir acceso a TALENTO_HUMANO, ASISTENTE_GERENCIA, JEFE, COORDINADOR. Operarios no.
+    if (pathname.startsWith('/ajustes')) {
+        const canAccessAjustes = ["TALENTO_HUMANO", "ASISTENTE_GERENCIA", "JEFE", "COORDINADOR"].includes(rol)
+        if (!canAccessAjustes) {
+            return NextResponse.redirect(new URL('/dashboard', request.url))
+        }
     }
     
-    // Proteger las páginas de empleados / horas extra
-    const canManageEmps = ["TALENTO_HUMANO", "ASISTENTE_GERENCIA", "JEFE", "COORDINADOR"].includes(payload.rol)
-    if ((pathname.startsWith('/empleados') || pathname.startsWith('/horas-extra')) && !canManageEmps) {
-        return NextResponse.redirect(new URL('/dashboard', request.url))
+    // REGLA 2: Empleados y Horas Extra
+    if (pathname.startsWith('/empleados') || pathname.startsWith('/horas-extra')) {
+        const isManagementRole = ["TALENTO_HUMANO", "ASISTENTE_GERENCIA", "JEFE", "COORDINADOR"].includes(rol)
+        
+        if (!isManagementRole) {
+            // Lógica para OPERARIO u otros roles no gestores:
+            // Solo pueden ver su propia información si la ruta incluye su ID.
+            // Ejemplo pathname: /horas-extra/123/historial -> segments: ['horas-extra', '123', 'historial']
+            const segments = pathname.split('/').filter(Boolean)
+            const targetId = segments[1] // El ID debe estar en la posición 1
+            
+            // Bloquear si intentan acceder a la lista general (/horas-extra o /empleados)
+            // o si el ID en la URL no coincide con su propio ID
+            if (!targetId || targetId !== userId) {
+                return NextResponse.redirect(new URL('/dashboard', request.url))
+            }
+        }
     }
 
     return NextResponse.next()
