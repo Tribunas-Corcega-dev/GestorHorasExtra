@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { Layout } from "@/components/Layout"
-import { ProtectedRoute } from "@/components/ProtectedRoute"
+
 import { useAuth } from "@/hooks/useAuth"
 import { canManageOvertime, isCoordinator } from "@/lib/permissions"
 import { useRouter } from "next/navigation"
@@ -21,11 +21,11 @@ const AREA_MAPPING = {
 
 export default function HorariosPage() {
     return (
-        <ProtectedRoute>
+        
             <Layout>
                 <HorariosContent />
             </Layout>
-        </ProtectedRoute>
+        
     )
 }
 

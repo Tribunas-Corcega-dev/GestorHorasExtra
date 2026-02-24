@@ -1,26 +1,12 @@
-"use client"
+import { redirect } from "next/navigation"
+import { getServerUser } from "@/lib/serverAuth"
 
-import { useEffect } from "react"
-import { useRouter } from "next/navigation"
-import { useAuth } from "@/hooks/useAuth"
-
-export default function HomePage() {
-  const { user, loading } = useAuth()
-  const router = useRouter()
-
-  useEffect(() => {
-    if (!loading) {
-      if (user) {
-        router.push("/dashboard")
-      } else {
-        router.push("/login")
-      }
-    }
-  }, [user, loading, router])
-
-  return (
-    <div className="flex items-center justify-center min-h-screen">
-      <div className="text-lg">Cargando...</div>
-    </div>
-  )
+export default async function HomePage() {
+  const user = await getServerUser()
+  
+  if (user) {
+    redirect("/dashboard")
+  } else {
+    redirect("/login")
+  }
 }

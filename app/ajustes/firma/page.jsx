@@ -3,17 +3,17 @@
 import { useState, useEffect } from "react"
 import { useAuth } from "@/hooks/useAuth"
 import { Layout } from "@/components/Layout"
-import { ProtectedRoute } from "@/components/ProtectedRoute"
+
 import { SignatureCanvas } from "@/components/SignatureCanvas"
 import { useRouter } from "next/navigation"
 
 export default function FirmaSettingsPage() {
     return (
-        <ProtectedRoute>
+        
             <Layout>
                 <FirmaSettingsContent />
             </Layout>
-        </ProtectedRoute>
+        
     )
 }
 

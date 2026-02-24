@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import { useAuth } from "@/hooks/useAuth"
 import { Layout } from "@/components/Layout"
-import { ProtectedRoute } from "@/components/ProtectedRoute"
+
 import { canManageEmployees, isCoordinator } from "@/lib/permissions"
 import { useRouter } from "next/navigation"
 import { ScheduleSelector } from "@/components/ScheduleSelector"
@@ -11,11 +11,11 @@ import { supabase } from "@/lib/supabaseClient"
 
 export default function NuevoEmpleadoPage() {
   return (
-    <ProtectedRoute>
+    
       <Layout>
         <NuevoEmpleadoContent />
       </Layout>
-    </ProtectedRoute>
+    
   )
 }
 

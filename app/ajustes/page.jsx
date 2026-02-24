@@ -2,7 +2,7 @@
 
 import { useAuth } from "@/hooks/useAuth"
 import { Layout } from "@/components/Layout"
-import { ProtectedRoute } from "@/components/ProtectedRoute"
+
 import { canManageOvertime, isCoordinator } from "@/lib/permissions"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
@@ -10,11 +10,11 @@ import { useEffect } from "react"
 
 export default function AjustesPage() {
     return (
-        <ProtectedRoute>
+        
             <Layout>
                 <AjustesContent />
             </Layout>
-        </ProtectedRoute>
+        
     )
 }
 

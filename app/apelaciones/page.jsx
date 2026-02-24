@@ -3,17 +3,17 @@
 import { useState, useEffect, useRef } from "react"
 import { useAuth } from "@/hooks/useAuth"
 import { Layout } from "@/components/Layout"
-import { ProtectedRoute } from "@/components/ProtectedRoute"
+
 import { useRouter } from "next/navigation"
 import { formatDateForDisplay } from "@/lib/utils"
 
 export default function ApelacionesPage() {
     return (
-        <ProtectedRoute>
+        
             <Layout>
                 <ApelacionesContent />
             </Layout>
-        </ProtectedRoute>
+        
     )
 }
 

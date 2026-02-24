@@ -2,7 +2,7 @@
 
 import { useAuth } from "@/hooks/useAuth"
 import { Layout } from "@/components/Layout"
-import { ProtectedRoute } from "@/components/ProtectedRoute"
+
 import { canManageEmployees, isCoordinator } from "@/lib/permissions"
 import { useRouter, useParams } from "next/navigation"
 import { useEffect } from "react"
@@ -10,11 +10,11 @@ import { EmployeeDetailsView } from "@/app/empleados/components/EmployeeDetailsV
 
 export default function DetalleEmpleadoPage() {
     return (
-        <ProtectedRoute>
+        
             <Layout>
                 <DetalleEmpleadoContent />
             </Layout>
-        </ProtectedRoute>
+        
     )
 }
 

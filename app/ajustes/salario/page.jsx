@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { Layout } from "@/components/Layout"
-import { ProtectedRoute } from "@/components/ProtectedRoute"
+
 import { useAuth } from "@/hooks/useAuth"
 import { canManageOvertime } from "@/lib/permissions"
 import { useRouter } from "next/navigation"
@@ -29,11 +29,11 @@ function parseHHMMToMinutes(timeStr) {
 
 export default function SalarioPage() {
     return (
-        <ProtectedRoute>
+        
             <Layout>
                 <SalarioContent />
             </Layout>
-        </ProtectedRoute>
+        
     )
 }
 

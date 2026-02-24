@@ -1,23 +1,41 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { useAuth } from "@/hooks/useAuth"
 import Link from "next/link"
 import { useRouter } from "next/navigation"
+import useSWR from "swr"
 import { canManageEmployees, canManageOvertime, isCoordinator } from "@/lib/permissions"
 import { calculateTotalMinutes, getIntervals, timeToMinutes, formatMinutesToHHMM } from "@/lib/calculations"
+
+const fetcher = url => fetch(url).then(r => r.json())
 
 export function EmpleadosManager() {
     const { user } = useAuth()
     const router = useRouter()
-    const [empleados, setEmpleados] = useState([])
-    const [loading, setLoading] = useState(true)
+    
+    // Filters state
     const [search, setSearch] = useState("")
     const [areaFilter, setAreaFilter] = useState("")
     const [rolFilter, setRolFilter] = useState("")
-    const [roles, setRoles] = useState([])
-    const [areas, setAreas] = useState([])
     const [sortOrder, setSortOrder] = useState("asc")
+
+    // SWR Data Fetching
+    const { data: roles = [] } = useSWR("/api/roles", fetcher)
+    
+    // Build query params
+    const searchParams = new URLSearchParams()
+    if (search) searchParams.append("search", search)
+    if (areaFilter) searchParams.append("area", areaFilter)
+    if (rolFilter) searchParams.append("rol", rolFilter)
+    
+    const { data: empleados = [], isLoading: loading, mutate: mutateEmpleados } = useSWR(
+        `/api/empleados?${searchParams.toString()}`,
+        fetcher
+    )
+
+    // Derived State (Synchronous during render)
+    const areas = [...new Set(empleados.map((e) => e.area).filter(Boolean))]
 
     // Balance Modal State
     const [showBalanceModal, setShowBalanceModal] = useState(false)
@@ -38,45 +56,6 @@ export function EmpleadosManager() {
         minutos: "",
         motivo: ""
     })
-
-    useEffect(() => {
-        fetchEmpleados()
-        fetchRoles()
-    }, [search, areaFilter, rolFilter])
-
-    async function fetchEmpleados() {
-        try {
-            const params = new URLSearchParams()
-            if (search) params.append("search", search)
-            if (areaFilter) params.append("area", areaFilter)
-            if (rolFilter) params.append("rol", rolFilter)
-
-            const res = await fetch(`/api/empleados?${params}`)
-            if (res.ok) {
-                const data = await res.json()
-                setEmpleados(data)
-                // Extract unique areas
-                const uniqueAreas = [...new Set(data.map((e) => e.area).filter(Boolean))]
-                setAreas(uniqueAreas)
-            }
-        } catch (error) {
-            console.error("Error fetching employees:", error)
-        } finally {
-            setLoading(false)
-        }
-    }
-
-    async function fetchRoles() {
-        try {
-            const res = await fetch("/api/roles")
-            if (res.ok) {
-                const data = await res.json()
-                setRoles(data)
-            }
-        } catch (error) {
-            console.error("Error fetching roles:", error)
-        }
-    }
 
     // --- Balance Logic ---
     async function fetchBalance(employeeId) {

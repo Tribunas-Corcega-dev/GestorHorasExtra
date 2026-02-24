@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import { useAuth } from "@/hooks/useAuth"
 import { Layout } from "@/components/Layout"
-import { ProtectedRoute } from "@/components/ProtectedRoute"
+
 import Link from "next/link"
 
 export default function ReporteHorasExtraPage() {
@@ -81,7 +81,7 @@ export default function ReporteHorasExtraPage() {
     }
 
     return (
-        <ProtectedRoute allowedRoles={["TALENTO_HUMANO", "ASISTENTE_GERENCIA", "COORDINADOR"]}>
+        
             <Layout>
                 <div className="p-6">
                     <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
@@ -178,6 +178,6 @@ export default function ReporteHorasExtraPage() {
                     )}
                 </div>
             </Layout>
-        </ProtectedRoute>
+        
     )
 }

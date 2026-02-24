@@ -3,17 +3,17 @@
 import { useState, useEffect } from "react"
 import { useAuth } from "@/hooks/useAuth"
 import { Layout } from "@/components/Layout"
-import { ProtectedRoute } from "@/components/ProtectedRoute"
+
 import Link from "next/link"
 import { CompensatoryTimeWidget } from "@/app/dashboard/components/CompensatoryTimeWidget"
 
 export default function CoordinadorDashboard() {
     return (
-        <ProtectedRoute allowedRoles={["COORDINADOR"]}>
+        
             <Layout>
                 <DashboardStats title="Dashboard Coordinador" />
             </Layout>
-        </ProtectedRoute>
+        
     )
 }
 

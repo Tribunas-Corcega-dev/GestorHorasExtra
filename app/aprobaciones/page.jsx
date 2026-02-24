@@ -3,18 +3,18 @@
 import { useState, useEffect } from "react"
 import { useAuth } from "@/hooks/useAuth"
 import { Layout } from "@/components/Layout"
-import { ProtectedRoute } from "@/components/ProtectedRoute"
+
 import { canManageOvertime } from "@/lib/permissions"
 import { formatDateForDisplay } from "@/lib/utils"
 import { supabase } from "@/lib/supabaseClient"
 
 export default function AprobacionesPage() {
     return (
-        <ProtectedRoute>
+        
             <Layout>
                 <AprobacionesContent />
             </Layout>
-        </ProtectedRoute>
+        
     )
 }
 

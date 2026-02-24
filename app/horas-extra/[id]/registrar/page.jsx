@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import { useAuth } from "@/hooks/useAuth"
 import { Layout } from "@/components/Layout"
-import { ProtectedRoute } from "@/components/ProtectedRoute"
+
 import { canManageOvertime } from "@/lib/permissions"
 // ... (previous imports)
 import { useRouter, useParams, useSearchParams } from "next/navigation"
@@ -12,11 +12,11 @@ import { calculateOvertimeForDay, getDayId, formatMinutesToHHMM } from "@/hooks/
 
 export default function RegistrarHorasExtraPage() {
     return (
-        <ProtectedRoute>
+        
             <Layout>
                 <RegistrarHorasExtraContent />
             </Layout>
-        </ProtectedRoute>
+        
     )
 }
 

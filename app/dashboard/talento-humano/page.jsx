@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import { useAuth } from "@/hooks/useAuth"
 import { Layout } from "@/components/Layout"
-import { ProtectedRoute } from "@/components/ProtectedRoute"
+
 import Link from "next/link"
 import { CompensatoryTimeWidget } from "@/app/dashboard/components/CompensatoryTimeWidget"
 
@@ -12,11 +12,11 @@ export default function TalentoHumanoDashboard() {
     const title = user?.rol === "ASISTENTE_GERENCIA" ? "Dashboard Asistente de Gerencia" : "Dashboard Talento Humano"
 
     return (
-        <ProtectedRoute allowedRoles={["TALENTO_HUMANO", "ASISTENTE_GERENCIA"]}>
+        
             <Layout>
                 <DashboardStats title={title} />
             </Layout>
-        </ProtectedRoute>
+        
     )
 }
 

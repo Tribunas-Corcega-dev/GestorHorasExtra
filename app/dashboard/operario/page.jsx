@@ -2,17 +2,17 @@
 
 import { useAuth } from "@/hooks/useAuth"
 import { Layout } from "@/components/Layout"
-import { ProtectedRoute } from "@/components/ProtectedRoute"
+
 import { EmployeeDetailsView } from "@/app/empleados/components/EmployeeDetailsView"
 import { CompensatoryTimeWidget } from "@/app/dashboard/components/CompensatoryTimeWidget"
 
 export default function OperarioDashboard() {
     return (
-        <ProtectedRoute allowedRoles={["OPERARIO"]}>
+        
             <Layout>
                 <OperarioContent />
             </Layout>
-        </ProtectedRoute>
+        
     )
 }
 

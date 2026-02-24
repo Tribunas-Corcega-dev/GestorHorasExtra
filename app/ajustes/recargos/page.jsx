@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { Layout } from "@/components/Layout"
-import { ProtectedRoute } from "@/components/ProtectedRoute"
+
 import { useAuth } from "@/hooks/useAuth"
 import { canManageOvertime, isCoordinator } from "@/lib/permissions"
 import { useRouter } from "next/navigation"
@@ -10,11 +10,11 @@ import Link from "next/link"
 
 export default function RecargosPage() {
     return (
-        <ProtectedRoute>
+        
             <Layout>
                 <RecargosContent />
             </Layout>
-        </ProtectedRoute>
+        
     )
 }
 

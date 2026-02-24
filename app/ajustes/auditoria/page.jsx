@@ -3,16 +3,16 @@
 import { useState, useEffect } from "react"
 import { useAuth } from "@/hooks/useAuth"
 import { Layout } from "@/components/Layout"
-import { ProtectedRoute } from "@/components/ProtectedRoute"
+
 import { useRouter } from "next/navigation"
 
 export default function AuditoriaPage() {
     return (
-        <ProtectedRoute>
+        
             <Layout>
                 <AuditoriaContent />
             </Layout>
-        </ProtectedRoute>
+        
     )
 }
 

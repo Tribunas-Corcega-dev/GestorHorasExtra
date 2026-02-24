@@ -2,7 +2,7 @@
 
 import { useAuth } from "@/hooks/useAuth"
 import { Layout } from "@/components/Layout"
-import { ProtectedRoute } from "@/components/ProtectedRoute"
+
 import { canManageEmployees, isWorker } from "@/lib/permissions"
 import { useRouter } from "next/navigation"
 import { useEffect } from "react"
@@ -10,11 +10,11 @@ import { EmpleadosManager } from "@/app/empleados/components/EmpleadosManager"
 
 export default function HorasExtraPage() {
     return (
-        <ProtectedRoute>
+        
             <Layout>
                 <HorasExtraContent />
             </Layout>
-        </ProtectedRoute>
+        
     )
 }
 
