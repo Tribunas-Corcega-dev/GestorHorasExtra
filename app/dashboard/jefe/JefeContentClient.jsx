@@ -1,11 +1,24 @@
 "use client"
 
-import { useState } from "react"
+import { useMemo, useState } from "react"
 import { useAuth } from "@/hooks/useAuth"
 import { ApprovalFormatModal } from "./components/ApprovalFormatModal"
 import useSWR from "swr"
 
-const fetcher = (url) => fetch(url).then((res) => res.json())
+const fetcher = async (url) => {
+    const res = await fetch(url)
+    const data = await res.json()
+
+    if (!res.ok) {
+        throw new Error(data?.message || `Request failed: ${res.status}`)
+    }
+
+    return data
+}
+
+function toArray(value) {
+    return Array.isArray(value) ? value : []
+}
 
 export function JefeContentClient({ initialPeriod }) {
     const { user } = useAuth()
@@ -25,17 +38,21 @@ export function JefeContentClient({ initialPeriod }) {
 
     const isLoading = loadingEmps || loadingApps || loadingActive
 
+    const empsList = useMemo(() => toArray(emps), [emps])
+    const appsList = useMemo(() => toArray(apps), [apps])
+    const activeIdsList = useMemo(() => toArray(activeIds), [activeIds])
+
     // js-index-maps: Create a Map for O(1) lookups instead of .find() in loops
     const approvalsMap = new Map()
-    apps.forEach(app => {
+    appsList.forEach(app => {
         approvalsMap.set(app.empleado_id, app)
     })
 
     // js-set-map-lookups: Create a Set for active ids
-    const activeIdsSet = new Set(activeIds)
+    const activeIdsSet = new Set(activeIdsList)
 
     // js-combine-iterations: Filter employees efficiently
-    const activeEmployees = emps.filter(
+    const activeEmployees = empsList.filter(
         e => activeIdsSet.has(e.id) || approvalsMap.has(e.id)
     )
 
