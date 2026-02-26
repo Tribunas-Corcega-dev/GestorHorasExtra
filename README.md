@@ -1,108 +1,110 @@
-# Gestor de Horas Extra - Tribunas Córcega
+# Gestor de Horas Extra - Tribunas Corcega
 
-Sistema integral para la gestión de jornadas laborales, horas extra y nómina, diseñado para optimizar el flujo de aprobación y reporte entre empleados, coordinadores y la gerencia.
+Sistema para gestion de jornadas, horas extra, compensatorios, aprobaciones y cierres quincenales.
 
-## 🚀 Tecnologías Principales
+## Resumen rapido
 
-- **Framework**: [Next.js 16](https://nextjs.org/) (App Router, Turbopack)
-- **Lenguaje**: JavaScript (ES6+)
-- **Base de Datos**: [Supabase](https://supabase.com/) (PostgreSQL) + Prisma ORM (migración incremental)
-- **Autenticación**: JWT + credenciales locales en tabla `usuarios`
-- **UI/UX**: 
-  - [Tailwind CSS v4](https://tailwindcss.com/)
-  - [Shadcn UI](https://ui.shadcn.com/) (Radix Primitives)
-  - [Lucide React](https://lucide.dev/) (Iconografía)
-- **Manejo de Fechas**: `dayjs` (anteriormente `date-fns` en migración)
-- **Validación**: `zod` + `react-hook-form`
+- Arquitectura: monolito Next.js (App Router) con frontend + backend en `app/` y `app/api/`
+- Base de datos: PostgreSQL (Supabase) con Prisma como ORM principal
+- Autenticacion: JWT con usuarios locales en tabla `usuarios` (no Supabase Auth)
+- Almacenamiento de archivos: Supabase Storage (`fotos_trabajadores` y `apelaciones`)
 
-## 👥 Gestión de Roles y Permisos
+## Stack tecnico
 
-El sistema implementa un control de acceso basado en roles (`RBAC`) definido en `lib/permissions.js`.
+- Next.js 16, React 19, Tailwind 4, Shadcn UI
+- Prisma 7 + `@prisma/adapter-pg` + `pg`
+- Validacion y forms: `zod` + `react-hook-form`
+- Fecha/hora: `dayjs`
 
-| Rol | Descripción | Permisos Clave |
-| :--- | :--- | :--- |
-| **ADMINISTRADOR** | Superusuario del sistema | Acceso total a configuraciones y base de datos. |
-| **GERENCIA** | Alta dirección | Visualización global, reportes financieros. |
-| **TALENTO_HUMANO** | Gestión de personal | ABM de empleados, aprobación final de horas, reportes de nómina. |
-| **JEFE** | Supervisores de área | Aprobación de horas de su equipo, visualización de reportes de área. |
-| **COORDINADOR** | Líderes operativos | Gestión diaria de jornadas, validación inicial de horas extra. |
-| **OPERARIO** | Empleados base | Registro de entrada/salida, visualización de historial propio. |
+## Documentacion adicional
 
-## 🛠️ Scripts de Mantenimiento
+- Arquitectura: `docs/ARCHITECTURE.md`
+- API (rutas principales y contratos): `docs/API_REFERENCE.md`
+- Operacion y mantenimiento: `docs/OPERATIONS.md`
 
-El proyecto incluye herramientas de administración en la carpeta `scripts/` para tareas de base de datos y depuración:
+## Roles y permisos
 
-- `force_populate_resumen.js`: Recalcula y llena la tabla `resumen_horas_extra` con los acumulados históricos. Útil tras correcciones manuales en jornadas.
-- `check_schema.js`: Verifica la integridad del esquema de la base de datos.
-- `debug_data.js`: Script para inspeccionar el estado actual de los datos sin acceder a la DB directamente.
-- `create_automatic_balance_trigger.sql`: Define los triggers de PostgreSQL para actualizaciones automáticas.
-- `add_performance_and_integrity_indexes.sql`: Agrega índices para optimizar consultas críticas y un índice único parcial para evitar solicitudes activas duplicadas por día (si no hay datos conflictivos).
-- `cleanup_duplicate_active_requests.sql`: Script de diagnóstico y limpieza opcional para solicitudes activas duplicadas por usuario/día.
+Las reglas estan centralizadas en `lib/permissions.js`.
 
-Las migraciones SQL versionadas para Prisma se encuentran en `prisma/migrations/`.
+| Rol | Capacidad principal |
+| :-- | :-- |
+| `OPERARIO` | Consulta su historial y solicita compensatorios |
+| `COORDINADOR` | Gestion diaria de jornadas y solicitudes |
+| `JEFE` | Aprobaciones de periodos y supervision |
+| `TALENTO_HUMANO` | Gestion de personal, cierres y reportes |
+| `ASISTENTE_GERENCIA` | Capacidades de apoyo administrativo |
 
-## 📂 Estructura del Proyecto
+## Instalacion
 
-GestorHorasExtra/
-├── app/                        # Next.js App Router
-│   ├── ajustes/                # Configuración de usuario (Firma digital, etc.)
-│   ├── apelaciones/            # Gestión de reclamos y correcciones de horas
-│   ├── api/                    # API Routes (Backend logic)
-│   │   ├── aprobaciones/       # Endpoints de firma digital
-│   │   ├── cierre/             # Lógica de cierre de quincena
-│   │   ├── jornadas/           # CRUD de jornadas laborales
-│   │   └── reportes/           # Generación de datos para dashboards
-│   ├── dashboard/              # Vistas protegidas por rol
-│   │   ├── jefe/               # Panel de Aprobación (Gerencia/Jefes)
-│   │   ├── talento-humano/     # Panel de RRHH
-│   │   ├── coordinador/        # Panel de Coordinación
-│   │   └── operario/           # Vista de empleado
-│   ├── empleados/              # Gestión de usuarios (CRUD)
-│   ├── horas-extra/            # Flujo de registro y visualización de horas
-│   └── login/                  # Autenticación
-├── components/                 # Componentes React
-│   ├── ui/                     # Primitivas Shadcn UI (Button, Card, Dialog...)
-│   ├── Layout.js               # Layout principal con navegación lateral
-│   ├── ScheduleSelector.jsx    # Componente complejo de selección de horas
-│   └── SignatureCanvas.jsx     # Pad de firma digital
-├── context/                    # React Context (AuthContext)
-├── hooks/                      # Custom Hooks (useAuth)
-├── lib/                        # Lógica de negocio y utilidades
-│   ├── calculations.js         # MOTOR DE CÁLCULO (Horas extra, recargos, festivos)
-│   ├── permissions.js          # Definiciones de roles y acceso (RBAC)
-│   ├── supabaseClient.js       # Cliente Supabase (legacy + storage)
-│   └── prisma.js               # Cliente Prisma (nuevo)
-├── scripts/                    # Herramientas de administración (Node.js)
-└── public/                     # Assets estáticos (Logos, iconos)
+1. Clonar repo
 
-## ⚙️ Instalación y Configuración
+```bash
+git clone https://github.com/Tribunas-Corcega-dev/GestorHorasExtra.git
+cd GestorHorasExtra
+```
 
-1. **Clonar repositorio**
-   ```bash
-   git clone https://github.com/Tribunas-Corcega-dev/GestorHorasExtra.git
-   cd GestorHorasExtra
-   ```
+2. Instalar dependencias
 
-2. **Instalar dependencias**
-   ```bash
-   npm install
-   ```
+```bash
+npm install --legacy-peer-deps
+```
 
-3. **Variables de Entorno**
-   Crear archivo `.env` en la raíz:
-   ```env
-   NEXT_PUBLIC_SUPABASE_URL=https://tu-proyecto.supabase.co
-   NEXT_PUBLIC_SUPABASE_ANON_KEY=tu-anon-key
-   SUPABASE_SERVICE_ROLE_KEY=tu-service-role-key
-   JWT_SECRET=tu-secreto-seguro
-   ```
+3. Configurar `.env`
 
-4. **Ejecutar en desarrollo**
-   ```bash
-   npm run dev
-   ```
+```env
+NEXT_PUBLIC_SUPABASE_URL=https://tu-proyecto.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=tu-anon-key
+SUPABASE_SERVICE_ROLE_KEY=tu-service-role-key
 
-## 📝 Notas de Desarrollo
+JWT_SECRET=tu-secreto-seguro
 
-- **Manejo de Horarios**: El sistema calcula automáticamente recargos nocturnos, dominicales y festivos basándose en la legislación laboral vigente configurada en los utilitarios de fecha.
-- **Seguridad**: Todas las rutas de API y Páginas están protegidas mediante `middleware` y verificaciones de sesión en servidor (`VerifyToken`).
+DATABASE_URL=postgresql://...   # recomendado para runtime Prisma
+DIRECT_URL=postgresql://...     # recomendado para introspeccion/migraciones Prisma
+```
+
+4. Preparar Prisma
+
+```bash
+npm run prisma:generate
+```
+
+5. Ejecutar en desarrollo
+
+```bash
+npm run dev
+```
+
+## Scripts utiles
+
+- `npm run dev`: servidor Next.js (frontend + API)
+- `npm run lint`: linting del proyecto
+- `npm run build`: build de produccion
+- `npm run prisma:pull`: introspeccion del esquema desde DB
+- `npm run prisma:generate`: regenerar cliente Prisma
+- `npm run prisma:studio`: explorador visual de datos
+
+## Estado actual de datos
+
+- Rutas de negocio usan Prisma para consultas y escrituras en Postgres
+- Se mantiene Supabase solo para Storage y firmado de URLs de archivos
+
+## Mantenimiento DB
+
+Scripts en `scripts/`:
+
+- `add_performance_and_integrity_indexes.sql`
+- `cleanup_duplicate_active_requests.sql`
+- `create_automatic_balance_trigger.sql`
+- `force_populate_resumen.js`
+- `check_schema.js`
+- `debug_data.js`
+
+Migraciones versionadas:
+
+- `prisma/migrations/`
+
+## Notas de desarrollo
+
+- Si hay cambios en `prisma/schema.prisma`, vuelve a correr `npm run prisma:generate`
+- Para cambios de estructura de DB, usa migraciones SQL versionadas
+- Todas las rutas protegidas validan sesion JWT y permisos por rol
