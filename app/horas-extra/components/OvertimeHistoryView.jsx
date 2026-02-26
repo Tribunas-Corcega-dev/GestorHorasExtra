@@ -40,6 +40,14 @@ function formatCurrency(value) {
     }).format(value)
 }
 
+function parseDateOnlyLocal(dateValue) {
+    if (!dateValue) return null
+    if (dateValue instanceof Date) return dateValue
+    const [y, m, d] = String(dateValue).split("-").map(Number)
+    if (!y || !m || !d) return null
+    return new Date(y, m - 1, d)
+}
+
 export function OvertimeHistoryView({ employeeId, showBackButton = true }) {
     const { user } = useAuth()
     const router = useRouter()
@@ -268,7 +276,8 @@ export function OvertimeHistoryView({ employeeId, showBackButton = true }) {
     // Filter jornadas based on period
     const filteredJornadas = jornadas.filter(j => {
         if (selectedPeriod === "all") return true
-        const jDate = new Date(j.fecha)
+        const jDate = parseDateOnlyLocal(j.fecha)
+        if (!jDate) return false
         const [year, month, quincena] = selectedPeriod.split('-').map(Number)
 
         if (jDate.getFullYear() !== year || jDate.getMonth() !== month) return false
