@@ -1,29 +1,7 @@
 import { NextResponse } from "next/server"
-import { supabase } from "@/lib/supabaseClient"
-import { createClient } from "@supabase/supabase-js"
 import { canManageEmployees } from "@/lib/permissions"
-import jwt from "jsonwebtoken"
-import dayjs from "dayjs"
-
-const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key-change-in-production"
-const SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY // Fallback but warn
-
-// Create a Supabase client with the Service Role Key to bypass RLS
-const supabaseAdmin = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY)
-
-async function getUserFromRequest(request) {
-    const token = request.cookies.get("auth_token")?.value
-    if (!token) return null
-
-    try {
-        const decoded = jwt.verify(token, JWT_SECRET)
-        // Use admin client to ensure we can verify user even if RLS is strict
-        const { data: user } = await supabaseAdmin.from("usuarios").select("*").eq("id", decoded.id).single()
-        return user
-    } catch {
-        return null
-    }
-}
+import { getUserFromRequest } from "@/lib/apiAuth"
+import { prisma } from "@/lib/prisma"
 
 export async function GET(request) {
     try {
@@ -46,27 +24,30 @@ export async function GET(request) {
         // Note: startDate and endDate are ignored for the totals because we are using the accumulated lifetime summary from resumen_horas_extra, as requested.
 
         // 1. Fetch employees
-        let employeesQuery = supabaseAdmin
-            .from("usuarios")
-            .select("id, nombre, cc, area, rol, jornada_fija_hhmm, bolsa_horas_minutos")
-            .eq("is_active", true)
-            .neq("rol", "ADMINISTRADOR") // Exclude admins if needed
-
-        if (area) {
-            employeesQuery = employeesQuery.eq("area", area)
-        }
-
-        const { data: employees, error: employeesError } = await employeesQuery
-
-        if (employeesError) throw employeesError
+        const employees = await prisma.usuarios.findMany({
+            where: {
+                is_active: true,
+                rol: { not: "ADMINISTRADOR" },
+                ...(area ? { area } : {}),
+            },
+            select: {
+                id: true,
+                nombre: true,
+                cc: true,
+                area: true,
+                rol: true,
+                jornada_fija_hhmm: true,
+                bolsa_horas_minutos: true,
+            }
+        })
 
         // 2. Fetch all summaries (snapshot of current debt/credit)
-        const { data: summaries, error: summariesError } = await supabaseAdmin
-            .from("resumen_horas_extra")
-            .select("usuario_id, acumulado_hhmm")
-
-
-        if (summariesError) throw summariesError
+        const summaries = await prisma.resumen_horas_extra.findMany({
+            select: {
+                usuario_id: true,
+                acumulado_hhmm: true,
+            }
+        })
 
         // Helper to format values
         const formatVal = (val) => Number(val) || 0;

@@ -1,22 +1,8 @@
 
 import { NextResponse } from "next/server"
-import { supabase } from "@/lib/supabaseClient"
 import { canSeeAllEmployees } from "@/lib/permissions"
-import jwt from "jsonwebtoken"
-
-const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key-change-in-production"
-
-async function getUserFromRequest(request) {
-    const token = request.cookies.get("auth_token")?.value
-    if (!token) return null
-    try {
-        const decoded = jwt.verify(token, JWT_SECRET)
-        const { data: user } = await supabase.from("usuarios").select("*").eq("id", decoded.id).single()
-        return user
-    } catch {
-        return null
-    }
-}
+import { getUserFromRequest } from "@/lib/apiAuth"
+import { prisma } from "@/lib/prisma"
 
 export async function GET(request) {
     const { searchParams } = new URL(request.url)
@@ -34,13 +20,18 @@ export async function GET(request) {
 
     try {
         // Fetch specific columns to check for overtime
-        const { data: jornadas, error } = await supabase
-            .from("jornadas")
-            .select("empleado_id, horas_extra_hhmm")
-            .gte("fecha", inicio)
-            .lte("fecha", fin)
-
-        if (error) throw error
+        const jornadas = await prisma.jornadas.findMany({
+            where: {
+                fecha: {
+                    gte: new Date(`${inicio}T00:00:00.000Z`),
+                    lte: new Date(`${fin}T23:59:59.999Z`),
+                },
+            },
+            select: {
+                empleado_id: true,
+                horas_extra_hhmm: true,
+            },
+        })
 
         // Filter and get unique employee IDs
         const activeEmployeeIds = new Set()

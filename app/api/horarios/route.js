@@ -1,160 +1,110 @@
 import { NextResponse } from "next/server"
-import jwt from "jsonwebtoken"
-import { supabase } from "@/lib/supabaseClient"
 import { canManageOvertime } from "@/lib/permissions"
 import { calculateScheduleSurcharges } from "@/lib/calculations"
 import { logAudit } from "@/lib/logger"
+import { getUserFromRequest } from "@/lib/apiAuth"
+import { prisma } from "@/lib/prisma"
 
-const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key-change-in-production"
-
-async function getUserFromRequest(request) {
-    const token = request.cookies.get("auth_token")?.value
-    if (!token) return null
-
-    try {
-        const decoded = jwt.verify(token, JWT_SECRET)
-        const { data: user } = await supabase.from("usuarios").select("*").eq("id", decoded.id).single()
-        return user
-    } catch {
-        return null
-    }
-}
+const ALLOWED_COLUMNS = [
+  "h_acueducto",
+  "h_alcantarillado",
+  "h_aseo",
+  "h_op_bocatoma",
+  "h_admin",
+  "h_planta_tratamiento",
+  "h_planta_nocturna",
+]
 
 export async function GET(request) {
-    try {
-        const user = await getUserFromRequest(request)
+  try {
+    const user = await getUserFromRequest(request)
 
-        if (!user || !canManageOvertime(user.rol)) {
-            return NextResponse.json({ message: "No autorizado" }, { status: 403 })
-        }
-
-        // Fetch the single record (assuming singleton)
-        const { data, error } = await supabase
-            .from("horarios_base")
-            .select("*")
-            .limit(1)
-            .single()
-
-        if (error && error.code !== 'PGRST116') {
-            console.error("Error fetching horarios:", error)
-            return NextResponse.json({ message: "Error al obtener horarios" }, { status: 500 })
-        }
-
-        return NextResponse.json(data || {})
-    } catch (error) {
-        console.error("Error in GET horarios:", error)
-        return NextResponse.json({ message: "Error interno del servidor" }, { status: 500 })
+    if (!user || !canManageOvertime(user.rol)) {
+      return NextResponse.json({ message: "No autorizado" }, { status: 403 })
     }
+
+    const data = await prisma.horarios_base.findFirst()
+    return NextResponse.json(data || {})
+  } catch (error) {
+    console.error("Error in GET horarios:", error)
+    return NextResponse.json({ message: "Error interno del servidor" }, { status: 500 })
+  }
 }
 
 export async function POST(request) {
-    try {
-        const user = await getUserFromRequest(request)
+  try {
+    const user = await getUserFromRequest(request)
 
-        if (!user || !canManageOvertime(user.rol)) {
-            return NextResponse.json({ message: "No autorizado" }, { status: 403 })
-        }
-
-        const body = await request.json()
-        const { areaColumn, schedule, id } = body
-
-        if (!areaColumn || !schedule) {
-            return NextResponse.json({ message: "Faltan datos requeridos" }, { status: 400 })
-        }
-
-        // Validate allowed columns to prevent SQL injection or bad updates
-        const allowedColumns = [
-            "h_acueducto",
-            "h_alcantarillado",
-            "h_aseo",
-            "h_op_bocatoma",
-            "h_admin",
-            "h_planta_tratamiento",
-            "h_planta_nocturna"
-        ]
-
-        if (!allowedColumns.includes(areaColumn)) {
-            return NextResponse.json({ message: "Área no válida" }, { status: 400 })
-        }
-
-        // Fetch Night Shift Parameters
-        let nightShiftRange = { start: "21:00", end: "06:00" } // Default
-        const currentYear = new Date().getFullYear().toString()
-
-        let { data: params } = await supabase
-            .from("parametros")
-            .select("jornada_nocturna")
-            .eq("anio_vigencia", currentYear)
-            .single()
-
-        // Fallback to latest if current year not found
-        if (!params) {
-            const { data: latest } = await supabase
-                .from("parametros")
-                .select("jornada_nocturna")
-                .order("anio_vigencia", { ascending: false })
-                .limit(1)
-                .single()
-            params = latest
-        }
-
-        if (params && params.jornada_nocturna) {
-            nightShiftRange = params.jornada_nocturna
-        }
-
-        // Calculate Surcharges for the schedule
-        const enrichedSchedule = calculateScheduleSurcharges(schedule, nightShiftRange)
-
-        let result
-        if (id) {
-            // Update existing
-            result = await supabase
-                .from("horarios_base")
-                .update({ [areaColumn]: enrichedSchedule })
-                .eq("id", id)
-                .select()
-                .single()
-        } else {
-            // Insert new (check if exists first)
-            const { data: existing } = await supabase.from("horarios_base").select("id").limit(1).single()
-
-            if (existing) {
-                result = await supabase
-                    .from("horarios_base")
-                    .update({ [areaColumn]: enrichedSchedule })
-                    .eq("id", existing.id)
-                    .select()
-                    .single()
-            } else {
-                result = await supabase
-                    .from("horarios_base")
-                    .insert([{ [areaColumn]: enrichedSchedule }])
-                    .select()
-                    .single()
-            }
-        }
-
-        if (result.error) {
-            console.error("Error saving horario:", result.error)
-            return NextResponse.json({ message: "Error al guardar horario" }, { status: 500 })
-        }
-
-        // Audit Log
-        await logAudit({
-            action: "UPDATE",
-            entity: "CONFIGURACION",
-            entityId: result.data.id,
-            details: {
-                target: "HORARIO_BASE",
-                area: areaColumn,
-                nuevo_horario: enrichedSchedule
-            },
-            user: user
-        })
-
-        return NextResponse.json(result.data)
-    } catch (error) {
-        console.error("Error in POST horarios:", error)
-        return NextResponse.json({ message: "Error interno del servidor" }, { status: 500 })
+    if (!user || !canManageOvertime(user.rol)) {
+      return NextResponse.json({ message: "No autorizado" }, { status: 403 })
     }
+
+    const body = await request.json()
+    const { areaColumn, schedule, id } = body
+
+    if (!areaColumn || !schedule) {
+      return NextResponse.json({ message: "Faltan datos requeridos" }, { status: 400 })
+    }
+
+    if (!ALLOWED_COLUMNS.includes(areaColumn)) {
+      return NextResponse.json({ message: "Area no valida" }, { status: 400 })
+    }
+
+    let nightShiftRange = { start: "21:00", end: "06:00" }
+    const currentYear = new Date().getFullYear().toString()
+
+    let params = await prisma.parametros.findFirst({
+      where: { anio_vigencia: currentYear },
+      select: { jornada_nocturna: true },
+    })
+
+    if (!params) {
+      params = await prisma.parametros.findFirst({
+        orderBy: { anio_vigencia: "desc" },
+        select: { jornada_nocturna: true },
+      })
+    }
+
+    if (params?.jornada_nocturna) {
+      nightShiftRange = params.jornada_nocturna
+    }
+
+    const enrichedSchedule = calculateScheduleSurcharges(schedule, nightShiftRange)
+    const dynamicData = { [areaColumn]: enrichedSchedule }
+
+    let result
+    if (id) {
+      result = await prisma.horarios_base.update({
+        where: { id },
+        data: dynamicData,
+      })
+    } else {
+      const existing = await prisma.horarios_base.findFirst({ select: { id: true } })
+      if (existing) {
+        result = await prisma.horarios_base.update({
+          where: { id: existing.id },
+          data: dynamicData,
+        })
+      } else {
+        result = await prisma.horarios_base.create({ data: dynamicData })
+      }
+    }
+
+    await logAudit({
+      action: "UPDATE",
+      entity: "CONFIGURACION",
+      entityId: result.id,
+      details: {
+        target: "HORARIO_BASE",
+        area: areaColumn,
+        nuevo_horario: enrichedSchedule,
+      },
+      user,
+    })
+
+    return NextResponse.json(result)
+  } catch (error) {
+    console.error("Error in POST horarios:", error)
+    return NextResponse.json({ message: "Error interno del servidor" }, { status: 500 })
+  }
 }

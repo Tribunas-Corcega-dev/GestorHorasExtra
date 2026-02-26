@@ -6,8 +6,8 @@ Sistema integral para la gestión de jornadas laborales, horas extra y nómina, 
 
 - **Framework**: [Next.js 16](https://nextjs.org/) (App Router, Turbopack)
 - **Lenguaje**: JavaScript (ES6+)
-- **Base de Datos**: [Supabase](https://supabase.com/) (PostgreSQL)
-- **Autenticación**: JWT + Supabase Auth (Custom Implementation)
+- **Base de Datos**: [Supabase](https://supabase.com/) (PostgreSQL) + Prisma ORM (migración incremental)
+- **Autenticación**: JWT + credenciales locales en tabla `usuarios`
 - **UI/UX**: 
   - [Tailwind CSS v4](https://tailwindcss.com/)
   - [Shadcn UI](https://ui.shadcn.com/) (Radix Primitives)
@@ -36,6 +36,10 @@ El proyecto incluye herramientas de administración en la carpeta `scripts/` par
 - `check_schema.js`: Verifica la integridad del esquema de la base de datos.
 - `debug_data.js`: Script para inspeccionar el estado actual de los datos sin acceder a la DB directamente.
 - `create_automatic_balance_trigger.sql`: Define los triggers de PostgreSQL para actualizaciones automáticas.
+- `add_performance_and_integrity_indexes.sql`: Agrega índices para optimizar consultas críticas y un índice único parcial para evitar solicitudes activas duplicadas por día (si no hay datos conflictivos).
+- `cleanup_duplicate_active_requests.sql`: Script de diagnóstico y limpieza opcional para solicitudes activas duplicadas por usuario/día.
+
+Las migraciones SQL versionadas para Prisma se encuentran en `prisma/migrations/`.
 
 ## 📂 Estructura del Proyecto
 
@@ -66,7 +70,8 @@ GestorHorasExtra/
 ├── lib/                        # Lógica de negocio y utilidades
 │   ├── calculations.js         # MOTOR DE CÁLCULO (Horas extra, recargos, festivos)
 │   ├── permissions.js          # Definiciones de roles y acceso (RBAC)
-│   └── supabaseClient.js       # Cliente DB
+│   ├── supabaseClient.js       # Cliente Supabase (legacy + storage)
+│   └── prisma.js               # Cliente Prisma (nuevo)
 ├── scripts/                    # Herramientas de administración (Node.js)
 └── public/                     # Assets estáticos (Logos, iconos)
 

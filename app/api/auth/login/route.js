@@ -1,9 +1,8 @@
 import { NextResponse } from "next/server"
 import bcrypt from "bcryptjs"
 import jwt from "jsonwebtoken"
-import { supabase } from "@/lib/supabaseClient"
-
-const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key-change-in-production"
+import { JWT_SECRET } from "@/lib/env"
+import { prisma } from "@/lib/prisma"
 
 export async function POST(request) {
   try {
@@ -14,9 +13,9 @@ export async function POST(request) {
     }
 
     // Buscar usuario por username
-    const { data: user, error } = await supabase.from("usuarios").select("*").eq("username", username).single()
+    const user = await prisma.usuarios.findUnique({ where: { username } })
 
-    if (error || !user) {
+    if (!user) {
       return NextResponse.json({ message: "Usuario o contraseña incorrectos" }, { status: 401 })
     }
 
@@ -44,7 +43,7 @@ export async function POST(request) {
       id: user.id,
       username: user.username,
       nombre: user.nombre,
-      cargo: user.cargo,
+      cargo: null,
       area: user.area,
       rol: user.rol,
     })

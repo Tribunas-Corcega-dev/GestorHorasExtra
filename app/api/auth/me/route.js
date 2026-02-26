@@ -1,8 +1,6 @@
 import { NextResponse } from "next/server"
-import jwt from "jsonwebtoken"
-import { supabase } from "@/lib/supabaseClient"
-
-const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key-change-in-production"
+import { getAuthPayloadFromRequest } from "@/lib/apiAuth"
+import { prisma } from "@/lib/prisma"
 
 export async function GET(request) {
   try {
@@ -12,22 +10,23 @@ export async function GET(request) {
       return NextResponse.json({ message: "No autenticado" }, { status: 401 })
     }
 
-    // Verificar token
-    let decoded
-    try {
-      decoded = jwt.verify(token, JWT_SECRET)
-    } catch (error) {
+    const decoded = await getAuthPayloadFromRequest(request)
+    if (!decoded) {
       return NextResponse.json({ message: "Token inválido o expirado" }, { status: 401 })
     }
 
-    // Obtener usuario actualizado de la base de datos
-    const { data: user, error } = await supabase
-      .from("usuarios")
-      .select("id, username, nombre, area, rol")
-      .eq("id", decoded.id)
-      .single()
+    const user = await prisma.usuarios.findUnique({
+      where: { id: decoded.id },
+      select: {
+        id: true,
+        username: true,
+        nombre: true,
+        area: true,
+        rol: true,
+      },
+    })
 
-    if (error || !user) {
+    if (!user) {
       return NextResponse.json({ message: "Usuario no encontrado" }, { status: 401 })
     }
 

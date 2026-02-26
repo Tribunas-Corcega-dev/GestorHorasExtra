@@ -1,210 +1,157 @@
 import { NextResponse } from "next/server"
-import jwt from "jsonwebtoken"
-import { supabase } from "@/lib/supabaseClient"
 import { canManageOvertime } from "@/lib/permissions"
 import { calculateEmployeeWorkValues } from "@/lib/calculations"
 import { logAudit } from "@/lib/logger"
-
-const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key-change-in-production"
-
-async function getUserFromRequest(request) {
-    const token = request.cookies.get("auth_token")?.value
-    if (!token) return null
-
-    try {
-        const decoded = jwt.verify(token, JWT_SECRET)
-        const { data: user } = await supabase.from("usuarios").select("*").eq("id", decoded.id).single()
-        return user
-    } catch {
-        return null
-    }
-}
+import { getUserFromRequest } from "@/lib/apiAuth"
+import { prisma } from "@/lib/prisma"
 
 export async function GET(request) {
-    try {
-        const user = await getUserFromRequest(request)
+  try {
+    const user = await getUserFromRequest(request)
 
-        if (!user || !canManageOvertime(user.rol)) {
-            return NextResponse.json({ message: "No autorizado" }, { status: 403 })
-        }
-
-        const { searchParams } = new URL(request.url)
-        const year = searchParams.get("year") || new Date().getFullYear().toString()
-
-        // Fetch parameters for the specific year
-        const { data, error } = await supabase
-            .from("parametros")
-            .select("*")
-            .eq("anio_vigencia", year)
-            .single()
-
-        if (error && error.code !== 'PGRST116') {
-            console.error("Error fetching parameters:", error)
-            return NextResponse.json({ message: "Error al obtener parámetros" }, { status: 500 })
-        }
-
-        // If not found for requested year, maybe try to return latest? 
-        // Or just return empty so UI knows to create
-        if (!data) {
-            // Optional: Fallback to getting the latest configuration to pre-fill the form
-            const { data: latest } = await supabase
-                .from("parametros")
-                .select("*")
-                .order("anio_vigencia", { ascending: false })
-                .limit(1)
-                .single()
-
-            if (latest) return NextResponse.json(latest)
-            return NextResponse.json({})
-        }
-
-        return NextResponse.json(data)
-    } catch (error) {
-        console.error("Error in GET parametros:", error)
-        return NextResponse.json({ message: "Error interno del servidor" }, { status: 500 })
+    if (!user || !canManageOvertime(user.rol)) {
+      return NextResponse.json({ message: "No autorizado" }, { status: 403 })
     }
+
+    const { searchParams } = new URL(request.url)
+    const year = searchParams.get("year") || new Date().getFullYear().toString()
+
+    const data = await prisma.parametros.findFirst({
+      where: { anio_vigencia: year },
+    })
+
+    if (!data) {
+      const latest = await prisma.parametros.findFirst({
+        orderBy: { anio_vigencia: "desc" },
+      })
+
+      if (latest) return NextResponse.json(latest)
+      return NextResponse.json({})
+    }
+
+    return NextResponse.json(data)
+  } catch (error) {
+    console.error("Error in GET parametros:", error)
+    return NextResponse.json({ message: "Error interno del servidor" }, { status: 500 })
+  }
 }
 
 export async function POST(request) {
-    try {
-        const user = await getUserFromRequest(request)
+  try {
+    const user = await getUserFromRequest(request)
 
-        if (!user || !canManageOvertime(user.rol)) {
-            return NextResponse.json({ message: "No autorizado" }, { status: 403 })
-        }
+    if (!user || !canManageOvertime(user.rol)) {
+      return NextResponse.json({ message: "No autorizado" }, { status: 403 })
+    }
 
-        const body = await request.json()
-        const { salario_minimo, anio_vigencia, jornada_nocturna, limite_bolsa_horas, fecha_aplicacion } = body
+    const body = await request.json()
+    const { salario_minimo, anio_vigencia, jornada_nocturna, limite_bolsa_horas, fecha_aplicacion } = body
 
-        if (!anio_vigencia) {
-            return NextResponse.json({ message: "Faltan datos requeridos (Año de Vigencia)" }, { status: 400 })
-        }
+    if (!anio_vigencia) {
+      return NextResponse.json({ message: "Faltan datos requeridos (Año de Vigencia)" }, { status: 400 })
+    }
 
-        // Prepare update object
-        const updates = { anio_vigencia }
-        if (salario_minimo !== undefined) updates.salario_minimo = salario_minimo
-        if (jornada_nocturna !== undefined) updates.jornada_nocturna = jornada_nocturna
-        if (limite_bolsa_horas !== undefined) updates.limite_bolsa_horas = limite_bolsa_horas
+    const updates = { anio_vigencia }
+    if (salario_minimo !== undefined) updates.salario_minimo = salario_minimo
+    if (jornada_nocturna !== undefined) updates.jornada_nocturna = jornada_nocturna
+    if (limite_bolsa_horas !== undefined) updates.limite_bolsa_horas = limite_bolsa_horas
 
-        // Check if parameters exist for this year
-        const { data: existing } = await supabase
-            .from("parametros")
-            .select("id")
-            .eq("anio_vigencia", anio_vigencia)
-            .single()
+    const existing = await prisma.parametros.findFirst({
+      where: { anio_vigencia },
+      select: { id: true },
+    })
 
-        let result
-        if (existing) {
-            // Update existing record for this year
-            result = await supabase
-                .from("parametros")
-                .update(updates)
-                .eq("id", existing.id)
-                .select()
-                .single()
-        } else {
-            // Insert new record for this year
+    if (!existing && !updates.jornada_nocturna) {
+      const latest = await prisma.parametros.findFirst({
+        where: { anio_vigencia: { not: anio_vigencia } },
+        orderBy: { anio_vigencia: "desc" },
+        select: { jornada_nocturna: true },
+      })
 
-            // If night shift range is not provided, inherit from previous year (latest record)
-            if (!updates.jornada_nocturna) {
-                const { data: latest } = await supabase
-                    .from("parametros")
-                    .select("jornada_nocturna")
-                    .neq("anio_vigencia", anio_vigencia) // Exclude current if somehow exists (though we know it doesn't)
-                    .order("anio_vigencia", { ascending: false })
-                    .limit(1)
-                    .single()
+      updates.jornada_nocturna = latest?.jornada_nocturna || "21:00-06:00"
+    }
 
-                if (latest && latest.jornada_nocturna) {
-                    updates.jornada_nocturna = latest.jornada_nocturna
-                } else {
-                    // Default fallback if no previous history
-                    updates.jornada_nocturna = "21:00-06:00"
-                }
-            }
-
-            result = await supabase
-                .from("parametros")
-                .insert([updates])
-                .select()
-                .single()
-        }
-
-        // Audit Log
-        await logAudit({
-            action: "UPDATE",
-            entity: "CONFIGURACION",
-            entityId: result.data.id,
-            details: {
-                target: "PARAMETROS_GLOBALES",
-                anio: anio_vigencia,
-                updates: updates
-            },
-            user: user
+    const result = existing
+      ? await prisma.parametros.update({
+          where: { id: existing.id },
+          data: updates,
+        })
+      : await prisma.parametros.create({
+          data: updates,
         })
 
-        // Auto-update employees logic...
-        // Only if updating CURRENT YEAR or FUTURE YEAR? 
-        // User asked to fix overwriting. Auto-update logic is separate.
-        // Assuming we still want to auto-update based on the saved value if valid.
-        // But warning: updating 2026 params shouldn't update employees NOW if it's 2025.
-        // I'll keep logic simple: If saving params, update employees. 
-        // Ideally we check `if (anio_vigencia == currentYear)`.
+    await logAudit({
+      action: "UPDATE",
+      entity: "CONFIGURACION",
+      entityId: result.id,
+      details: {
+        target: "PARAMETROS_GLOBALES",
+        anio: anio_vigencia,
+        updates,
+      },
+      user,
+    })
 
-        // Auto-update employees regardless of year (User Request: "No Restrictions")
-        if (updates.salario_minimo) {
-            const { data: employees } = await supabase
-                .from("usuarios")
-                .select("id, jornada_fija_hhmm, hist_salarios, salario_base, valor_hora")
-                .eq("minimo", true)
-                .eq("is_active", true) // Only active
+    if (updates.salario_minimo) {
+      const employees = await prisma.usuarios.findMany({
+        where: {
+          minimo: true,
+          is_active: true,
+        },
+        select: {
+          id: true,
+          jornada_fija_hhmm: true,
+          hist_salarios: true,
+          salario_base: true,
+          valor_hora: true,
+        },
+      })
 
-            if (employees && employees.length > 0) {
-                const updatePromises = employees.map(async (emp) => {
-                    try {
-                        const workValues = calculateEmployeeWorkValues(emp.jornada_fija_hhmm, updates.salario_minimo)
+      if (employees.length > 0) {
+        await Promise.all(
+          employees.map(async (emp) => {
+            try {
+              const workValues = calculateEmployeeWorkValues(emp.jornada_fija_hhmm, updates.salario_minimo)
 
-                        // Append to history
-                        let currentHistory = [...(emp.hist_salarios || [])]
+              const currentHistory = [...(emp.hist_salarios || [])]
 
-                        if (currentHistory.length === 0) {
-                            currentHistory.push({
-                                date: "2000-01-01T00:00:00.000Z",
-                                salary: emp.salario_base,
-                                hourlyRate: Number(emp.valor_hora),
-                                reason: "Línea base inicial"
-                            })
-                        }
-
-                        const newEntry = {
-                            date: fecha_aplicacion || new Date().toISOString(),
-                            salary: updates.salario_minimo,
-                            hourlyRate: workValues.valor_hora,
-                            reason: "Aumento SMLV"
-                        }
-                        const updatedHistory = [...currentHistory, newEntry]
-
-                        await supabase
-                            .from("usuarios")
-                            .update({
-                                salario_base: updates.salario_minimo,
-                                horas_semanales: workValues.horas_semanales,
-                                horas_mensuales: workValues.horas_mensuales,
-                                valor_hora: workValues.valor_hora,
-                                hist_salarios: updatedHistory
-                            })
-                            .eq("id", emp.id)
-                    } catch (err) {
-                        console.error(`Failed to auto-update employee ${emp.id}:`, err)
-                    }
+              if (currentHistory.length === 0) {
+                currentHistory.push({
+                  date: "2000-01-01T00:00:00.000Z",
+                  salary: emp.salario_base,
+                  hourlyRate: Number(emp.valor_hora),
+                  reason: "Linea base inicial",
                 })
-                await Promise.all(updatePromises)
-            }
-        }
+              }
 
-        return NextResponse.json(result.data)
-    } catch (error) {
-        console.error("Error in POST parametros:", error)
-        return NextResponse.json({ message: "Error interno del servidor" }, { status: 500 })
+              const newEntry = {
+                date: fecha_aplicacion || new Date().toISOString(),
+                salary: updates.salario_minimo,
+                hourlyRate: workValues.valor_hora,
+                reason: "Aumento SMLV",
+              }
+
+              await prisma.usuarios.update({
+                where: { id: emp.id },
+                data: {
+                  salario_base: updates.salario_minimo,
+                  horas_semanales: workValues.horas_semanales,
+                  horas_mensuales: workValues.horas_mensuales,
+                  valor_hora: workValues.valor_hora,
+                  hist_salarios: [...currentHistory, newEntry],
+                },
+              })
+            } catch (err) {
+              console.error(`Failed to auto-update employee ${emp.id}:`, err)
+            }
+          })
+        )
+      }
     }
+
+    return NextResponse.json(result)
+  } catch (error) {
+    console.error("Error in POST parametros:", error)
+    return NextResponse.json({ message: "Error interno del servidor" }, { status: 500 })
+  }
 }

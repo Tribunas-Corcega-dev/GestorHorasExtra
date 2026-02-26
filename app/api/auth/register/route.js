@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import bcrypt from "bcryptjs"
-import { supabase } from "@/lib/supabaseClient"
+import { prisma } from "@/lib/prisma"
 
 export async function POST(request) {
   try {
@@ -17,7 +17,7 @@ export async function POST(request) {
     }
 
     // Verificar si el usuario ya existe
-    const { data: existingUser } = await supabase.from("usuarios").select("id").eq("username", username).single()
+    const existingUser = await prisma.usuarios.findUnique({ where: { username } })
 
     if (existingUser) {
       return NextResponse.json({ message: "El username ya existe" }, { status: 400 })
@@ -27,30 +27,20 @@ export async function POST(request) {
     const password_hash = await bcrypt.hash(password, 10)
 
     // Insertar nuevo usuario
-    const { data: newUser, error } = await supabase
-      .from("usuarios")
-      .insert([
-        {
-          username,
-          password_hash,
-          nombre: nombre || null,
-          cargo: cargo || null,
-          area: area || null,
-          rol: rol || "OPERARIO",
-          tipo_trabajador: tipo_trabajador || null,
-          salario_base: salario_base || null,
-          jornada_fija_hhmm: jornada_fija_hhmm || null,
-        },
-      ])
-      .select("id, username, nombre, cargo, area, rol")
-      .single()
+    const newUser = await prisma.usuarios.create({
+      data: {
+        username,
+        password_hash,
+        nombre: nombre || null,
+        area: area || null,
+        rol: rol || "OPERARIO",
+        salario_base: salario_base || null,
+        jornada_fija_hhmm: jornada_fija_hhmm || null,
+      },
+      select: { id: true, username: true, nombre: true, area: true, rol: true },
+    })
 
-    if (error) {
-      console.error("[v0] Error creating user:", error)
-      return NextResponse.json({ message: "Error al crear el usuario" }, { status: 500 })
-    }
-
-    return NextResponse.json(newUser, { status: 201 })
+    return NextResponse.json({ ...newUser, cargo: cargo || null, tipo_trabajador: tipo_trabajador || null }, { status: 201 })
   } catch (error) {
     console.error("[v0] Error in register:", error)
     return NextResponse.json({ message: "Error interno del servidor" }, { status: 500 })

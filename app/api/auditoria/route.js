@@ -1,22 +1,6 @@
 import { NextResponse } from "next/server"
-import { supabase } from "@/lib/supabaseClient"
-import { supabaseAdmin } from "@/lib/supabaseAdmin"
-import { canManageEmployees } from "@/lib/permissions"
-import jwt from "jsonwebtoken"
-
-const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key-change-in-production"
-
-async function getUserFromRequest(request) {
-    const token = request.cookies.get("auth_token")?.value
-    if (!token) return null
-    try {
-        const decoded = jwt.verify(token, JWT_SECRET)
-        const { data: user } = await supabase.from("usuarios").select("*").eq("id", decoded.id).single()
-        return user
-    } catch {
-        return null
-    }
-}
+import { getUserFromRequest } from "@/lib/apiAuth"
+import { prisma } from "@/lib/prisma"
 
 export async function GET(request) {
     try {
@@ -37,28 +21,29 @@ export async function GET(request) {
 
         const offset = (page - 1) * limit
 
-        let query = supabaseAdmin
-            .from("audit_logs")
-            .select("*", { count: "exact" })
-            .order("created_at", { ascending: false })
-            .range(offset, offset + limit - 1)
-
-        if (entity) query = query.eq("entity", entity)
-        if (action) query = query.eq("action", action)
-        if (startDate) query = query.gte("created_at", startDate)
-        if (endDate) query = query.lte("created_at", endDate)
-
-        const { data: logs, count, error } = await query
-
-        if (error) {
-            console.error("[Audit API] Error fetching logs:", error)
-            return NextResponse.json({ message: "Error al obtener logs" }, { status: 500 })
+        const where = {}
+        if (entity) where.entity = entity
+        if (action) where.action = action
+        if (startDate || endDate) {
+            where.created_at = {}
+            if (startDate) where.created_at.gte = new Date(startDate)
+            if (endDate) where.created_at.lte = new Date(endDate)
         }
 
+        const [logs, count] = await Promise.all([
+            prisma.audit_logs.findMany({
+                where,
+                orderBy: { created_at: "desc" },
+                skip: offset,
+                take: limit,
+            }),
+            prisma.audit_logs.count({ where }),
+        ])
+
         // Fetch user directory for resolving IDs in frontend
-        const { data: users } = await supabaseAdmin
-            .from("usuarios")
-            .select("id, nombre, username")
+        const users = await prisma.usuarios.findMany({
+            select: { id: true, nombre: true, username: true }
+        })
 
         const userDirectory = {}
         users?.forEach(u => {

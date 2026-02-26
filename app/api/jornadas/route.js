@@ -1,23 +1,8 @@
 import { NextResponse } from "next/server"
-import jwt from "jsonwebtoken"
-import { supabase } from "@/lib/supabaseClient"
 import { canManageOvertime } from "@/lib/permissions"
 import { logAudit } from "@/lib/logger"
-
-const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key-change-in-production"
-
-async function getUserFromRequest(request) {
-    const token = request.cookies.get("auth_token")?.value
-    if (!token) return null
-
-    try {
-        const decoded = jwt.verify(token, JWT_SECRET)
-        const { data: user } = await supabase.from("usuarios").select("*").eq("id", decoded.id).single()
-        return user
-    } catch {
-        return null
-    }
-}
+import { getUserFromRequest } from "@/lib/apiAuth"
+import { prisma } from "@/lib/prisma"
 
 export async function POST(request) {
     try {
@@ -34,39 +19,32 @@ export async function POST(request) {
             return NextResponse.json({ message: "Faltan datos requeridos" }, { status: 400 })
         }
 
-        // Fetch Employee current data for snapshot
-        const { data: empleado, error: empError } = await supabase
-            .from("usuarios")
-            .select("valor_hora")
-            .eq("id", empleado_id)
-            .single()
+        const fechaDate = parseDateOnly(fecha)
+        if (!fechaDate) {
+            return NextResponse.json({ message: "Fecha inválida" }, { status: 400 })
+        }
 
-        if (empError || !empleado) {
+        const empleado = await prisma.usuarios.findUnique({
+            where: { id: empleado_id },
+            select: { valor_hora: true }
+        })
+
+        if (!empleado) {
             return NextResponse.json({ message: "Empleado no encontrado" }, { status: 404 })
         }
 
-        // Insertar nueva jornada
-        const { data: newJornada, error } = await supabase
-            .from("jornadas")
-            .insert([
-                {
-                    empleado_id,
-                    fecha,
-                    jornada_base_calcular,
-                    horas_extra_hhmm: horas_extra_hhmm || {},
-                    es_festivo: es_festivo || false,
-                    observaciones: observaciones || "",
-                    registrado_por: user.id,
-                    valor_hora_snapshot: empleado.valor_hora // Save snapshot
-                },
-            ])
-            .select()
-            .single()
-
-        if (error) {
-            console.error("[v0] Error creating jornada:", error)
-            return NextResponse.json({ message: `Error al registrar jornada: ${error.message}` }, { status: 500 })
-        }
+        const newJornada = await prisma.jornadas.create({
+            data: {
+                empleado_id,
+                fecha: fechaDate,
+                jornada_base_calcular,
+                horas_extra_hhmm: horas_extra_hhmm || {},
+                es_festivo: es_festivo || false,
+                observaciones: observaciones || "",
+                registrado_por: user.id,
+                valor_hora_snapshot: empleado.valor_hora,
+            }
+        })
 
         // Audit Log
         await logAudit({
@@ -84,7 +62,7 @@ export async function POST(request) {
             user: user
         })
 
-        return NextResponse.json(newJornada, { status: 201 })
+        return NextResponse.json(serializeJornada(newJornada), { status: 201 })
     } catch (error) {
         console.error("[v0] Error in POST jornadas:", error)
         return NextResponse.json({ message: "Error interno del servidor" }, { status: 500 })
@@ -106,29 +84,32 @@ export async function PUT(request) {
             return NextResponse.json({ message: "Faltan datos requeridos (empleado_id, fecha)" }, { status: 400 })
         }
 
-        // Update existing jornada
-        const { data: updatedJornada, error } = await supabase
-            .from("jornadas")
-            .update({
+        const fechaDate = parseDateOnly(fecha)
+        if (!fechaDate) {
+            return NextResponse.json({ message: "Fecha inválida" }, { status: 400 })
+        }
+
+        const existingJornada = await prisma.jornadas.findFirst({
+            where: {
+                empleado_id,
+                fecha: fechaDate,
+            },
+            select: { id: true }
+        })
+
+        if (!existingJornada) {
+            return NextResponse.json({ message: "Jornada no encontrada" }, { status: 404 })
+        }
+
+        const updatedJornada = await prisma.jornadas.update({
+            where: { id: existingJornada.id },
+            data: {
                 jornada_base_calcular,
                 horas_extra_hhmm: horas_extra_hhmm || {},
                 es_festivo: es_festivo || false,
                 observaciones: observaciones || "",
-                // Do not update registrado_por or valor_hora_snapshot to preserve audit trail/history
-            })
-            .eq("empleado_id", empleado_id)
-            .eq("fecha", fecha)
-            .select()
-            .single()
-
-        if (error) {
-            console.error("[v0] Error updating jornada:", error)
-            return NextResponse.json({ message: `Error al actualizar jornada: ${error.message}` }, { status: 500 })
-        }
-
-        if (!updatedJornada) {
-            return NextResponse.json({ message: "Jornada no encontrada" }, { status: 404 })
-        }
+            }
+        })
 
         // Audit Log
         await logAudit({
@@ -145,7 +126,7 @@ export async function PUT(request) {
             user: user
         })
 
-        return NextResponse.json(updatedJornada)
+        return NextResponse.json(serializeJornada(updatedJornada))
     } catch (error) {
         console.error("[v0] Error in PUT jornadas:", error)
         return NextResponse.json({ message: "Error interno del servidor" }, { status: 500 })
@@ -164,21 +145,10 @@ export async function GET(request) {
             return NextResponse.json({ message: "No autorizado" }, { status: 403 })
         }
 
-        let query = supabase
-            .from("jornadas")
-            .select("*")
-            .order("fecha", { ascending: false })
-
-        if (empleado_id) {
-            query = query.eq("empleado_id", empleado_id)
-        }
-
-        const { data: jornadas, error } = await query
-
-        if (error) {
-            console.error("[v0] Error fetching jornadas:", error)
-            return NextResponse.json({ message: `Error al obtener jornadas: ${error.message}` }, { status: 500 })
-        }
+        const jornadas = await prisma.jornadas.findMany({
+            where: empleado_id ? { empleado_id } : undefined,
+            orderBy: { fecha: "desc" }
+        })
 
         // Fetch user details for registrado_por and aprobado_por
         const userIds = new Set()
@@ -187,17 +157,19 @@ export async function GET(request) {
             if (j.aprobado_por) userIds.add(j.aprobado_por)
         })
 
+        const normalizedJornadas = jornadas.map(serializeJornada)
+
         if (userIds.size > 0) {
-            const { data: users } = await supabase
-                .from("usuarios")
-                .select("id, nombre, username")
-                .in("id", Array.from(userIds))
+            const users = await prisma.usuarios.findMany({
+                where: { id: { in: Array.from(userIds) } },
+                select: { id: true, nombre: true, username: true }
+            })
 
             const userMap = {}
             users?.forEach(u => userMap[u.id] = u)
 
             // Attach user objects to jornadas
-            const jornadasWithUsers = jornadas.map(j => ({
+            const jornadasWithUsers = normalizedJornadas.map(j => ({
                 ...j,
                 registrador: j.registrado_por ? userMap[j.registrado_por] : null,
                 aprobador: j.aprobado_por ? userMap[j.aprobado_por] : null
@@ -206,10 +178,35 @@ export async function GET(request) {
             return NextResponse.json(jornadasWithUsers)
         }
 
-        return NextResponse.json(jornadas)
+        return NextResponse.json(normalizedJornadas)
     } catch (error) {
         console.error("[v0] Error in GET jornadas:", error)
         return NextResponse.json({ message: "Error interno del servidor" }, { status: 500 })
+    }
+}
+
+function formatToDateString(dateValue) {
+    if (!dateValue) return null
+    return new Date(dateValue).toISOString().split('T')[0]
+}
+
+function parseDateOnly(value) {
+    if (!value || typeof value !== "string") return null
+    const dateOnly = value.includes("T") ? value.split("T")[0] : value
+    const parsed = new Date(`${dateOnly}T00:00:00.000Z`)
+    if (Number.isNaN(parsed.getTime())) return null
+    return parsed
+}
+
+function serializeJornada(jornada) {
+    if (!jornada) return jornada
+    return {
+        ...jornada,
+        fecha: formatToDateString(jornada.fecha),
+        valor_hora_snapshot:
+            jornada.valor_hora_snapshot !== null && jornada.valor_hora_snapshot !== undefined
+                ? Number(jornada.valor_hora_snapshot)
+                : jornada.valor_hora_snapshot,
     }
 }
 
@@ -229,16 +226,17 @@ export async function DELETE(request) {
             return NextResponse.json({ message: "Faltan datos requeridos (empleado_id, fecha)" }, { status: 400 })
         }
 
-        const { error } = await supabase
-            .from("jornadas")
-            .delete()
-            .eq("empleado_id", empleado_id)
-            .eq("fecha", fecha)
-
-        if (error) {
-            console.error("[v0] Error deleting jornada:", error)
-            return NextResponse.json({ message: `Error al eliminar jornada: ${error.message}` }, { status: 500 })
+        const fechaDate = parseDateOnly(fecha)
+        if (!fechaDate) {
+            return NextResponse.json({ message: "Fecha inválida" }, { status: 400 })
         }
+
+        await prisma.jornadas.deleteMany({
+            where: {
+                empleado_id,
+                fecha: fechaDate,
+            }
+        })
 
         // Audit Log
         await logAudit({

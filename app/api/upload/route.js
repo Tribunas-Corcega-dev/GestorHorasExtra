@@ -1,8 +1,6 @@
 import { NextResponse } from "next/server"
 import { supabaseAdmin } from "@/lib/supabaseAdmin"
-import jwt from "jsonwebtoken"
-
-const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key-change-in-production"
+import { getAuthPayloadFromRequest } from "@/lib/apiAuth"
 
 export async function POST(request) {
     try {
@@ -12,9 +10,8 @@ export async function POST(request) {
             return NextResponse.json({ message: "No autenticado" }, { status: 401 })
         }
 
-        try {
-            jwt.verify(token, JWT_SECRET)
-        } catch (error) {
+        const payload = await getAuthPayloadFromRequest(request)
+        if (!payload) {
             return NextResponse.json({ message: "Token inválido" }, { status: 401 })
         }
 

@@ -1,177 +1,216 @@
 import { NextResponse } from "next/server"
-import jwt from "jsonwebtoken"
-import { supabase } from "@/lib/supabaseClient"
-import { supabaseAdmin } from "@/lib/supabaseAdmin"
 import { canManageOvertime } from "@/lib/permissions"
 import { logAudit } from "@/lib/logger"
+import { getUserFromRequest } from "@/lib/apiAuth"
+import { prisma } from "@/lib/prisma"
 
-const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key-change-in-production"
-
-async function getUserFromRequest(request) {
-    const token = request.cookies.get("auth_token")?.value
-    if (!token) return null
-
-    try {
-        const decoded = jwt.verify(token, JWT_SECRET)
-        const { data: user } = await supabase.from("usuarios").select("*").eq("id", decoded.id).single()
-        return user
-    } catch {
-        return null
-    }
+function parseDateTime(value) {
+  const parsed = new Date(value)
+  if (Number.isNaN(parsed.getTime())) return null
+  return parsed
 }
 
 export async function POST(request) {
-    try {
-        const user = await getUserFromRequest(request)
+  try {
+    const user = await getUserFromRequest(request)
 
-        if (!user) {
-            return NextResponse.json({ message: "No autorizado" }, { status: 401 })
-        }
-
-        const body = await request.json()
-        const { fecha_inicio, fecha_fin, minutos_solicitados, tipo, motivo, targetUserId } = body
-
-        if (!fecha_inicio || !fecha_fin || !minutos_solicitados || minutos_solicitados <= 0 || !tipo) {
-            return NextResponse.json({ message: "Datos incompletos o inválidos" }, { status: 400 })
-        }
-
-        // Determine target user and permissions
-        let targetId = user.id
-        let autoApprove = false
-
-        if (targetUserId) {
-            if (!canManageOvertime(user.rol)) {
-                return NextResponse.json({ message: "No tienes permisos para gestionar otros usuarios" }, { status: 403 })
-            }
-            targetId = targetUserId
-            autoApprove = true
-        } else {
-            // Basic user cannot approve their own request
-            autoApprove = false
-        }
-
-        // Use Admin client for interactions involving other users or critical balance updates
-        const dbClient = targetId !== user.id ? supabaseAdmin : supabase
-
-        // Fetch target user if different
-        let targetUser = user
-        if (targetId !== user.id) {
-            const { data: tUser } = await supabaseAdmin.from("usuarios").select("*").eq("id", targetId).single()
-            if (!tUser) return NextResponse.json({ message: "Usuario no encontrado" }, { status: 404 })
-            targetUser = tUser
-        }
-
-        // 0. Check for duplicate requests on the same date
-        const dateOnly = fecha_inicio.split('T')[0]
-        const dayStart = `${dateOnly}T00:00:00`
-        const dayEnd = `${dateOnly}T23:59:59`
-
-        const { data: duplicateRequests } = await dbClient
-            .from("solicitudes_tiempo")
-            .select("id")
-            .eq("usuario_id", targetId)
-            .neq("estado", "RECHAZADA")
-            .gte("fecha_inicio", dayStart)
-            .lte("fecha_inicio", dayEnd)
-
-        if (duplicateRequests && duplicateRequests.length > 0) {
-            return NextResponse.json({ message: "Ya existe una solicitud activa para esta fecha." }, { status: 400 })
-        }
-
-        // 1. Check Balance
-        const currentBalance = targetUser.bolsa_horas_minutos || 0
-
-        // Count pending requests to avoid "double spending"
-        const { data: pendingRequests } = await dbClient
-            .from("solicitudes_tiempo")
-            .select("minutos_solicitados")
-            .eq("usuario_id", targetId)
-            .eq("estado", "PENDIENTE")
-
-        const pendingMinutes = pendingRequests?.reduce((sum, req) => sum + req.minutos_solicitados, 0) || 0
-        const availableBalance = currentBalance - pendingMinutes
-
-        if (minutos_solicitados > availableBalance) {
-            return NextResponse.json({
-                message: `Saldo insuficiente. El usuario tiene ${currentBalance} min, menos ${pendingMinutes} pendientes = ${availableBalance} disponibles.`
-            }, { status: 400 })
-        }
-
-        // 2. Create Request
-        const requestStatus = autoApprove ? 'APROBADO' : 'PENDIENTE'
-        const approvalData = autoApprove ? {
-            aprobado_por: user.id,
-            fecha_aprobacion: new Date().toISOString()
-        } : {}
-
-        const { data: newRequest, error: insertError } = await dbClient
-            .from("solicitudes_tiempo")
-            .insert({
-                usuario_id: targetId,
-                fecha_inicio,
-                fecha_fin,
-                minutos_solicitados,
-                tipo,
-                motivo: autoApprove ? (motivo || "Canjeo directo por coordinador") : motivo,
-                estado: requestStatus,
-                ...approvalData
-            })
-            .select() // Select to get ID if needed
-            .single()
-
-        if (insertError) {
-            console.error("Error creating request:", insertError)
-            return NextResponse.json({ message: "Error al crear la solicitud" }, { status: 500 })
-        }
-
-        // 3. If Auto-Approve, Deduct Balance Immediately
-        if (autoApprove) {
-            const newBalance = currentBalance - minutos_solicitados
-
-            // Update user balance (Use Admin to bypass RLS if updating another user)
-            const { error: updateError } = await supabaseAdmin
-                .from("usuarios")
-                .update({ bolsa_horas_minutos: newBalance })
-                .eq("id", targetId)
-
-            if (updateError) {
-                console.error("Error updating balance:", updateError)
-                // Rollback (delete request) ideally, but for now log error
-                return NextResponse.json({ message: "Error al actualizar saldo" }, { status: 500 })
-            }
-
-            // Create History Log
-            await supabaseAdmin.from("historial_bolsa").insert({
-                usuario_id: targetId,
-                tipo_operacion: 'REDENCION',
-                cantidad_minutos: -minutos_solicitados,
-                saldo_anterior: currentBalance,
-                saldo_nuevo: newBalance,
-                descripcion: `Canjeo directo por ${user.nombre || user.username}`,
-                entidad_referencia: 'solicitudes_tiempo',
-                referencia_id: newRequest.id
-            })
-
-            // Audit Log
-            await logAudit({
-                action: "REDENCION",
-                entity: "BOLSA_HORAS",
-                entityId: targetId,
-                details: {
-                    minutos_redimidos: minutos_solicitados,
-                    saldo_resultante: newBalance,
-                    solicitado_por: user.email,
-                    motivo: motivo,
-                    tipo: tipo
-                },
-                user: user
-            })
-        }
-
-        return NextResponse.json({ message: autoApprove ? "Tiempo canjeado exitosamente" : "Solicitud creada exitosamente" })
-
-    } catch (error) {
-        console.error("Error in POST solicitar:", error)
-        return NextResponse.json({ message: "Error interno del servidor" }, { status: 500 })
+    if (!user) {
+      return NextResponse.json({ message: "No autorizado" }, { status: 401 })
     }
+
+    const body = await request.json()
+    const { fecha_inicio, fecha_fin, minutos_solicitados, tipo, motivo, targetUserId } = body
+
+    if (!fecha_inicio || !fecha_fin || !minutos_solicitados || minutos_solicitados <= 0 || !tipo) {
+      return NextResponse.json({ message: "Datos incompletos o inválidos" }, { status: 400 })
+    }
+
+    const fechaInicio = parseDateTime(fecha_inicio)
+    const fechaFin = parseDateTime(fecha_fin)
+    if (!fechaInicio || !fechaFin) {
+      return NextResponse.json({ message: "Fechas inválidas" }, { status: 400 })
+    }
+
+    let targetId = user.id
+    let autoApprove = false
+
+    if (targetUserId) {
+      if (!canManageOvertime(user.rol)) {
+        return NextResponse.json({ message: "No tienes permisos para gestionar otros usuarios" }, { status: 403 })
+      }
+      targetId = targetUserId
+      autoApprove = true
+    }
+
+    let targetUser = user
+    if (targetId !== user.id) {
+      const tUser = await prisma.usuarios.findUnique({ where: { id: targetId } })
+      if (!tUser) {
+        return NextResponse.json({ message: "Usuario no encontrado" }, { status: 404 })
+      }
+      targetUser = tUser
+    }
+
+    const dateOnly = fecha_inicio.split("T")[0]
+    const dayStart = new Date(`${dateOnly}T00:00:00.000Z`)
+    const dayEnd = new Date(`${dateOnly}T23:59:59.999Z`)
+
+    const duplicateCount = await prisma.solicitudes_tiempo.count({
+      where: {
+        usuario_id: targetId,
+        estado: { not: "RECHAZADO" },
+        fecha_inicio: {
+          gte: dayStart,
+          lte: dayEnd,
+        },
+      },
+    })
+
+    if (duplicateCount > 0) {
+      return NextResponse.json({ message: "Ya existe una solicitud activa para esta fecha." }, { status: 400 })
+    }
+
+    const pendingAgg = await prisma.solicitudes_tiempo.aggregate({
+      _sum: { minutos_solicitados: true },
+      where: {
+        usuario_id: targetId,
+        estado: "PENDIENTE",
+      },
+    })
+
+    const currentBalance = targetUser.bolsa_horas_minutos || 0
+    const pendingMinutes = pendingAgg._sum.minutos_solicitados || 0
+    const availableBalance = currentBalance - pendingMinutes
+
+    if (minutos_solicitados > availableBalance) {
+      return NextResponse.json(
+        {
+          message: `Saldo insuficiente. El usuario tiene ${currentBalance} min, menos ${pendingMinutes} pendientes = ${availableBalance} disponibles.`,
+        },
+        { status: 400 }
+      )
+    }
+
+    const requestStatus = autoApprove ? "APROBADO" : "PENDIENTE"
+    const requestMotivo = autoApprove ? motivo || "Canjeo directo por coordinador" : motivo
+
+    let newBalance = currentBalance
+    let createdRequestId = null
+
+    if (autoApprove) {
+      const txResult = await prisma.$transaction(
+        async (tx) => {
+          const latestTarget = await tx.usuarios.findUnique({
+            where: { id: targetId },
+            select: { bolsa_horas_minutos: true },
+          })
+
+          if (!latestTarget) {
+            throw new Error("TARGET_USER_NOT_FOUND")
+          }
+
+          const latestPendingAgg = await tx.solicitudes_tiempo.aggregate({
+            _sum: { minutos_solicitados: true },
+            where: {
+              usuario_id: targetId,
+              estado: "PENDIENTE",
+            },
+          })
+
+          const latestBalance = latestTarget.bolsa_horas_minutos || 0
+          const latestPending = latestPendingAgg._sum.minutos_solicitados || 0
+          const latestAvailable = latestBalance - latestPending
+
+          if (minutos_solicitados > latestAvailable) {
+            throw new Error("INSUFFICIENT_BALANCE")
+          }
+
+          const newRequest = await tx.solicitudes_tiempo.create({
+            data: {
+              usuario_id: targetId,
+              fecha_inicio: fechaInicio,
+              fecha_fin: fechaFin,
+              minutos_solicitados,
+              tipo,
+              motivo: requestMotivo,
+              estado: requestStatus,
+              aprobado_por: user.id,
+              fecha_aprobacion: new Date(),
+            },
+            select: { id: true },
+          })
+
+          const updatedBalance = latestBalance - minutos_solicitados
+
+          await tx.usuarios.update({
+            where: { id: targetId },
+            data: { bolsa_horas_minutos: updatedBalance },
+          })
+
+          await tx.historial_bolsa.create({
+            data: {
+              usuario_id: targetId,
+              tipo_movimiento: "USO",
+              minutos: minutos_solicitados,
+              saldo_resultante: updatedBalance,
+              observacion: `Canjeo directo por ${user.nombre || user.username}`,
+              referencia_id: newRequest.id,
+              realizado_por: user.id,
+            },
+          })
+
+          return { requestId: newRequest.id, balance: updatedBalance }
+        },
+        { isolationLevel: "Serializable" }
+      )
+
+      createdRequestId = txResult.requestId
+      newBalance = txResult.balance
+    } else {
+      const newRequest = await prisma.solicitudes_tiempo.create({
+        data: {
+          usuario_id: targetId,
+          fecha_inicio: fechaInicio,
+          fecha_fin: fechaFin,
+          minutos_solicitados,
+          tipo,
+          motivo: requestMotivo,
+          estado: requestStatus,
+        },
+        select: { id: true },
+      })
+
+      createdRequestId = newRequest.id
+    }
+
+    if (autoApprove) {
+      await logAudit({
+        action: "REDENCION",
+        entity: "BOLSA_HORAS",
+        entityId: targetId,
+        details: {
+          minutos_redimidos: minutos_solicitados,
+          saldo_resultante: newBalance,
+          solicitado_por: user.username,
+          motivo,
+          tipo,
+          solicitud_id: createdRequestId,
+        },
+        user,
+      })
+    }
+
+    return NextResponse.json({ message: autoApprove ? "Tiempo canjeado exitosamente" : "Solicitud creada exitosamente" })
+  } catch (error) {
+    if (error?.message === "INSUFFICIENT_BALANCE") {
+      return NextResponse.json({ message: "Saldo insuficiente" }, { status: 400 })
+    }
+
+    if (error?.message === "TARGET_USER_NOT_FOUND") {
+      return NextResponse.json({ message: "Usuario no encontrado" }, { status: 404 })
+    }
+
+    console.error("Error in POST solicitar:", error)
+    return NextResponse.json({ message: "Error interno del servidor" }, { status: 500 })
+  }
 }

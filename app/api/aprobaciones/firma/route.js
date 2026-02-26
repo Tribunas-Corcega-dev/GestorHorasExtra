@@ -1,6 +1,6 @@
 
 import { NextResponse } from "next/server"
-import { supabaseAdmin } from "@/lib/supabaseAdmin"
+import { prisma } from "@/lib/prisma"
 
 export async function GET(request) {
     const { searchParams } = new URL(request.url)
@@ -11,13 +11,12 @@ export async function GET(request) {
         return NextResponse.json({ message: "Fechas requeridas" }, { status: 400 })
     }
 
-    const { data, error } = await supabaseAdmin
-        .from("aprobaciones_periodo")
-        .select("*")
-        .eq("periodo_inicio", periodo_inicio)
-        .eq("periodo_fin", periodo_fin)
-
-    if (error) return NextResponse.json({ message: error.message }, { status: 500 })
+    const data = await prisma.aprobaciones_periodo.findMany({
+        where: {
+            periodo_inicio: new Date(periodo_inicio),
+            periodo_fin: new Date(periodo_fin),
+        }
+    })
 
     return NextResponse.json(data)
 }
@@ -34,27 +33,24 @@ export async function POST(request) {
         // Let's usage upsert based on ID if we had it, but here we define uniqueness by (employee, period).
 
         // Let's delete previous approval for this period to be safe (re-approval)
-        await supabaseAdmin
-            .from("aprobaciones_periodo")
-            .delete()
-            .eq("empleado_id", empleado_id)
-            .eq("periodo_inicio", periodo_inicio)
-            .eq("periodo_fin", periodo_fin)
+        await prisma.aprobaciones_periodo.deleteMany({
+            where: {
+                empleado_id,
+                periodo_inicio: new Date(periodo_inicio),
+                periodo_fin: new Date(periodo_fin),
+            }
+        })
 
-        const { data, error } = await supabaseAdmin
-            .from("aprobaciones_periodo")
-            .insert({
+        const data = await prisma.aprobaciones_periodo.create({
+            data: {
                 empleado_id,
                 jefe_id,
-                periodo_inicio,
-                periodo_fin,
+                periodo_inicio: new Date(periodo_inicio),
+                periodo_fin: new Date(periodo_fin),
                 firma_snapshot,
                 estado: 'APROBADO'
-            })
-            .select()
-            .single()
-
-        if (error) throw error
+            }
+        })
 
         return NextResponse.json(data)
     } catch (error) {

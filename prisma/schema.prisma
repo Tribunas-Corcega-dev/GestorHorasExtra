@@ -1,0 +1,246 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../lib/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model apelaciones {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  empleado_id String?   @db.Uuid
+  jornada_id  String?   @db.Uuid
+  fecha       DateTime  @db.Date
+  motivo      String
+  estado      String?   @default("PENDIENTE")
+  docs_url    String?
+  usuarios    usuarios? @relation(fields: [empleado_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  jornadas    jornadas? @relation(fields: [jornada_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model aprobaciones_periodo {
+  id                                                  String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  empleado_id                                         String?   @db.Uuid
+  jefe_id                                             String?   @db.Uuid
+  periodo_inicio                                      DateTime  @db.Date
+  periodo_fin                                         DateTime  @db.Date
+  fecha_aprobacion                                    DateTime? @default(now()) @db.Timestamptz(6)
+  firma_snapshot                                      String?
+  estado                                              String?   @default("APROBADO")
+  created_at                                          DateTime? @default(now()) @db.Timestamptz(6)
+  usuarios_aprobaciones_periodo_empleado_idTousuarios usuarios? @relation("aprobaciones_periodo_empleado_idTousuarios", fields: [empleado_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  usuarios_aprobaciones_periodo_jefe_idTousuarios     usuarios? @relation("aprobaciones_periodo_jefe_idTousuarios", fields: [jefe_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([empleado_id], map: "idx_aprobaciones_empleado")
+  @@index([periodo_inicio, periodo_fin], map: "idx_aprobaciones_periodo")
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model audit_logs {
+  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  created_at DateTime  @default(now()) @db.Timestamptz(6)
+  user_id    String?   @db.Uuid
+  user_name  String?
+  action     String
+  entity     String
+  entity_id  String?
+  details    Json?
+  usuarios   usuarios? @relation(fields: [user_id], references: [id], onUpdate: NoAction)
+
+  @@index([created_at(sort: Desc)])
+  @@index([entity, entity_id], map: "audit_logs_entity_idx")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model cierres_quincenales {
+  id                     String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  empleado_id            String    @db.Uuid
+  periodo_anio           Int
+  periodo_mes            Int
+  periodo_quincena       Int
+  recargos_fijos         Json?     @default("{}")
+  horas_extra_reportadas Json?     @default("{}")
+  valor_total            Decimal?  @default(0) @db.Decimal(12, 2)
+  estado                 String?   @default("borrador")
+  created_at             DateTime? @default(now()) @db.Timestamptz(6)
+  updated_at             DateTime? @default(now()) @db.Timestamptz(6)
+  usuarios               usuarios  @relation(fields: [empleado_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([empleado_id, periodo_anio, periodo_mes, periodo_quincena])
+}
+
+model festivos {
+  fecha       DateTime @id @db.Date
+  descripcion String?
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model historial_bolsa {
+  id                                               String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  usuario_id                                       String    @db.Uuid
+  tipo_movimiento                                  String
+  minutos                                          Int
+  referencia_id                                    String?   @db.Uuid
+  saldo_resultante                                 Int
+  fecha                                            DateTime? @default(now()) @db.Timestamptz(6)
+  observacion                                      String?
+  realizado_por                                    String?   @db.Uuid
+  usuarios_historial_bolsa_realizado_porTousuarios usuarios? @relation("historial_bolsa_realizado_porTousuarios", fields: [realizado_por], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  usuarios_historial_bolsa_usuario_idTousuarios    usuarios  @relation("historial_bolsa_usuario_idTousuarios", fields: [usuario_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model horarios_base {
+  id                   String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  h_acueducto          Json?
+  h_alcantarillado     Json?
+  h_aseo               Json?
+  h_op_bocatoma        Json?
+  h_admin              Json?
+  h_planta_tratamiento Json?
+  h_planta_nocturna    Json?
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model jornadas {
+  id                                         String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  empleado_id                                String?       @db.Uuid
+  fecha                                      DateTime      @db.Date
+  horas_extra_hhmm                           Json?
+  jornada_base_calcular                      Json?
+  es_festivo                                 Boolean?      @default(false)
+  registrado_por                             String?       @db.Uuid
+  aprobado_por                               String?       @db.Uuid
+  es_aprobado                                Boolean?      @default(false)
+  horas_para_bolsa_minutos                   Int?          @default(0)
+  estado_compensacion                        String?       @default("NINGUNO")
+  valor_hora_snapshot                        Decimal?      @db.Decimal
+  desglose_compensacion                      Json?         @default("{}")
+  observaciones                              String?
+  apelaciones                                apelaciones[]
+  usuarios_jornadas_aprobado_porTousuarios   usuarios?     @relation("jornadas_aprobado_porTousuarios", fields: [aprobado_por], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  usuarios_jornadas_empleado_idTousuarios    usuarios?     @relation("jornadas_empleado_idTousuarios", fields: [empleado_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  usuarios_jornadas_registrado_porTousuarios usuarios?     @relation("jornadas_registrado_porTousuarios", fields: [registrado_por], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model parametros {
+  id                 String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  salario_minimo     Decimal? @default(0) @db.Decimal
+  jornada_nocturna   Json?
+  anio_vigencia      String?
+  limite_bolsa_horas Int?
+}
+
+model recargos_he {
+  id              BigInt  @id @default(autoincrement())
+  tipo_hora_extra String?
+  recargo         Float?
+}
+
+model reportes {
+  id                  String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  empleado_id         String?   @db.Uuid
+  periodo             String
+  horas_normales_hhmm String
+  horas_extra_hhmm    String
+  total_hhmm          String
+  usuarios            usuarios? @relation(fields: [empleado_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model resumen_horas_extra {
+  usuario_id     String    @id @db.Uuid
+  acumulado_hhmm Json?     @default("{}")
+  updated_at     DateTime? @default(now()) @db.Timestamptz(6)
+  usuarios       usuarios  @relation(fields: [usuario_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model roles {
+  id       Int        @id @default(autoincrement())
+  nombre   String     @unique
+  usuarios usuarios[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model solicitudes_tiempo {
+  id                                                 String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
+  usuario_id                                         String    @db.Uuid
+  fecha_inicio                                       DateTime  @db.Timestamptz(6)
+  fecha_fin                                          DateTime  @db.Timestamptz(6)
+  minutos_solicitados                                Int
+  tipo                                               String
+  motivo                                             String?
+  estado                                             String?   @default("PENDIENTE")
+  aprobado_por                                       String?   @db.Uuid
+  fecha_creacion                                     DateTime? @default(now()) @db.Timestamptz(6)
+  updated_at                                         DateTime? @default(now()) @db.Timestamptz(6)
+  fecha_aprobacion                                   DateTime? @db.Timestamptz(6)
+  usuarios_solicitudes_tiempo_aprobado_porTousuarios usuarios? @relation("solicitudes_tiempo_aprobado_porTousuarios", fields: [aprobado_por], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  usuarios_solicitudes_tiempo_usuario_idTousuarios   usuarios  @relation("solicitudes_tiempo_usuario_idTousuarios", fields: [usuario_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+/// This model or at least one of its fields has comments in the database, and requires an additional setup for migrations: Read more: https://pris.ly/d/database-comments
+model usuarios {
+  id                                                              String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  username                                                        String                 @unique
+  password_hash                                                   String
+  nombre                                                          String?
+  cc                                                              Decimal?               @db.Decimal
+  area                                                            String?
+  salario_base                                                    Decimal?               @db.Decimal
+  jornada_fija_hhmm                                               Json?
+  rol                                                             String?
+  horas_mensuales                                                 Float?
+  horas_semanales                                                 Float?
+  valor_hora                                                      Float?
+  foto_url                                                        String?
+  minimo                                                          Boolean?               @default(false)
+  bolsa_horas_minutos                                             Int?                   @default(0)
+  is_active                                                       Boolean?               @default(true)
+  hist_salarios                                                   Json?
+  firma_digital                                                   String?
+  apelaciones                                                     apelaciones[]
+  aprobaciones_periodo_aprobaciones_periodo_empleado_idTousuarios aprobaciones_periodo[] @relation("aprobaciones_periodo_empleado_idTousuarios")
+  aprobaciones_periodo_aprobaciones_periodo_jefe_idTousuarios     aprobaciones_periodo[] @relation("aprobaciones_periodo_jefe_idTousuarios")
+  audit_logs                                                      audit_logs[]
+  cierres_quincenales                                             cierres_quincenales[]
+  historial_bolsa_historial_bolsa_realizado_porTousuarios         historial_bolsa[]      @relation("historial_bolsa_realizado_porTousuarios")
+  historial_bolsa_historial_bolsa_usuario_idTousuarios            historial_bolsa[]      @relation("historial_bolsa_usuario_idTousuarios")
+  jornadas_jornadas_aprobado_porTousuarios                        jornadas[]             @relation("jornadas_aprobado_porTousuarios")
+  jornadas_jornadas_empleado_idTousuarios                         jornadas[]             @relation("jornadas_empleado_idTousuarios")
+  jornadas_jornadas_registrado_porTousuarios                      jornadas[]             @relation("jornadas_registrado_porTousuarios")
+  reportes                                                        reportes[]
+  resumen_horas_extra                                             resumen_horas_extra?
+  solicitudes_tiempo_solicitudes_tiempo_aprobado_porTousuarios    solicitudes_tiempo[]   @relation("solicitudes_tiempo_aprobado_porTousuarios")
+  solicitudes_tiempo_solicitudes_tiempo_usuario_idTousuarios      solicitudes_tiempo[]   @relation("solicitudes_tiempo_usuario_idTousuarios")
+  roles                                                           roles?                 @relation(fields: [rol], references: [nombre], onDelete: NoAction, onUpdate: NoAction)
+}
+
+enum appeal_status {
+  pendiente
+  resuelta
+  rechazada
+}
+
+enum area_type {
+  acueducto
+  aseo
+  alcantarillado
+}
+
+enum overtime_kind {
+  diurna
+  nocturna
+  dominical_festiva
+  extra_diurna_dominical_festiva
+  extra_nocturna_dominical_festiva
+}
+
+enum role_type {
+  boss
+  hr
+  assistant
+  coordinator
+  worker
+}

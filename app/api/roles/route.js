@@ -1,14 +1,12 @@
 import { NextResponse } from "next/server"
-import { supabase } from "@/lib/supabaseClient"
+import { prisma } from "@/lib/prisma"
 
 export async function GET() {
   try {
-    const { data: roles, error } = await supabase.from("roles").select("nombre").order("nombre")
-
-    if (error) {
-      console.error("[v0] Error fetching roles:", error)
-      return NextResponse.json({ message: "Error al obtener roles" }, { status: 500 })
-    }
+    const roles = await prisma.roles.findMany({
+      select: { nombre: true },
+      orderBy: { nombre: "asc" },
+    })
 
     return NextResponse.json(roles.map((r) => r.nombre))
   } catch (error) {

@@ -1,25 +1,10 @@
 import { NextResponse } from "next/server"
-import jwt from "jsonwebtoken"
 import bcrypt from "bcryptjs"
-import { supabase } from "@/lib/supabaseClient"
 import { canManageEmployees, isCoordinator } from "@/lib/permissions"
 import { calculateEmployeeWorkValues, calculateScheduleSurcharges } from "@/lib/calculations"
 import { logAudit } from "@/lib/logger"
-
-const JWT_SECRET = process.env.JWT_SECRET || "your-secret-key-change-in-production"
-
-async function getUserFromRequest(request) {
-  const token = request.cookies.get("auth_token")?.value
-  if (!token) return null
-
-  try {
-    const decoded = jwt.verify(token, JWT_SECRET)
-    const { data: user } = await supabase.from("usuarios").select("*").eq("id", decoded.id).single()
-    return user
-  } catch {
-    return null
-  }
-}
+import { getUserFromRequest } from "@/lib/apiAuth"
+import { prisma } from "@/lib/prisma"
 
 export async function GET(request) {
   try {
@@ -34,35 +19,45 @@ export async function GET(request) {
     const area = searchParams.get("area") || ""
     const rol = searchParams.get("rol") || ""
 
-    let query = supabase
-      .from("usuarios")
-      .select("id, username, nombre, cc, foto_url, area, rol, salario_base, jornada_fija_hhmm")
-      .eq("is_active", true)
+    const where = {
+      is_active: true,
+    }
 
     // Si es coordinador, solo puede ver empleados de su área
     if (isCoordinator(user.rol)) {
-      query = query.eq("area", user.area)
+      where.area = user.area
     }
 
     // Filtros
     if (search) {
-      query = query.or(`username.ilike.%${search}%,nombre.ilike.%${search}%`)
+      where.OR = [
+        { username: { contains: search, mode: "insensitive" } },
+        { nombre: { contains: search, mode: "insensitive" } },
+      ]
     }
 
     if (area) {
-      query = query.eq("area", area)
+      where.area = area
     }
 
     if (rol) {
-      query = query.eq("rol", rol)
+      where.rol = rol
     }
 
-    const { data: empleados, error } = await query
-
-    if (error) {
-      console.error("[v0] Error fetching employees:", error)
-      return NextResponse.json({ message: "Error al obtener empleados" }, { status: 500 })
-    }
+    const empleados = await prisma.usuarios.findMany({
+      where,
+      select: {
+        id: true,
+        username: true,
+        nombre: true,
+        cc: true,
+        foto_url: true,
+        area: true,
+        rol: true,
+        salario_base: true,
+        jornada_fija_hhmm: true,
+      },
+    })
 
     return NextResponse.json(empleados)
   } catch (error) {
@@ -97,14 +92,20 @@ export async function POST(request) {
     }
 
     // Verificar si el usuario ya existe
-    const { data: existingUser } = await supabase.from("usuarios").select("id").eq("username", username).single()
+    const existingUser = await prisma.usuarios.findUnique({
+      where: { username },
+      select: { id: true },
+    })
 
     if (existingUser) {
       return NextResponse.json({ message: "El username ya existe" }, { status: 400 })
     }
 
     // Verificar si la cédula ya existe
-    const { data: existingCC } = await supabase.from("usuarios").select("id").eq("cc", cc).single()
+    const existingCC = await prisma.usuarios.findFirst({
+      where: { cc },
+      select: { id: true },
+    })
 
     if (existingCC) {
       return NextResponse.json({ message: "La cédula ya está registrada" }, { status: 400 })
@@ -120,15 +121,16 @@ export async function POST(request) {
       let nightShiftRange = { start: "21:00", end: "06:00" } // Default
       const currentYear = new Date().getFullYear().toString()
 
-      let { data: params } = await supabase
-        .from("parametros")
-        .select("jornada_nocturna")
-        .eq("anio_vigencia", currentYear)
-        .single()
+      let params = await prisma.parametros.findFirst({
+        where: { anio_vigencia: currentYear },
+        select: { jornada_nocturna: true },
+      })
 
       if (!params) {
-        const { data: latest } = await supabase.from("parametros").select("jornada_nocturna").order("anio_vigencia", { ascending: false }).limit(1).single()
-        params = latest
+        params = await prisma.parametros.findFirst({
+          select: { jornada_nocturna: true },
+          orderBy: { anio_vigencia: "desc" },
+        })
       }
 
       if (params && params.jornada_nocturna) {
@@ -141,31 +143,33 @@ export async function POST(request) {
     const { horas_semanales, horas_mensuales, valor_hora } = calculateEmployeeWorkValues(enrichedSchedule, salario_base)
 
     // Insertar nuevo usuario
-    const { data: newUser, error } = await supabase
-      .from("usuarios")
-      .insert([
-        {
-          username,
-          password_hash,
-          nombre: nombre || null,
-          cc: cc || null,
-          foto_url: foto_url || null,
-          area: area || null,
-          rol: rol || "OPERARIO",
-          salario_base: salario_base || null,
-          jornada_fija_hhmm: enrichedSchedule || null,
-          horas_semanales,
-          horas_mensuales,
-          valor_hora
-        },
-      ])
-      .select("id, username, nombre, cc, foto_url, area, rol, salario_base, jornada_fija_hhmm")
-      .single()
-
-    if (error) {
-      console.error("[v0] Error creating employee:", error)
-      return NextResponse.json({ message: "Error al crear el empleado" }, { status: 500 })
-    }
+    const newUser = await prisma.usuarios.create({
+      data: {
+        username,
+        password_hash,
+        nombre: nombre || null,
+        cc: cc || null,
+        foto_url: foto_url || null,
+        area: area || null,
+        rol: rol || "OPERARIO",
+        salario_base: salario_base || null,
+        jornada_fija_hhmm: enrichedSchedule || null,
+        horas_semanales,
+        horas_mensuales,
+        valor_hora,
+      },
+      select: {
+        id: true,
+        username: true,
+        nombre: true,
+        cc: true,
+        foto_url: true,
+        area: true,
+        rol: true,
+        salario_base: true,
+        jornada_fija_hhmm: true,
+      },
+    })
 
     // Audit Log
     await logAudit({

@@ -9,13 +9,10 @@ import { useSidebar } from "@/context/SidebarContext"
 
 export function Layout({ children }) {
   const { user, logout } = useAuth()
-
-  if (!user) return children
-
-  const showEmployeesLink = !isWorker(user.rol)
-  const showOvertimeLink = canManageOvertime(user.rol) || isWorker(user.rol)
-
   const [isSidebarOpen, setIsSidebarOpen] = useState(true)
+  const pathname = usePathname()
+  const linksRef = useRef({})
+  const { indicatorStyle, setIndicatorStyle } = useSidebar()
 
   const roleRoutes = {
     JEFE: "/dashboard/jefe",
@@ -24,16 +21,13 @@ export function Layout({ children }) {
     COORDINADOR: "/dashboard/coordinador",
     OPERARIO: "/dashboard/operario",
   }
-  const dashboardHref = roleRoutes[user.rol] || "/dashboard"
-
-  const pathname = usePathname()
-  const linksRef = useRef({})
-  const { indicatorStyle, setIndicatorStyle } = useSidebar()
+  const dashboardHref = roleRoutes[user?.rol] || "/dashboard"
 
   useEffect(() => {
-    // Reset refs on each render/path change to ensure stale refs don't cause issues?
-    // Actually React handles ref assignment. Clean keys?
-    // Better to just iterate available keys.
+    if (!user) {
+      setIndicatorStyle((prev) => ({ ...prev, opacity: 0 }))
+      return
+    }
 
     // Logic to find active link
     let activeHref = null
@@ -45,7 +39,7 @@ export function Layout({ children }) {
     } else {
       // Find by startsWith, but pick the longest match to be specific
       activeHref = keys
-        .filter(href => pathname.startsWith(href))
+        .filter((href) => pathname.startsWith(href))
         .sort((a, b) => b.length - a.length)[0]
     }
 
@@ -59,12 +53,17 @@ export function Layout({ children }) {
       setIndicatorStyle({
         top: activeEl.offsetTop,
         height: activeEl.offsetHeight,
-        opacity: 1
+        opacity: 1,
       })
     } else {
-      setIndicatorStyle(prev => ({ ...prev, opacity: 0 }))
+      setIndicatorStyle((prev) => ({ ...prev, opacity: 0 }))
     }
-  }, [pathname, isSidebarOpen, dashboardHref])
+  }, [pathname, isSidebarOpen, dashboardHref, user, setIndicatorStyle])
+
+  if (!user) return children
+
+  const showEmployeesLink = !isWorker(user.rol)
+  const showOvertimeLink = canManageOvertime(user.rol) || isWorker(user.rol)
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -176,6 +175,16 @@ export function Layout({ children }) {
                 <>
                   {/* Managers use Empleados for Overtime now, so no separate link needed */}
                   <Link
+                    href="/aprobaciones"
+                    ref={el => linksRef.current["/aprobaciones"] = el}
+                    className={`block px-4 py-2 rounded-md transition-colors whitespace-nowrap ${pathname.startsWith("/aprobaciones")
+                      ? "text-primary bg-primary/10 font-medium"
+                      : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                      }`}
+                  >
+                    Aprobaciones
+                  </Link>
+                  <Link
                     href="/apelaciones"
                     ref={el => linksRef.current["/apelaciones"] = el}
                     className={`block px-4 py-2 rounded-md transition-colors whitespace-nowrap ${pathname.startsWith("/apelaciones")
@@ -242,6 +251,12 @@ export function Layout({ children }) {
 
           {canManageOvertime(user.rol) && (
             <>
+              <Link href="/aprobaciones" className="flex flex-col items-center justify-center w-full h-full text-muted-foreground hover:text-primary">
+                <svg className="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                <span className="text-[10px]">Aprobaciones</span>
+              </Link>
               <Link href="/apelaciones" className="flex flex-col items-center justify-center w-full h-full text-muted-foreground hover:text-primary">
                 <svg className="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
