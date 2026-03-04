@@ -66,6 +66,17 @@ function AuditoriaContent() {
 
     const getUserName = (id) => userMap[id] || id || "Desconocido"
 
+    const getEntityLabel = (entity) => {
+        const labels = {
+            EMPLEADO: "Empleado",
+            JORNADA: "Jornada",
+            BOLSA_HORAS: "Compensación en Tiempo",
+            APELACION: "Apelación",
+            CONFIGURACION: "Configuración",
+        }
+        return labels[entity] || entity
+    }
+
     const formatDate = (dateStr) => {
         if (!dateStr) return "-"
         return new Date(dateStr).toLocaleString('es-CO', {
@@ -300,7 +311,7 @@ function AuditoriaContent() {
                     <option value="">Todas las Entidades</option>
                     <option value="EMPLEADO">Empleado</option>
                     <option value="JORNADA">Jornada</option>
-                    <option value="BOLSA_HORAS">Bolsa de Horas</option>
+                    <option value="BOLSA_HORAS">Compensación en Tiempo</option>
                     <option value="APELACION">Apelación</option>
                     <option value="CONFIGURACION">Configuración</option>
                 </select>
@@ -315,8 +326,8 @@ function AuditoriaContent() {
                     <option value="DELETE">Eliminar</option>
                     <option value="APPROVE">Aprobar</option>
                     <option value="REJECT">Rechazar</option>
-                    <option value="ACUMULAR_BOLSA">Acumular Bolsa</option>
-                    <option value="REDENCION">Canjear Bolsa</option>
+                    <option value="ACUMULAR_BOLSA">Acumular Tiempo Compensable</option>
+                    <option value="REDENCION">Canjear Tiempo Compensable</option>
                 </select>
             </div>
 
@@ -369,7 +380,7 @@ function AuditoriaContent() {
                                             <div className="flex flex-col items-start gap-2">
                                                 {renderActionBadge(log.action)}
                                                 <div className="flex items-center gap-1 text-xs text-muted-foreground font-mono bg-muted px-1.5 py-0.5 rounded">
-                                                    {log.entity}
+                                                    {getEntityLabel(log.entity)}
                                                     {log.entity_id && <span className="opacity-50">#{log.entity_id.slice(0, 6)}</span>}
                                                 </div>
                                             </div>
@@ -446,7 +457,7 @@ function AuditoriaContent() {
                                     <div className="h-8 w-px bg-border"></div>
                                     <div>
                                         <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block mb-1">Entidad</span>
-                                        <div className="font-mono text-sm">{selectedLog.entity}</div>
+                                        <div className="font-mono text-sm">{getEntityLabel(selectedLog.entity)}</div>
                                     </div>
                                     <div className="h-8 w-px bg-border"></div>
                                     <div>

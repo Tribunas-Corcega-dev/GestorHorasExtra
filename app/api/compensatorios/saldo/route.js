@@ -64,7 +64,7 @@ export async function GET(request) {
                 unidad: 'minutos', // Adding default unit
                 cantidad_minutos: item.minutos,
                 saldo_nuevo: item.saldo_resultante,
-                descripcion: item.observacion || "Movimiento de bolsa"
+                descripcion: item.observacion || "Movimiento de compensación en tiempo"
             })),
             solicitudes: requestHistory,
             jornada_fija_hhmm: targetUser.jornada_fija_hhmm,

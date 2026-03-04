@@ -79,7 +79,7 @@ export async function POST(request) {
                 minutos,
                 saldo_resultante: newBalance,
                 referencia_id: id,
-                observacion: "Aprobación de horas extra a bolsa",
+                observacion: "Aprobación de horas extra a compensación en tiempo",
                 realizado_por: user.id,
               },
             })
@@ -133,7 +133,7 @@ export async function POST(request) {
                   minutos,
                   saldo_resultante: newBalance,
                   referencia_id: id,
-                  observacion: "Uso de tiempo compensatorio aprobado",
+                  observacion: "Uso de compensación en tiempo aprobado",
                   realizado_por: user.id,
                 },
               })

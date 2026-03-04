@@ -342,7 +342,7 @@ export function ApprovalFormatModal({ isOpen, onClose, employee, period, jefe, e
                         {/* 2. Deductions (Banked) - Only show if > 0 */}
                         {totalBankedMinutes > 0 && (
                             <div className="flex border-b border-black/20 pb-1 mb-1 text-red-600">
-                                <div className="w-[60%] pl-4">- MENOS: HORAS ENVIADAS A BOLSA</div>
+                                <div className="w-[60%] pl-4">- MENOS: HORAS COMPENSADAS EN TIEMPO</div>
                                 <div className="flex-1 text-right px-4">
                                     ({formatTime(totalBankedMinutes)} / {(totalBankedMinutes / 60).toFixed(2)})
                                 </div>

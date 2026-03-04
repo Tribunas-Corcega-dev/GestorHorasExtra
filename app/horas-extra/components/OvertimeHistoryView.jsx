@@ -252,7 +252,7 @@ export function OvertimeHistoryView({ employeeId, showBackButton = true }) {
                 setRecargos(recargosData)
             }
 
-            // Fetch balance (Bolsa de Horas)
+            // Fetch balance (Compensación en tiempo)
             const balanceRes = await fetch(`/api/compensatorios/saldo?userId=${employeeId}`)
             if (balanceRes.ok) {
                 const balanceData = await balanceRes.json()
@@ -462,7 +462,7 @@ export function OvertimeHistoryView({ employeeId, showBackButton = true }) {
                             {balanceData && (
                                 <div className="mt-4 bg-blue-50 dark:bg-blue-900/20 px-4 py-2 rounded-lg border border-blue-200 dark:border-blue-800 min-w-[200px]">
                                     <p className="text-xs text-blue-600 dark:text-blue-400 font-semibold uppercase tracking-wider mb-1">
-                                        Bolsa de Horas
+                                        Compensación en Tiempo
                                     </p>
                                     <div className="flex items-baseline gap-2">
                                         <span className="text-2xl font-bold text-blue-700 dark:text-blue-300">
@@ -483,7 +483,7 @@ export function OvertimeHistoryView({ employeeId, showBackButton = true }) {
                                                 onClick={() => setShowManageModal(true)}
                                                 className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold uppercase py-2 px-4 rounded w-full shadow hover:shadow-md transition-all flex items-center justify-center gap-2"
                                             >
-                                                Gestionar Bolsa
+                                                Gestionar Compensación
                                                 <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" /><polyline points="15 3 21 3 21 9" /><line x1="10" y1="14" x2="21" y2="3" /></svg>
                                             </button>
                                         </div>
@@ -528,7 +528,7 @@ export function OvertimeHistoryView({ employeeId, showBackButton = true }) {
                     className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center justify-center gap-2 w-full sm:w-auto"
                 >
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 12h20" /><path d="M7 12v5a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2v-5" /><path d="M12 12V7" /></svg>
-                    Ahorrar en Bolsa
+                    Enviar a Compensación
                 </button>
 
                 {/* Close Period Button */}
@@ -842,7 +842,7 @@ export function OvertimeHistoryView({ employeeId, showBackButton = true }) {
                                                     {jornada.horas_para_bolsa_minutos > 0 && (
                                                         <div className="mt-1">
                                                             <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
-                                                                Bolsa: {formatMinutesToFloat(jornada.horas_para_bolsa_minutos)}
+                                                                Compensación: {formatMinutesToFloat(jornada.horas_para_bolsa_minutos)}
                                                             </span>
                                                         </div>
                                                     )}
@@ -895,7 +895,7 @@ export function OvertimeHistoryView({ employeeId, showBackButton = true }) {
                                                 <td className="px-4 py-3 text-sm font-bold text-green-600 dark:text-green-400 text-right whitespace-nowrap">
                                                     {['SOLICITADO', 'APROBADO'].includes(jornada.estado_compensacion) ? (
                                                         <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400 border border-blue-200 dark:border-blue-800">
-                                                            En Bolsa
+                                                            En compensación en tiempo
                                                         </span>
                                                     ) : (
                                                         dayValue > 0 ? formatCurrency(dayValue) : "-"
@@ -1068,7 +1068,7 @@ export function OvertimeHistoryView({ employeeId, showBackButton = true }) {
                                             if (status !== 'NINGUNO') {
                                                 return (
                                                     <span className="px-3 py-2 bg-blue-100 text-blue-800 rounded-md text-sm font-medium border border-blue-200">
-                                                        {status === 'SOLICITADO' ? 'En Solicitud de Bolsa' : status === 'APROBADO' ? 'En Bolsa' : status}
+                                                        {status === 'SOLICITADO' ? 'En solicitud de compensación en tiempo' : status === 'APROBADO' ? 'En compensación en tiempo' : status}
                                                     </span>
                                                 )
                                             }

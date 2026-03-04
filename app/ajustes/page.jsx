@@ -58,7 +58,7 @@ function AjustesContent() {
         },
         {
             title: "Parámetros Generales",
-            description: "Actualiza el salario mínimo y límites de la bolsa de horas.",
+            description: "Actualiza el salario mínimo y los límites de compensación en tiempo.",
             href: "/ajustes/salario",
             icon: (
                 <svg className="w-8 h-8 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">

@@ -121,7 +121,7 @@ function AprobacionesContent() {
         <div className="max-w-6xl mx-auto space-y-6">
             <div>
                 <h1 className="text-3xl font-bold text-foreground">Aprobaciones</h1>
-                <p className="text-muted-foreground">Gestiona las solicitudes de tiempo compensatorio.</p>
+                <p className="text-muted-foreground">Gestiona las solicitudes de compensación en tiempo.</p>
             </div>
 
             {/* Tabs */}
@@ -169,7 +169,7 @@ function AprobacionesContent() {
                                         <tr>
                                             <th className="px-4 py-3">Empleado</th>
                                             <th className="px-4 py-3">Fecha Jornada</th>
-                                            <th className="px-4 py-3">Horas a Bolsa</th>
+                                            <th className="px-4 py-3">Horas a Compensar</th>
                                             <th className="px-4 py-3 text-right">Acciones</th>
                                         </tr>
                                     </thead>

@@ -62,9 +62,9 @@ export function CompensatoryRequestModal({ isOpen, onClose, checkAvailable, onCo
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in">
             <div className="bg-card border border-border rounded-xl shadow-2xl max-w-lg w-full p-6 animate-in zoom-in-95 duration-200">
-                <h2 className="text-xl font-bold mb-2">Solicitar Compensatorio (Bolsa)</h2>
+                <h2 className="text-xl font-bold mb-2">Solicitar Compensación en Tiempo</h2>
                 <p className="text-sm text-muted-foreground mb-6">
-                    Ingresa la cantidad de tiempo que deseas enviar a tu bolsa de horas.
+                    Ingresa la cantidad de tiempo que deseas enviar a compensación en tiempo.
                 </p>
 
                 {/* Summary of Available Hours */}

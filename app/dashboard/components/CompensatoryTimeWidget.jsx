@@ -363,8 +363,8 @@ export function CompensatoryTimeWidget() {
         <div className="bg-card border border-border rounded-lg shadow-sm p-6">
             <div className="flex justify-between items-start mb-4">
                 <div>
-                    <h3 className="text-lg font-bold text-foreground">Bolsa de Horas</h3>
-                    <p className="text-sm text-muted-foreground">Tiempo compensatorio disponible</p>
+                    <h3 className="text-lg font-bold text-foreground">Compensación en Tiempo</h3>
+                    <p className="text-sm text-muted-foreground">Compensación en tiempo disponible</p>
                 </div>
                 <button
                     onClick={() => setShowModal(true)}

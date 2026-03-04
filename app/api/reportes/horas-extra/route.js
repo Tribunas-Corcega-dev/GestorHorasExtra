@@ -72,8 +72,7 @@ export async function GET(request) {
             // Calculate total sum for display
             totals.total = Object.values(totals).reduce((a, b) => a + b, 0);
 
-            // Only include if there's activity or a balance
-            // Note: bolsa_horas_minutos might be positive (credit) or negative (debt)? Usually positive means they have time in bank.
+            // Only include if there's activity or a compensation balance
             if (totals.total === 0 && (!emp.bolsa_horas_minutos || emp.bolsa_horas_minutos === 0)) {
                 return null;
             }
@@ -81,6 +80,7 @@ export async function GET(request) {
             return {
                 ...emp,
                 bolsa_balance: emp.bolsa_horas_minutos || 0,
+                compensacion_tiempo_balance: emp.bolsa_horas_minutos || 0,
                 totals,
             }
         }).filter(Boolean) // Remove nulls

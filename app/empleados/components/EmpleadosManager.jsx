@@ -315,7 +315,7 @@ export function EmpleadosManager() {
                                                 onClick={() => handleOpenBalanceModal(empleado)}
                                                 className="col-span-2 bg-muted hover:bg-muted/80 text-foreground py-2 rounded-md text-sm font-medium transition-colors border border-transparent flex items-center justify-center gap-2"
                                             >
-                                                Gestionar Bolsa
+                                                Gestionar Compensación
                                             </button>
                                         </>
                                     )}
@@ -354,7 +354,7 @@ export function EmpleadosManager() {
                     <div className="bg-card border border-border rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] flex flex-col animate-in fade-in zoom-in duration-200">
                         <div className="p-6 border-b border-border flex justify-between items-center bg-blue-50 dark:bg-blue-950/20">
                             <div>
-                                <h3 className="text-xl font-bold text-foreground">Gestión de Bolsa de Horas</h3>
+                                <h3 className="text-xl font-bold text-foreground">Gestión de Compensación en Tiempo</h3>
                                 <p className="text-sm text-muted-foreground">Empleado: <span className="font-medium text-foreground">{selectedEmployeeForBalance.nombre || selectedEmployeeForBalance.username}</span></p>
                             </div>
                             <button onClick={() => setShowBalanceModal(false)} className="text-muted-foreground hover:text-foreground"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg></button>

@@ -253,7 +253,7 @@ export function BalanceManagementModal({ isOpen, onClose, employee, onUpdate }) 
                 {/* Header */}
                 <div className="p-6 border-b border-border flex justify-between items-center bg-blue-50 dark:bg-blue-950/20">
                     <div>
-                        <h3 className="text-xl font-bold text-foreground">Gestión de Bolsa de Horas</h3>
+                        <h3 className="text-xl font-bold text-foreground">Gestión de Compensación en Tiempo</h3>
                         <p className="text-sm text-muted-foreground">
                             Empleado: <span className="font-medium text-foreground">{employee.nombre || employee.username}</span>
                         </p>

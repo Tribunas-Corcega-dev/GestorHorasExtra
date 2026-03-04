@@ -220,7 +220,7 @@ function SalarioContent() {
 
                     <div>
                         <label htmlFor="limitHours" className="block text-sm font-medium text-foreground mb-2">
-                            Límite Bolsa de Horas
+                            Límite de Compensación en Tiempo
                         </label>
                         <div className="flex items-center gap-2">
                             <div className="flex-1 relative">
