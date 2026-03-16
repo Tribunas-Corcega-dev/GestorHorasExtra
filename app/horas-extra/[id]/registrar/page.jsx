@@ -24,6 +24,7 @@ function RegistrarHorasExtraContent() {
     const params = useParams()
     const searchParams = useSearchParams()
     const editDate = searchParams.get("fecha")
+    const jornadaId = searchParams.get("jornadaId")
 
     const { user } = useAuth()
     const router = useRouter()
@@ -33,7 +34,7 @@ function RegistrarHorasExtraContent() {
     const [empleado, setEmpleado] = useState(null)
 
     const [fecha, setFecha] = useState(editDate || "")
-    const [isEditMode, setIsEditMode] = useState(!!editDate)
+    const [isEditMode, setIsEditMode] = useState(!!(editDate || jornadaId))
 
     const [jornada, setJornada] = useState({
         enabled: true,
@@ -66,23 +67,42 @@ function RegistrarHorasExtraContent() {
             fetchEmpleado()
             fetchParametros()
 
-            if (editDate) {
-                fetchExistingJornada(editDate)
+            if (editDate || jornadaId) {
+                fetchExistingJornada(editDate, jornadaId)
             }
         }
-    }, [user, router, params?.id, editDate])
+    }, [user, router, params?.id, editDate, jornadaId])
 
-    async function fetchExistingJornada(dateStr) {
+    async function fetchExistingJornada(dateStr, targetJornadaId) {
         try {
             const res = await fetch(`/api/jornadas?empleado_id=${params.id}`)
             if (res.ok) {
                 const data = await res.json()
-                const found = data.find(j => j.fecha === dateStr)
+                const found = targetJornadaId ? data.find(j => j.id === targetJornadaId) : data.find(j => j.fecha === dateStr)
                 if (found) {
-                    setJornada({
+                    const loadedJornada = {
                         ...found.jornada_base_calcular,
-                        es_festivo: found.es_festivo // Ensure festivo state is synced
-                    })
+                        es_festivo: found.es_festivo
+                    }
+
+                    setFecha(found.fecha)
+                    const isExactRecord =
+                        loadedJornada?.afternoon?.enabled === false &&
+                        !!loadedJornada?.morning?.start &&
+                        !!loadedJornada?.morning?.end
+
+                    if (isExactRecord) {
+                        setRegistrationMode("exact")
+                        setExactTime({
+                            start: loadedJornada.morning.start,
+                            end: loadedJornada.morning.end,
+                            es_festivo: !!found.es_festivo,
+                        })
+                    } else {
+                        setRegistrationMode("full")
+                    }
+
+                    setJornada(loadedJornada)
                     setObservaciones(found.observaciones || "")
                 }
             }
@@ -183,24 +203,12 @@ function RegistrarHorasExtraContent() {
                     )
                 }
             }
-
-            // --- USER REQUEST: Delete old and create new to ensure fresh calculation/snapshot ---
-            if (isEditMode) {
-                const deleteRes = await fetch(`/api/jornadas?empleado_id=${params.id}&fecha=${fecha}`, {
-                    method: "DELETE"
-                })
-
-                if (!deleteRes.ok) {
-                    const deleteErr = await deleteRes.json()
-                    throw new Error("Error al limpiar registro anterior: " + (deleteErr.message || "Desconocido"))
-                }
-            }
-
             const res = await fetch("/api/jornadas", {
-                method: "POST",
+                method: isEditMode ? "PUT" : "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     empleado_id: params.id,
+                    jornada_id: isEditMode ? jornadaId : undefined,
                     fecha,
                     // Save the effective schedule used for calculation
                     jornada_base_calcular: effectiveJornada,
@@ -405,3 +413,4 @@ function RegistrarHorasExtraContent() {
         </div>
     )
 }
+

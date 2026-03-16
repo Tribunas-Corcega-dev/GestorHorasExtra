@@ -13,7 +13,7 @@ export async function POST(request) {
         }
 
         const body = await request.json()
-        const { empleado_id, fecha, jornada_base_calcular, horas_extra_hhmm, es_festivo, observaciones } = body
+        const { jornada_id, empleado_id, fecha, jornada_base_calcular, horas_extra_hhmm, es_festivo, observaciones } = body
 
         if (!empleado_id || !fecha || !jornada_base_calcular) {
             return NextResponse.json({ message: "Faltan datos requeridos" }, { status: 400 })
@@ -78,29 +78,45 @@ export async function PUT(request) {
         }
 
         const body = await request.json()
-        const { empleado_id, fecha, jornada_base_calcular, horas_extra_hhmm, es_festivo, observaciones } = body
+        const { jornada_id, empleado_id, fecha, jornada_base_calcular, horas_extra_hhmm, es_festivo, observaciones } = body
 
-        if (!empleado_id || !fecha) {
-            return NextResponse.json({ message: "Faltan datos requeridos (empleado_id, fecha)" }, { status: 400 })
+        if (!jornada_id && (!empleado_id || !fecha)) {
+            return NextResponse.json({ message: "Faltan datos requeridos (jornada_id o empleado_id+fecha)" }, { status: 400 })
         }
 
-        const fechaDate = parseDateOnly(fecha)
-        if (!fechaDate) {
-            return NextResponse.json({ message: "Fecha inválida" }, { status: 400 })
+        let existingJornada = null
+
+        if (jornada_id) {
+            existingJornada = await prisma.jornadas.findUnique({
+                where: { id: jornada_id },
+                select: { id: true, empleado_id: true }
+            })
+
+            if (!existingJornada) {
+                return NextResponse.json({ message: "Jornada no encontrada" }, { status: 404 })
+            }
+
+            if (empleado_id && existingJornada.empleado_id !== empleado_id) {
+                return NextResponse.json({ message: "La jornada no pertenece al empleado indicado" }, { status: 400 })
+            }
+        } else {
+            const fechaDate = parseDateOnly(fecha)
+            if (!fechaDate) {
+                return NextResponse.json({ message: "Fecha inválida" }, { status: 400 })
+            }
+
+            existingJornada = await prisma.jornadas.findFirst({
+                where: {
+                    empleado_id,
+                    fecha: fechaDate,
+                },
+                select: { id: true }
+            })
+
+            if (!existingJornada) {
+                return NextResponse.json({ message: "Jornada no encontrada" }, { status: 404 })
+            }
         }
-
-        const existingJornada = await prisma.jornadas.findFirst({
-            where: {
-                empleado_id,
-                fecha: fechaDate,
-            },
-            select: { id: true }
-        })
-
-        if (!existingJornada) {
-            return NextResponse.json({ message: "Jornada no encontrada" }, { status: 404 })
-        }
-
         const updatedJornada = await prisma.jornadas.update({
             where: { id: existingJornada.id },
             data: {

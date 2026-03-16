@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import { calculatePeriodFixedSurcharges, getSalaryForDate } from "@/lib/calculations"
+import { calculatePeriodFixedSurcharges, getSalaryForDate, getRecargoPaymentFactor, normalizeOvertimeType } from "@/lib/calculations"
 import { prisma } from "@/lib/prisma"
 
 export async function POST(request) {
@@ -125,11 +125,10 @@ export async function POST(request) {
           reportedOvertime[k] += minutes
         }
         if (minutes > 0 && jornadaRate > 0 && recargos) {
-          const surchargeType = recargos.find((r) => normalizeType(r.tipo_hora_extra) === k)
+          const surchargeType = recargos.find((r) => normalizeOvertimeType(r.tipo_hora_extra) === k)
           if (surchargeType) {
             const hours = minutes / 60
-            const percentage = surchargeType.recargo > 2 ? surchargeType.recargo / 100 : surchargeType.recargo
-            const factor = 1 + percentage
+            const factor = getRecargoPaymentFactor(surchargeType.recargo, k)
             totalValue += hours * jornadaRate * factor
           }
         }
@@ -144,11 +143,11 @@ export async function POST(request) {
 
     if (fixedHourlyRate && recargos) {
       Object.entries(fixedSurcharges).forEach(([key, minutes]) => {
-        const surchargeType = recargos.find((r) => normalizeType(r.tipo_hora_extra) === key)
+        const surchargeType = recargos.find((r) => normalizeOvertimeType(r.tipo_hora_extra) === key)
         if (surchargeType) {
           const hours = minutes / 60
-          const percentage = surchargeType.recargo > 2 ? surchargeType.recargo / 100 : surchargeType.recargo
-          totalValue += hours * fixedHourlyRate * percentage
+          const factor = getRecargoPaymentFactor(surchargeType.recargo, key)
+          totalValue += hours * fixedHourlyRate * factor
         }
       })
     }
@@ -173,23 +172,3 @@ export async function POST(request) {
   }
 }
 
-function normalizeType(dbType) {
-  if (!dbType) return ""
-  const normalized = dbType.trim().toLowerCase()
-  const map = {
-    "extra diurno": "extra_diurna",
-    "trabajo extra nocturno": "extra_nocturna",
-    "extra nocturna": "extra_nocturna",
-    "trabajo extra diurno dominical y festivo": "extra_diurna_festivo",
-    "extra diurna festivo": "extra_diurna_festivo",
-    "trabajo extra nocturno en domingos y festivos": "extra_nocturna_festivo",
-    "extra nocturna festivo": "extra_nocturna_festivo",
-    "recargo nocturno": "recargo_nocturno",
-    "trabajo nocturno": "recargo_nocturno",
-    "trabajo dominical y festivo": "dominical_festivo",
-    "dominical/festivo": "dominical_festivo",
-    "trabajo nocturno en dominical y festivo": "recargo_nocturno_festivo",
-    "recargo nocturno festivo": "recargo_nocturno_festivo",
-  }
-  return map[normalized] || dbType
-}

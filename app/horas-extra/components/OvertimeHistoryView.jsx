@@ -8,7 +8,7 @@ import { canManageOvertime } from "@/lib/permissions"
 import { formatDateForDisplay } from "@/lib/utils"
 import { useRouter } from "next/navigation"
 import { formatMinutesToHHMM } from "@/hooks/useOvertimeCalculator"
-import { calculateTotalOvertimeValue, formatToAmPm, getSalaryForDate } from "@/lib/calculations"
+import { calculateTotalOvertimeValue, formatToAmPm, getSalaryForDate, getRecargoPaymentFactor, normalizeOvertimeType } from "@/lib/calculations"
 import { supabase } from "@/lib/supabaseClient"
 import { CompensatoryRequestModal } from "./CompensatoryRequestModal"
 import { BalanceManagementModal } from "./BalanceManagementModal"
@@ -325,27 +325,20 @@ export function OvertimeHistoryView({ employeeId, showBackButton = true }) {
                     })
                 }
 
-                // Determine hourly rate based on history > snapshot > current
+                                // Determine hourly rate based on history > snapshot > current
                 let hourlyRate = 0
                 const historySalary = empleado ? getSalaryForDate(empleado.hist_salarios, jornada.fecha) : null
 
-                if (jornada && jornada.valor_hora_snapshot) {
-                    hourlyRate = Number(jornada.valor_hora_snapshot)
-                } else if (historySalary) {
+                if (historySalary) {
                     hourlyRate = Number(historySalary.hourlyRate)
+                } else if (jornada && jornada.valor_hora_snapshot) {
+                    hourlyRate = Number(jornada.valor_hora_snapshot)
                 } else if (empleado) {
                     hourlyRate = Number(empleado.valor_hora)
                 }
 
                 if (hourlyRate > 0) {
-                    // Check if hours are banked
-                    // OLD LOGIC: const isBanked = ['SOLICITADO', 'APROBADO'].includes(jornada.estado_compensacion)
-                    // NEW LOGIC: Deduct banked minutes from payable minutes
-
                     const bankedDesglose = jornada.desglose_compensacion || {}
-
-                    totalValue += calculateTotalOvertimeValue(flatBreakdown, hourlyRate, recargos, bankedDesglose) // Needs update in lib? Or manually handled here?
-                    // calculateTotalOvertimeValue doesn't support deduction arg. Let's do it manually or assume we modify breakdown.
 
                     // Modify flatBreakdown for calculation purposes (Deduct banked)
                     const payableBreakdown = { ...flatBreakdown }
@@ -361,31 +354,11 @@ export function OvertimeHistoryView({ employeeId, showBackButton = true }) {
                     if (recargos.length > 0) {
                         Object.entries(payableBreakdown).forEach(([type, minutes]) => {
                             if (minutes > 0) {
-                                const surcharge = recargos.find(r => {
-                                    const dbType = (r.tipo_hora_extra || "").trim().toLowerCase()
-                                    const map = {
-                                        "extra diurno": "extra_diurna",
-                                        "trabajo extra nocturno": "extra_nocturna",
-                                        "extra nocturna": "extra_nocturna",
-                                        "trabajo extra diurno dominical y festivo": "extra_diurna_festivo",
-                                        "extra diurna festivo": "extra_diurna_festivo",
-                                        "trabajo extra nocturno en domingos y festivos": "extra_nocturna_festivo",
-                                        "extra nocturna festivo": "extra_nocturna_festivo",
-                                        "recargo nocturno": "recargo_nocturno",
-                                        "trabajo nocturno": "recargo_nocturno",
-                                        "trabajo dominical y festivo": "dominical_festivo",
-                                        "dominical/festivo": "dominical_festivo",
-                                        "trabajo nocturno en dominical y festivo": "recargo_nocturno_festivo",
-                                        "recargo nocturno festivo": "recargo_nocturno_festivo"
-                                    }
-                                    return (map[dbType] || r.tipo_hora_extra) === type
-                                })
+                                const surcharge = recargos.find(r => normalizeOvertimeType(r.tipo_hora_extra) === type)
 
-
-                                const percentage = surcharge ? surcharge.recargo : 0
+                                const recargoRaw = surcharge ? surcharge.recargo : 0
                                 const hours = minutes / 60
-                                const p = percentage > 2 ? percentage / 100 : percentage
-                                const factor = 1 + p
+                                const factor = getRecargoPaymentFactor(recargoRaw, type)
                                 const value = hours * hourlyRate * factor
 
                                 if (overtimeValues[type] !== undefined) {
@@ -1079,7 +1052,7 @@ export function OvertimeHistoryView({ employeeId, showBackButton = true }) {
 
                                 {isCoordinator && (
                                     <Link
-                                        href={`/horas-extra/${employeeId}/registrar?fecha=${selectedJornada.fecha}`}
+                                        href={`/horas-extra/${employeeId}/registrar?fecha=${selectedJornada.fecha}&jornadaId=${selectedJornada.id}`}
                                         className="px-4 py-2 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 transition-colors flex items-center gap-2"
                                     >
                                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" /><path d="m15 5 4 4" /></svg>

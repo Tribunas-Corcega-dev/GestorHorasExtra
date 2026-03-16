@@ -7,6 +7,7 @@ import { useAuth } from "@/hooks/useAuth"
 import { canManageOvertime, isCoordinator } from "@/lib/permissions"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
+import { normalizeOvertimeType, recargoToMekanoPercentage } from "@/lib/calculations"
 
 export default function RecargosPage() {
     return (
@@ -110,8 +111,8 @@ function RecargosContent() {
         setEditingId(recargo.id)
         setEditForm({
             tipo_hora_extra: recargo.tipo_hora_extra,
-            // Convert float (0.25) to percentage (25) for display
-            recargo_percentage: (recargo.recargo * 100).toFixed(2).replace(/\.00$/, "")
+            // Convert any legacy storage format to Mekano-style percentage for display
+            recargo_percentage: recargoToMekanoPercentage(recargo.recargo, normalizeOvertimeType(recargo.tipo_hora_extra)).toFixed(2).replace(/\.00$/, "")
         })
     }
 
@@ -125,12 +126,12 @@ function RecargosContent() {
         try {
             const percentage = parseFloat(editForm.recargo_percentage)
             if (isNaN(percentage) || percentage < 0) {
-                setError("El porcentaje debe ser un número válido")
+                setError("El porcentaje debe ser un numero valido")
                 return
             }
 
-            // Convert percentage (25) back to float (0.25)
-            const recargoValue = percentage / 100
+            // Persist Mekano-style percentage directly (e.g. 125 for HED, 35 for RN)
+            const recargoValue = percentage
 
             const res = await fetch("/api/recargos", {
                 method: "PUT",
@@ -284,7 +285,7 @@ function RecargosContent() {
                                             </div>
                                         ) : (
                                             <span className="font-mono text-foreground">
-                                                {(recargo.recargo * 100).toFixed(2).replace(/\.00$/, "")}%
+                                                {recargoToMekanoPercentage(recargo.recargo, normalizeOvertimeType(recargo.tipo_hora_extra)).toFixed(2).replace(/\.00$/, "")}%
                                             </span>
                                         )}
                                     </td>
