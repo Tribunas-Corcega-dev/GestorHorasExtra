@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import { calculatePeriodFixedSurcharges, getSalaryForDate, getRecargoPaymentFactor, normalizeOvertimeType } from "@/lib/calculations"
+import { calculatePeriodFixedSurcharges, getSalaryForDate, getRecargoPaymentFactor, findRecargoConfig } from "@/lib/calculations"
 import { prisma } from "@/lib/prisma"
 
 export async function POST(request) {
@@ -112,10 +112,10 @@ export async function POST(request) {
 
       let jornadaRate = 0
       const historySalary = getSalaryForDate(empleado.hist_salarios, jornada.fecha)
-      if (historySalary) {
-        jornadaRate = Number(historySalary.hourlyRate)
-      } else if (jornada.valor_hora_snapshot) {
+      if (jornada.valor_hora_snapshot) {
         jornadaRate = Number(jornada.valor_hora_snapshot)
+      } else if (historySalary) {
+        jornadaRate = Number(historySalary.hourlyRate)
       } else {
         jornadaRate = Number(empleado.valor_hora)
       }
@@ -125,7 +125,7 @@ export async function POST(request) {
           reportedOvertime[k] += minutes
         }
         if (minutes > 0 && jornadaRate > 0 && recargos) {
-          const surchargeType = recargos.find((r) => normalizeOvertimeType(r.tipo_hora_extra) === k)
+          const surchargeType = findRecargoConfig(recargos, k)
           if (surchargeType) {
             const hours = minutes / 60
             const factor = getRecargoPaymentFactor(surchargeType.recargo, k)
@@ -143,7 +143,7 @@ export async function POST(request) {
 
     if (fixedHourlyRate && recargos) {
       Object.entries(fixedSurcharges).forEach(([key, minutes]) => {
-        const surchargeType = recargos.find((r) => normalizeOvertimeType(r.tipo_hora_extra) === key)
+        const surchargeType = findRecargoConfig(recargos, key)
         if (surchargeType) {
           const hours = minutes / 60
           const factor = getRecargoPaymentFactor(surchargeType.recargo, key)

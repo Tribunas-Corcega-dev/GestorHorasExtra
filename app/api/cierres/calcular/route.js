@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server"
-import { calculatePeriodFixedSurcharges, calculateEmployeeWorkValues, getSalaryForDate, getRecargoPaymentFactor, normalizeOvertimeType } from "@/lib/calculations"
+import { calculatePeriodFixedSurcharges, calculateEmployeeWorkValues, getSalaryForDate, getRecargoPaymentFactor, findRecargoConfig } from "@/lib/calculations"
 import { prisma } from "@/lib/prisma"
 
 export async function GET(request) {
@@ -86,7 +86,7 @@ export async function GET(request) {
 
     if (hourlyRate && recargos) {
       Object.entries(fixedSurcharges).forEach(([key, minutes]) => {
-        const surchargeType = recargos.find((r) => normalizeOvertimeType(r.tipo_hora_extra) === key)
+        const surchargeType = findRecargoConfig(recargos, key)
         if (surchargeType) {
           const hours = minutes / 60
           const factor = getRecargoPaymentFactor(surchargeType.recargo, key)

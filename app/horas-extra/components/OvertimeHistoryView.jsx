@@ -8,7 +8,7 @@ import { canManageOvertime } from "@/lib/permissions"
 import { formatDateForDisplay } from "@/lib/utils"
 import { useRouter } from "next/navigation"
 import { formatMinutesToHHMM } from "@/hooks/useOvertimeCalculator"
-import { calculateTotalOvertimeValue, formatToAmPm, getSalaryForDate, getRecargoPaymentFactor, normalizeOvertimeType } from "@/lib/calculations"
+import { calculateTotalOvertimeValue, formatToAmPm, getSalaryForDate, getRecargoPaymentFactor, findRecargoConfig } from "@/lib/calculations"
 import { supabase } from "@/lib/supabaseClient"
 import { CompensatoryRequestModal } from "./CompensatoryRequestModal"
 import { BalanceManagementModal } from "./BalanceManagementModal"
@@ -325,14 +325,14 @@ export function OvertimeHistoryView({ employeeId, showBackButton = true }) {
                     })
                 }
 
-                                // Determine hourly rate based on history > snapshot > current
+                                // Determine hourly rate based on snapshot > history > current
                 let hourlyRate = 0
                 const historySalary = empleado ? getSalaryForDate(empleado.hist_salarios, jornada.fecha) : null
 
-                if (historySalary) {
-                    hourlyRate = Number(historySalary.hourlyRate)
-                } else if (jornada && jornada.valor_hora_snapshot) {
+                if (jornada && jornada.valor_hora_snapshot) {
                     hourlyRate = Number(jornada.valor_hora_snapshot)
+                } else if (historySalary) {
+                    hourlyRate = Number(historySalary.hourlyRate)
                 } else if (empleado) {
                     hourlyRate = Number(empleado.valor_hora)
                 }
@@ -354,7 +354,7 @@ export function OvertimeHistoryView({ employeeId, showBackButton = true }) {
                     if (recargos.length > 0) {
                         Object.entries(payableBreakdown).forEach(([type, minutes]) => {
                             if (minutes > 0) {
-                                const surcharge = recargos.find(r => normalizeOvertimeType(r.tipo_hora_extra) === type)
+                                const surcharge = findRecargoConfig(recargos, type)
 
                                 const recargoRaw = surcharge ? surcharge.recargo : 0
                                 const hours = minutes / 60
@@ -783,10 +783,10 @@ export function OvertimeHistoryView({ employeeId, showBackButton = true }) {
                                         let hourlyRate = 0
                                         const historySalary = empleado ? getSalaryForDate(empleado.hist_salarios, jornada.fecha) : null
 
-                                        if (historySalary) {
-                                            hourlyRate = Number(historySalary.hourlyRate)
-                                        } else if (jornada.valor_hora_snapshot) {
+                                        if (jornada.valor_hora_snapshot) {
                                             hourlyRate = Number(jornada.valor_hora_snapshot)
+                                        } else if (historySalary) {
+                                            hourlyRate = Number(historySalary.hourlyRate)
                                         } else if (empleado) {
                                             hourlyRate = Number(empleado.valor_hora)
                                         }
