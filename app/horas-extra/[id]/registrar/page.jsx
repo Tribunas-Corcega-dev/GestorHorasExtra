@@ -405,7 +405,7 @@ function RegistrarHorasExtraContent() {
                             disabled={saving}
                             className="w-full sm:flex-1 bg-primary text-primary-foreground py-2 px-4 rounded-md hover:opacity-90 transition-opacity disabled:opacity-50 font-medium"
                         >
-                            {saving ? "Guardando..." : (isEditMode ? "Actualizar Jornada" : "Guardar Jornada")}
+                            {saving ? "Guardando..." : (isEditMode ? "Actualizar Jornada" : "Registrar Jornada")}
                         </button>
                     </div>
                 </form>
