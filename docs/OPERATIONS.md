@@ -59,6 +59,16 @@ File: `scripts/cleanup_duplicate_active_requests.sql`
 - Section A: diagnostics only (safe)
 - Section B: cleanup (commented; run only after review)
 
+### 3) Normalized salary history migration
+
+File: `scripts/add_historial_salarios_table.sql`
+
+Includes:
+
+- creation of `historial_salarios` table and indexes
+- idempotent backfill from legacy `usuarios.hist_salarios` JSONB
+- baseline row creation for users without JSON history
+
 ## Production checklist
 
 - [ ] `npm run lint` clean (or known warnings accepted)

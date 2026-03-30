@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { canManageOvertime } from "@/lib/permissions"
 import { calculateEmployeeWorkValues } from "@/lib/calculations"
+import { appendSalaryHistoryEntry } from "@/lib/salaryHistory"
 import { logAudit } from "@/lib/logger"
 import { getUserFromRequest } from "@/lib/apiAuth"
 import { prisma } from "@/lib/prisma"
@@ -48,7 +49,7 @@ export async function POST(request) {
     const { salario_minimo, anio_vigencia, jornada_nocturna, limite_bolsa_horas, fecha_aplicacion } = body
 
     if (!anio_vigencia) {
-      return NextResponse.json({ message: "Faltan datos requeridos (Año de Vigencia)" }, { status: 400 })
+      return NextResponse.json({ message: "Faltan datos requeridos (Ano de Vigencia)" }, { status: 400 })
     }
 
     const updates = { anio_vigencia }
@@ -101,7 +102,6 @@ export async function POST(request) {
         select: {
           id: true,
           jornada_fija_hhmm: true,
-          hist_salarios: true,
           salario_base: true,
           valor_hora: true,
         },
@@ -113,33 +113,28 @@ export async function POST(request) {
             try {
               const workValues = calculateEmployeeWorkValues(emp.jornada_fija_hhmm, updates.salario_minimo)
 
-              const currentHistory = [...(emp.hist_salarios || [])]
-
-              if (currentHistory.length === 0) {
-                currentHistory.push({
-                  date: "2000-01-01T00:00:00.000Z",
-                  salary: emp.salario_base,
-                  hourlyRate: Number(emp.valor_hora),
-                  reason: "Linea base inicial",
+              await prisma.$transaction(async (tx) => {
+                await tx.usuarios.update({
+                  where: { id: emp.id },
+                  data: {
+                    salario_base: updates.salario_minimo,
+                    horas_semanales: workValues.horas_semanales,
+                    horas_mensuales: workValues.horas_mensuales,
+                    valor_hora: workValues.valor_hora,
+                  },
                 })
-              }
 
-              const newEntry = {
-                date: fecha_aplicacion || new Date().toISOString(),
-                salary: updates.salario_minimo,
-                hourlyRate: workValues.valor_hora,
-                reason: "Aumento SMLV",
-              }
-
-              await prisma.usuarios.update({
-                where: { id: emp.id },
-                data: {
-                  salario_base: updates.salario_minimo,
-                  horas_semanales: workValues.horas_semanales,
-                  horas_mensuales: workValues.horas_mensuales,
-                  valor_hora: workValues.valor_hora,
-                  hist_salarios: [...currentHistory, newEntry],
-                },
+                await appendSalaryHistoryEntry(tx, {
+                  usuarioId: emp.id,
+                  effectiveDate: fecha_aplicacion || new Date().toISOString(),
+                  salarioBase: updates.salario_minimo,
+                  valorHora: workValues.valor_hora,
+                  horasSemanales: workValues.horas_semanales,
+                  horasMensuales: workValues.horas_mensuales,
+                  motivo: "Aumento SMLV",
+                  origen: "AUMENTO_SMLV",
+                  createdBy: user.id,
+                })
               })
             } catch (err) {
               console.error(`Failed to auto-update employee ${emp.id}:`, err)

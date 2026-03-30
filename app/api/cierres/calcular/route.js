@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
-import { calculatePeriodFixedSurcharges, calculateEmployeeWorkValues, getSalaryForDate, getRecargoPaymentFactor, findRecargoConfig } from "@/lib/calculations"
+import { calculatePeriodFixedSurcharges, calculateEmployeeWorkValues, getRecargoPaymentFactor, findRecargoConfig } from "@/lib/calculations"
+import { getSalaryHistoryForUser, resolveEffectiveSalaryFromHistory } from "@/lib/salaryHistory"
 import { prisma } from "@/lib/prisma"
 
 export async function GET(request) {
@@ -36,6 +37,8 @@ export async function GET(request) {
     if (!empleado) {
       return NextResponse.json({ message: "Empleado no encontrado" }, { status: 404 })
     }
+
+    const salaryHistory = await getSalaryHistoryForUser(prisma, empleado_id, endDate)
 
     let fixedSchedule = empleado.jornada_fija_hhmm
     if (typeof fixedSchedule === "string") {
@@ -75,10 +78,10 @@ export async function GET(request) {
 
     const fixedSurcharges = calculatePeriodFixedSurcharges(startDate, endDate, fixedSchedule, nightShiftRange, holidays)
 
-    let hourlyRate = empleado.valor_hora
-    if (empleado.hist_salarios && Array.isArray(empleado.hist_salarios)) {
-      const historySalary = getSalaryForDate(empleado.hist_salarios, endDate)
-      if (historySalary) hourlyRate = historySalary.hourlyRate
+    let hourlyRate = Number(empleado.valor_hora || 0)
+    const historySalary = resolveEffectiveSalaryFromHistory(salaryHistory, endDate)
+    if (historySalary?.hourlyRate) {
+      hourlyRate = Number(historySalary.hourlyRate)
     }
 
     const recargos = await prisma.recargos_he.findMany()
@@ -108,4 +111,3 @@ export async function GET(request) {
     return NextResponse.json({ message: "Error interno" }, { status: 500 })
   }
 }
-
