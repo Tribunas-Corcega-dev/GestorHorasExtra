@@ -12,6 +12,7 @@ import { calculateTotalOvertimeValue, formatToAmPm, getSalaryForDate, getRecargo
 import { supabase } from "@/lib/supabaseClient"
 import { CompensatoryRequestModal } from "./CompensatoryRequestModal"
 import { BalanceManagementModal } from "./BalanceManagementModal"
+import { ApprovalFormatModal } from "@/app/dashboard/jefe/components/ApprovalFormatModal"
 
 const LABELS = {
     extra_diurna: "Extra Diurna",
@@ -76,6 +77,9 @@ export function OvertimeHistoryView({ employeeId, showBackButton = true }) {
     const [balanceData, setBalanceData] = useState(null)
     const [showBankingModal, setShowBankingModal] = useState(false)
     const [showManageModal, setShowManageModal] = useState(false)
+    const [showApprovalPreviewModal, setShowApprovalPreviewModal] = useState(false)
+    const [approvalPeriod, setApprovalPeriod] = useState(null)
+    const [approvalRecord, setApprovalRecord] = useState(null)
 
     useEffect(() => {
         // Generate mock periods for the last 3 months
@@ -273,6 +277,55 @@ export function OvertimeHistoryView({ employeeId, showBackButton = true }) {
         }
     }
 
+
+    function getPeriodRange(periodId) {
+        if (!periodId || periodId === "all") return null
+
+        const [yearRaw, monthRaw, quincenaRaw] = periodId.split('-').map(Number)
+        if (![yearRaw, monthRaw, quincenaRaw].every(Number.isFinite)) return null
+
+        const month = monthRaw + 1
+        const monthPadded = String(month).padStart(2, "0")
+        const lastDay = new Date(yearRaw, monthRaw + 1, 0).getDate()
+
+        if (quincenaRaw === 1) {
+            return { start: `${yearRaw}-${monthPadded}-01`, end: `${yearRaw}-${monthPadded}-15` }
+        }
+
+        if (quincenaRaw === 2) {
+            return { start: `${yearRaw}-${monthPadded}-16`, end: `${yearRaw}-${monthPadded}-${String(lastDay).padStart(2, "0")}` }
+        }
+
+        if (quincenaRaw === 0) {
+            return { start: `${yearRaw}-${monthPadded}-01`, end: `${yearRaw}-${monthPadded}-${String(lastDay).padStart(2, "0")}` }
+        }
+
+        return null
+    }
+
+    async function openApprovalPreview() {
+        const range = getPeriodRange(selectedPeriod)
+        if (!range) {
+            alert("Selecciona una quincena o mes para ver el formato.")
+            return
+        }
+
+        setApprovalPeriod(range)
+        setApprovalRecord(null)
+
+        try {
+            const res = await fetch(`/api/aprobaciones/firma?inicio=${range.start}&fin=${range.end}`)
+            if (res.ok) {
+                const data = await res.json()
+                const found = Array.isArray(data) ? data.find((a) => a.empleado_id === employeeId) : null
+                setApprovalRecord(found || null)
+            }
+        } catch (error) {
+            console.error("Error fetching existing approval:", error)
+        }
+
+        setShowApprovalPreviewModal(true)
+    }
     // Filter jornadas based on period
     const filteredJornadas = jornadas.filter(j => {
         if (selectedPeriod === "all") return true
@@ -490,6 +543,21 @@ export function OvertimeHistoryView({ employeeId, showBackButton = true }) {
                         </svg>
                         Registrar Hora Extra
                     </Link>
+                )}
+
+                {canManageOvertime(user?.rol) && (
+                    <button
+                        onClick={openApprovalPreview}
+                        disabled={selectedPeriod === "all" || !empleado}
+                        className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed w-full sm:w-auto"
+                        title={selectedPeriod === "all" ? "Selecciona una quincena o mes" : "Abrir formato en vista previa"}
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                        </svg>
+                        Vista Previa Formato
+                    </button>
                 )}
 
                 {/* Banking Button (Visible to Employee and Coordinators) */}
@@ -1185,6 +1253,18 @@ export function OvertimeHistoryView({ employeeId, showBackButton = true }) {
                     </div>
                 )
             }
+
+            {showApprovalPreviewModal && empleado && approvalPeriod && (
+                <ApprovalFormatModal
+                    isOpen={showApprovalPreviewModal}
+                    onClose={() => setShowApprovalPreviewModal(false)}
+                    employee={empleado}
+                    period={approvalPeriod}
+                    jefe={user}
+                    existingApproval={approvalRecord}
+                    forceReadOnly={true}
+                />
+            )}
 
             <CompensatoryRequestModal
                 isOpen={showBankingModal}

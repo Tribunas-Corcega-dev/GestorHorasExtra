@@ -1,9 +1,13 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect } from "react"
 import { LABELS } from "@/lib/utils"
+import { useAuth } from "@/hooks/useAuth"
+import { canViewApprovalPreviewReadOnly } from "@/lib/permissions"
 
-export function ApprovalFormatModal({ isOpen, onClose, employee, period, jefe, existingApproval }) {
+export function ApprovalFormatModal({ isOpen, onClose, employee, period, jefe, existingApproval, forceReadOnly = false }) {
+    const { user } = useAuth()
+    const isReadOnlyPreview = forceReadOnly || canViewApprovalPreviewReadOnly(user?.rol)
     const [jornadas, setJornadas] = useState([])
     const [loading, setLoading] = useState(true)
     const [signing, setSigning] = useState(false)
@@ -63,6 +67,11 @@ export function ApprovalFormatModal({ isOpen, onClose, employee, period, jefe, e
     }, [employee, period])
 
     const handleApprove = async (withSignature) => {
+        if (isReadOnlyPreview) {
+            alert("Vista solo lectura: este perfil no puede aprobar el formato.")
+            return
+        }
+
         if (withSignature && !jefeSignature) {
             alert("No tienes una firma configurada. Ve a Ajustes > Firma Digital.")
             return
@@ -75,7 +84,6 @@ export function ApprovalFormatModal({ isOpen, onClose, employee, period, jefe, e
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
                     empleado_id: employee.id,
-                    jefe_id: jefe.id,
                     periodo_inicio: period.start,
                     periodo_fin: period.end,
                     firma_snapshot: withSignature ? jefeSignature : null
@@ -185,7 +193,7 @@ export function ApprovalFormatModal({ isOpen, onClose, employee, period, jefe, e
 
                 {/* Close Button (Hide on Print) */}
                 <div className="flex justify-between mb-4 print:hidden">
-                    <h2 className="text-xl font-bold">Vista Preliminar de Aprobación</h2>
+                    <h2 className="text-xl font-bold">{isReadOnlyPreview ? "Vista Preliminar del Formato" : "Vista Preliminar de Aprobación"}</h2>
                     <button onClick={onClose} className="p-2 hover: rounded-full transition-colors" title="Cerrar (Esc)">
                         <svg className="w-6 h-6 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                     </button>
@@ -398,7 +406,12 @@ export function ApprovalFormatModal({ isOpen, onClose, employee, period, jefe, e
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" /></svg>
                         Imprimir / Guardar PDF
                     </button>
-                    {!existingApproval && (
+                    {!existingApproval && isReadOnlyPreview && (
+                        <div className="px-4 py-2 bg-blue-50 text-blue-700 border border-blue-200 rounded font-medium">
+                            Vista previa de solo lectura para este perfil.
+                        </div>
+                    )}
+                    {!existingApproval && !isReadOnlyPreview && (
                         <>
                             <button
                                 onClick={() => handleApprove(false)}
