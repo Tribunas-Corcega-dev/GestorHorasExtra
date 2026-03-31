@@ -13,7 +13,7 @@ This file summarizes the most used API modules and their intent.
 
 - `GET /api/empleados`: list active employees with filters
 - `POST /api/empleados`: create employee
-- `GET /api/empleados/:id`: employee detail (primary salary history in `salary_history`; optional legacy `hist_salarios` only if `EXPOSE_LEGACY_HIST_SALARIOS=true`)
+- `GET /api/empleados/:id`: employee detail (salary history is exposed only in `salary_history`)
 - `PUT /api/empleados/:id`: update employee profile and derived values (writes normalized salary history entries by effective date)
 - `DELETE /api/empleados/:id`: soft-delete employee (`is_active = false`)
 

@@ -8,7 +8,7 @@ import { canManageOvertime } from "@/lib/permissions"
 import { formatDateForDisplay } from "@/lib/utils"
 import { useRouter } from "next/navigation"
 import { formatMinutesToHHMM } from "@/hooks/useOvertimeCalculator"
-import { calculateTotalOvertimeValue, formatToAmPm, getRecargoPaymentFactor, findRecargoConfig, getSalaryForDate } from "@/lib/calculations"
+import { calculateTotalOvertimeValue, formatToAmPm, getRecargoPaymentFactor, findRecargoConfig } from "@/lib/calculations"
 import { resolveEffectiveSalaryFromHistory } from "@/lib/salaryHistory"
 import { supabase } from "@/lib/supabaseClient"
 import { CompensatoryRequestModal } from "./CompensatoryRequestModal"
@@ -57,10 +57,6 @@ function getEmployeeSalaryForDate(empleado, dateValue) {
     if (Array.isArray(empleado.salary_history) && empleado.salary_history.length > 0) {
         const resolved = resolveEffectiveSalaryFromHistory(empleado.salary_history, dateValue)
         if (resolved) return resolved
-    }
-
-    if (Array.isArray(empleado.hist_salarios) && empleado.hist_salarios.length > 0) {
-        return getSalaryForDate(empleado.hist_salarios, dateValue)
     }
 
     return null

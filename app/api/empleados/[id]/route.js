@@ -2,12 +2,10 @@ import { NextResponse } from "next/server"
 import bcrypt from "bcryptjs"
 import { canManageEmployees, isCoordinator } from "@/lib/permissions"
 import { calculateEmployeeWorkValues, calculateScheduleSurcharges } from "@/lib/calculations"
-import { appendSalaryHistoryEntry, mapSalaryRowsToLegacyJson } from "@/lib/salaryHistory"
+import { appendSalaryHistoryEntry } from "@/lib/salaryHistory"
 import { logAudit } from "@/lib/logger"
 import { getUserFromRequest } from "@/lib/apiAuth"
 import { prisma } from "@/lib/prisma"
-
-const EXPOSE_LEGACY_HIST_SALARIOS = process.env.EXPOSE_LEGACY_HIST_SALARIOS === "true"
 
 export async function GET(request, props) {
   try {
@@ -41,10 +39,6 @@ export async function GET(request, props) {
     const payload = {
       ...empleadoSafe,
       salary_history: historial_salarios,
-    }
-
-    if (EXPOSE_LEGACY_HIST_SALARIOS) {
-      payload.hist_salarios = mapSalaryRowsToLegacyJson(historial_salarios)
     }
 
     return NextResponse.json(payload)

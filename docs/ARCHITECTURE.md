@@ -64,7 +64,7 @@ DB reads/writes are handled through Prisma.
 
 - El historial salarial ya no depende operativamente de `usuarios.hist_salarios` JSONB.
 - La fuente de verdad es `historial_salarios` con indices por `(usuario_id, fecha_vigencia DESC)`.
-- Se mantiene compatibilidad temporal exponiendo `hist_salarios` mapeado para clientes legacy.
+- La compatibilidad legacy en payload de APIs ya fue retirada; `hist_salarios` queda solo como dato historico legado en BD.
 
 ## Consistency and transactions
 

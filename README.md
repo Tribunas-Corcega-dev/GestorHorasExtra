@@ -60,7 +60,6 @@ JWT_SECRET=tu-secreto-seguro
 
 DATABASE_URL=postgresql://...   # recomendado para runtime Prisma
 DIRECT_URL=postgresql://...     # recomendado para introspeccion/migraciones Prisma
-EXPOSE_LEGACY_HIST_SALARIOS=false # opcional: true para exponer campo legacy hist_salarios en /api/empleados/:id
 ```
 
 4. Preparar Prisma
