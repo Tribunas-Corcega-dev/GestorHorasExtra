@@ -32,7 +32,7 @@ Las reglas estan centralizadas en `lib/permissions.js`.
 | `COORDINADOR` | Gestion diaria de jornadas y solicitudes |
 | `JEFE` | Aprobaciones de periodos y supervision |
 | `TALENTO_HUMANO` | Gestion de personal, cierres y reportes |
-| `ASISTENTE_GERENCIA` | Capacidades de apoyo administrativo |
+| `ASISTENTE_GERENCIA` | Gestion de personal, cierres y reportes |
 
 ## Instalacion
 

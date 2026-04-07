@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import { useState } from "react"
 import { useAuth } from "@/hooks/useAuth"
@@ -111,7 +111,7 @@ export function EmpleadosManager() {
         if (!dateStr) return
         const daySchedule = getDaySchedule(dateStr)
         if (!daySchedule || !daySchedule.enabled) {
-            alert("El empleado no tiene turno programado para este día.")
+            alert("El empleado no tiene turno programado para este dia.")
             updateCalculatedValues(0)
             return
         }
@@ -174,7 +174,7 @@ export function EmpleadosManager() {
 
     async function handleManagerRedemption(e) {
         e.preventDefault()
-        if (!redemptionForm.minutos || parseInt(redemptionForm.minutos) <= 0) return alert("Cantidad de tiempo inválida")
+        if (!redemptionForm.minutos || parseInt(redemptionForm.minutos) <= 0) return alert("Cantidad de tiempo invalida")
         if (!redemptionForm.motivo) return alert("Ingresa un motivo")
         try {
             setRedeeming(true)
@@ -203,8 +203,8 @@ export function EmpleadosManager() {
     return (
         <div>
             <div className="flex items-center justify-between mb-6">
-                <h1 className="text-3xl font-bold text-foreground">Gestión de Personal</h1>
-                {['JEFE', 'TALENTO_HUMANO'].includes(user?.rol) && (
+                <h1 className="text-3xl font-bold text-foreground">Gestion de Personal</h1>
+                {['JEFE', 'TALENTO_HUMANO', 'ASISTENTE_GERENCIA'].includes(user?.rol) && (
                     <Link
                         href="/empleados/nuevo"
                         className="bg-primary text-primary-foreground px-4 py-2 rounded-md hover:opacity-90 transition-opacity font-medium"
@@ -228,7 +228,7 @@ export function EmpleadosManager() {
                     onChange={(e) => setAreaFilter(e.target.value)}
                     className="px-3 py-2 border border-input bg-background text-foreground rounded-md focus:outline-none focus:ring-2 focus:ring-ring"
                 >
-                    <option value="">Todas las áreas</option>
+                    <option value="">Todas las areas</option>
                     {areas.map((area) => <option key={area} value={area}>{area}</option>)}
                 </select>
                 <select
@@ -286,8 +286,8 @@ export function EmpleadosManager() {
 
                                 <div className="space-y-2 mb-6">
                                     <div className="flex justify-between items-center text-sm">
-                                        <span className="text-muted-foreground">Área:</span>
-                                        <span className="font-medium text-foreground text-right">{empleado.area || "Sin área"}</span>
+                                        <span className="text-muted-foreground">Area:</span>
+                                        <span className="font-medium text-foreground text-right">{empleado.area || "Sin area"}</span>
                                     </div>
                                     <div className="flex justify-between items-center text-sm">
                                         <span className="text-muted-foreground">Rol:</span>
@@ -296,7 +296,7 @@ export function EmpleadosManager() {
                                 </div>
 
                                 <div className="grid grid-cols-2 gap-3 mt-auto">
-                                    {/* Botones de Gestión de Horas (Solo para roles con permiso) */}
+                                    {/* Botones de Gestion de Horas (Solo para roles con permiso) */}
                                     {canManageOvertime(user?.rol) && (
                                         <>
                                             <button
@@ -315,12 +315,12 @@ export function EmpleadosManager() {
                                                 onClick={() => handleOpenBalanceModal(empleado)}
                                                 className="col-span-2 bg-muted hover:bg-muted/80 text-foreground py-2 rounded-md text-sm font-medium transition-colors border border-transparent flex items-center justify-center gap-2"
                                             >
-                                                Gestionar Compensación
+                                                Gestionar Compensacion
                                             </button>
                                         </>
                                     )}
 
-                                    {/* Botones Básicos (Visible para todos los managers/coordinadores o solo jefe) */}
+                                    {/* Botones Basicos (Visible para todos los managers/coordinadores o solo jefe) */}
                                     {(!canManageOvertime(user?.rol) && canManageEmployees(user?.rol)) && (
                                         <button
                                             onClick={() => router.push(`/horas-extra/${empleado.id}/historial`)}
@@ -330,7 +330,7 @@ export function EmpleadosManager() {
                                         </button>
                                     )}
 
-                                    {/* Botón Editar (Solo Admin/TH - No Coordinadores) */}
+                                    {/* Boton Editar (Solo Admin/TH - No Coordinadores) */}
                                     {canManageEmployees(user?.rol) && !isCoordinator(user?.rol) && (
                                         <button
                                             onClick={() => router.push(`/empleados/${empleado.id}`)}
@@ -354,7 +354,7 @@ export function EmpleadosManager() {
                     <div className="bg-card border border-border rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] flex flex-col animate-in fade-in zoom-in duration-200">
                         <div className="p-6 border-b border-border flex justify-between items-center bg-blue-50 dark:bg-blue-950/20">
                             <div>
-                                <h3 className="text-xl font-bold text-foreground">Gestión de Compensación en Tiempo</h3>
+                                <h3 className="text-xl font-bold text-foreground">Gestion de Compensacion en Tiempo</h3>
                                 <p className="text-sm text-muted-foreground">Empleado: <span className="font-medium text-foreground">{selectedEmployeeForBalance.nombre || selectedEmployeeForBalance.username}</span></p>
                             </div>
                             <button onClick={() => setShowBalanceModal(false)} className="text-muted-foreground hover:text-foreground"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg></button>
@@ -366,7 +366,7 @@ export function EmpleadosManager() {
                             </div>
                             <div className="p-6 bg-muted/10 flex flex-col gap-6 overflow-y-auto">
                                 <div className="bg-background border border-border rounded-lg p-4 shadow-sm space-y-3"><h4 className="font-semibold text-sm uppercase tracking-wider text-muted-foreground">Resumen</h4>{balanceData ? (<><div className="flex justify-between items-end pb-2 border-b border-border"><span className="text-sm">Disponible:</span><span className="text-2xl font-bold text-primary">{formatMinutesToFloat(balanceData.saldo_disponible)}</span></div><div className="space-y-1 text-sm"><div className="flex justify-between text-muted-foreground"><span>Total:</span><span>{formatMinutesToFloat(balanceData.saldo_total)}</span></div>{balanceData.saldo_pendiente > 0 && (<div className="flex justify-between text-amber-600 font-medium"><span>Pendiente:</span><span>{formatMinutesToFloat(balanceData.saldo_pendiente)}</span></div>)}</div></>) : "Cargando..."}</div>
-                                <div className="bg-background border border-border rounded-lg p-4 shadow-sm space-y-4"><h4 className="font-semibold text-sm uppercase tracking-wider text-muted-foreground">Registrar Canjeo</h4><form onSubmit={handleManagerRedemption} className="space-y-3"><div><label className="text-xs font-medium block mb-1">Tipo</label><select value={tipo} onChange={(e) => { setTipo(e.target.value); setFechaSingle(""); setHoraLlegada(""); setHoraSalida(""); setRedemptionForm(p => ({ ...p, minutos: "" })); setCalculatedDisplay("") }} className="w-full px-3 py-2 border border-input rounded-md text-sm"><option value="DIA_COMPLETO">Día Completo</option><option value="LLEGADA_TARDIA">Llegada Tardía</option><option value="SALIDA_TEMPRANA">Salida Temprana</option></select></div>{tipo === 'DIA_COMPLETO' && (<div><label className="text-xs font-medium block mb-1">Fecha</label><input type="date" value={fechaSingle} onChange={e => handleFullDayLogic(e.target.value)} required className="w-full px-3 py-2 border border-input rounded-md text-sm" /></div>)}{tipo === 'LLEGADA_TARDIA' && (<div className="grid grid-cols-2 gap-2"><div><label className="text-xs font-medium block mb-1">Fecha</label><input type="date" value={fechaSingle} onChange={e => handleLateArrivalLogic(e.target.value, horaLlegada)} required className="w-full px-3 py-2 border border-input rounded-md text-sm" /></div><div><label className="text-xs font-medium block mb-1">Hora Llegada</label><input type="time" value={horaLlegada} onChange={e => handleLateArrivalLogic(fechaSingle, e.target.value)} required className="w-full px-3 py-2 border border-input rounded-md text-sm" /></div></div>)}{tipo === 'SALIDA_TEMPRANA' && (<div className="grid grid-cols-2 gap-2"><div><label className="text-xs font-medium block mb-1">Fecha</label><input type="date" value={fechaSingle} onChange={e => handleEarlyDepartureLogic(e.target.value, horaSalida)} required className="w-full px-3 py-2 border border-input rounded-md text-sm" /></div><div><label className="text-xs font-medium block mb-1">Hora Salida</label><input type="time" value={horaSalida} onChange={e => handleEarlyDepartureLogic(fechaSingle, e.target.value)} required className="w-full px-3 py-2 border border-input rounded-md text-sm" /></div></div>)}<div><label className="text-xs font-medium block mb-1">Tiempo (Calculado)</label><input type="text" readOnly value={calculatedDisplay} className="w-full px-3 py-2 border border-input rounded-md text-sm bg-muted text-foreground" /></div><div><label className="text-xs font-medium block mb-1">Motivo</label><textarea rows={2} required value={redemptionForm.motivo} onChange={e => setRedemptionForm(p => ({ ...p, motivo: e.target.value }))} className="w-full px-3 py-2 border border-input rounded-md text-sm resize-none" /></div><button type="submit" disabled={redeeming || !redemptionForm.minutos} className="w-full py-2 bg-primary text-primary-foreground rounded-md text-sm font-medium hover:opacity-90 disabled:opacity-50">{redeeming ? "..." : "Registrar"}</button></form></div>
+                                <div className="bg-background border border-border rounded-lg p-4 shadow-sm space-y-4"><h4 className="font-semibold text-sm uppercase tracking-wider text-muted-foreground">Registrar Canjeo</h4><form onSubmit={handleManagerRedemption} className="space-y-3"><div><label className="text-xs font-medium block mb-1">Tipo</label><select value={tipo} onChange={(e) => { setTipo(e.target.value); setFechaSingle(""); setHoraLlegada(""); setHoraSalida(""); setRedemptionForm(p => ({ ...p, minutos: "" })); setCalculatedDisplay("") }} className="w-full px-3 py-2 border border-input rounded-md text-sm"><option value="DIA_COMPLETO">Dia Completo</option><option value="LLEGADA_TARDIA">Llegada Tardia</option><option value="SALIDA_TEMPRANA">Salida Temprana</option></select></div>{tipo === 'DIA_COMPLETO' && (<div><label className="text-xs font-medium block mb-1">Fecha</label><input type="date" value={fechaSingle} onChange={e => handleFullDayLogic(e.target.value)} required className="w-full px-3 py-2 border border-input rounded-md text-sm" /></div>)}{tipo === 'LLEGADA_TARDIA' && (<div className="grid grid-cols-2 gap-2"><div><label className="text-xs font-medium block mb-1">Fecha</label><input type="date" value={fechaSingle} onChange={e => handleLateArrivalLogic(e.target.value, horaLlegada)} required className="w-full px-3 py-2 border border-input rounded-md text-sm" /></div><div><label className="text-xs font-medium block mb-1">Hora Llegada</label><input type="time" value={horaLlegada} onChange={e => handleLateArrivalLogic(fechaSingle, e.target.value)} required className="w-full px-3 py-2 border border-input rounded-md text-sm" /></div></div>)}{tipo === 'SALIDA_TEMPRANA' && (<div className="grid grid-cols-2 gap-2"><div><label className="text-xs font-medium block mb-1">Fecha</label><input type="date" value={fechaSingle} onChange={e => handleEarlyDepartureLogic(e.target.value, horaSalida)} required className="w-full px-3 py-2 border border-input rounded-md text-sm" /></div><div><label className="text-xs font-medium block mb-1">Hora Salida</label><input type="time" value={horaSalida} onChange={e => handleEarlyDepartureLogic(fechaSingle, e.target.value)} required className="w-full px-3 py-2 border border-input rounded-md text-sm" /></div></div>)}<div><label className="text-xs font-medium block mb-1">Tiempo (Calculado)</label><input type="text" readOnly value={calculatedDisplay} className="w-full px-3 py-2 border border-input rounded-md text-sm bg-muted text-foreground" /></div><div><label className="text-xs font-medium block mb-1">Motivo</label><textarea rows={2} required value={redemptionForm.motivo} onChange={e => setRedemptionForm(p => ({ ...p, motivo: e.target.value }))} className="w-full px-3 py-2 border border-input rounded-md text-sm resize-none" /></div><button type="submit" disabled={redeeming || !redemptionForm.minutos} className="w-full py-2 bg-primary text-primary-foreground rounded-md text-sm font-medium hover:opacity-90 disabled:opacity-50">{redeeming ? "..." : "Registrar"}</button></form></div>
                             </div>
                         </div>
                     </div>
@@ -381,3 +381,4 @@ function formatMinutesToFloat(minutes) {
     const hours = minutes / 60
     return `${parseFloat(hours.toFixed(2))}h`
 }
+

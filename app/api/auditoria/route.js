@@ -6,8 +6,8 @@ export async function GET(request) {
     try {
         const user = await getUserFromRequest(request)
 
-        // Only HR and Admin (JEFE) can view audit logs
-        if (!user || (user.rol !== "JEFE" && user.rol !== "TALENTO_HUMANO")) {
+        // Only JEFE, TALENTO_HUMANO and ASISTENTE_GERENCIA can view audit logs
+        if (!user || !["JEFE", "TALENTO_HUMANO", "ASISTENTE_GERENCIA"].includes(user.rol)) {
             return NextResponse.json({ message: "No autorizado" }, { status: 403 })
         }
 

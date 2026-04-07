@@ -1,4 +1,4 @@
-"use client"
+﻿"use client"
 
 import { useState, useEffect } from "react"
 import { useAuth } from "@/hooks/useAuth"
@@ -31,7 +31,7 @@ function AuditoriaContent() {
     const [selectedLog, setSelectedLog] = useState(null)
 
     useEffect(() => {
-        if (user && user.rol !== "JEFE" && user.rol !== "TALENTO_HUMANO") {
+        if (user && !["JEFE", "TALENTO_HUMANO", "ASISTENTE_GERENCIA"].includes(user.rol)) {
             router.push("/ajustes")
         } else if (user) {
             fetchLogs()
@@ -70,9 +70,9 @@ function AuditoriaContent() {
         const labels = {
             EMPLEADO: "Empleado",
             JORNADA: "Jornada",
-            BOLSA_HORAS: "Compensación en Tiempo",
-            APELACION: "Apelación",
-            CONFIGURACION: "Configuración",
+            BOLSA_HORAS: "Compensacion en Tiempo",
+            APELACION: "Apelacion",
+            CONFIGURACION: "Configuracion",
         }
         return labels[entity] || entity
     }
@@ -111,10 +111,10 @@ function AuditoriaContent() {
             REDENCION: "bg-amber-100 text-amber-800 border-amber-200"
         }
         const labelMap = {
-            CREATE: "Creación",
-            UPDATE: "Actualización",
-            DELETE: "Eliminación",
-            APPROVE: "Aprobación",
+            CREATE: "Creacion",
+            UPDATE: "Actualizacion",
+            DELETE: "Eliminacion",
+            APPROVE: "Aprobacion",
             REJECT: "Rechazo",
             ACUMULAR_BOLSA: "Acumular Tiempo",
             REDENCION: "Canjeo Tiempo"
@@ -163,9 +163,9 @@ function AuditoriaContent() {
                                                             <div className="h-16 w-16 rounded-full bg-muted flex items-center justify-center border-2 border-red-200 border-dashed text-xs text-muted-foreground">Sin Foto</div>
                                                         )}
                                                     </div>
-                                                    <div className="text-muted-foreground">→</div>
+                                                    <div className="text-muted-foreground">-></div>
                                                     <div className="relative group">
-                                                        <span className="absolute -top-2 left-0 text-[10px] bg-green-100 text-green-800 px-1 rounded border border-green-200">Después</span>
+                                                        <span className="absolute -top-2 left-0 text-[10px] bg-green-100 text-green-800 px-1 rounded border border-green-200">Despues</span>
                                                         {newVal ? (
                                                             <img src={newVal} alt="Nueva foto" className="h-20 w-20 object-cover rounded-full border-2 border-green-500 shadow-sm" />
                                                         ) : (
@@ -182,7 +182,7 @@ function AuditoriaContent() {
                                             <span className="font-semibold capitalize text-muted-foreground">{field.replace(/_/g, " ")}:</span>
                                             <span className="flex gap-2 items-center">
                                                 <span className="line-through text-red-400 text-xs">{String(displayOld)}</span>
-                                                <span>→</span>
+                                                <span>-></span>
                                                 <span className="text-green-600 font-medium">{String(displayNew)}</span>
                                             </span>
                                         </li>
@@ -249,7 +249,7 @@ function AuditoriaContent() {
                             <>
                                 <div><span className="font-medium">Jornada ID:</span> ...{details.jornada_id?.slice(-6)}</div>
                                 <div className="italic">"{details.motivo}"</div>
-                                {details.has_files && <span className="text-xs bg-blue-50 text-blue-600 px-1 rounded">📎 Adjuntos</span>}
+                                {details.has_files && <span className="text-xs bg-blue-50 text-blue-600 px-1 rounded">[Adjuntos]</span>}
                             </>
                         ) : (
                             <>
@@ -264,7 +264,7 @@ function AuditoriaContent() {
                 if (details.target === "PARAMETROS_GLOBALES") {
                     return (
                         <div className="text-sm">
-                            <div className="font-medium">Año: {details.anio}</div>
+                            <div className="font-medium">Ano: {details.anio}</div>
                             <ul className="list-disc list-inside mt-1">
                                 {details.updates && Object.entries(details.updates).map(([key, val]) => (
                                     <li key={key} className="text-xs">
@@ -286,7 +286,7 @@ function AuditoriaContent() {
                 else if (details.target === "HORARIO_BASE") {
                     return (
                         <div className="text-sm">
-                            <div className="font-medium">Área: {details.area}</div>
+                            <div className="font-medium">Area: {details.area}</div>
                             <div className="text-xs text-muted-foreground">Horario Actualizado</div>
                         </div>
                     )
@@ -299,7 +299,7 @@ function AuditoriaContent() {
 
     return (
         <div className="max-w-7xl mx-auto">
-            <h1 className="text-2xl font-bold mb-6 text-foreground">Auditoría de Cambios</h1>
+            <h1 className="text-2xl font-bold mb-6 text-foreground">Auditoria de Cambios</h1>
 
             {/* Filters */}
             <div className="bg-card border border-border p-4 rounded-lg mb-6 flex flex-wrap gap-4 shadow-sm">
@@ -311,9 +311,9 @@ function AuditoriaContent() {
                     <option value="">Todas las Entidades</option>
                     <option value="EMPLEADO">Empleado</option>
                     <option value="JORNADA">Jornada</option>
-                    <option value="BOLSA_HORAS">Compensación en Tiempo</option>
-                    <option value="APELACION">Apelación</option>
-                    <option value="CONFIGURACION">Configuración</option>
+                    <option value="BOLSA_HORAS">Compensacion en Tiempo</option>
+                    <option value="APELACION">Apelacion</option>
+                    <option value="CONFIGURACION">Configuracion</option>
                 </select>
                 <select
                     value={filters.action}
@@ -338,7 +338,7 @@ function AuditoriaContent() {
                         <thead className="bg-muted text-muted-foreground uppercase text-xs font-semibold">
                             <tr>
                                 <th className="px-6 py-3 whitespace-nowrap">Fecha / Actor</th>
-                                <th className="px-6 py-3">Acción / Entidad</th>
+                                <th className="px-6 py-3">Accion / Entidad</th>
                                 <th className="px-6 py-3 text-right">Acciones</th>
                             </tr>
                         </thead>
@@ -355,7 +355,7 @@ function AuditoriaContent() {
                             ) : logs.length === 0 ? (
                                 <tr>
                                     <td colSpan="3" className="px-6 py-12 text-center text-muted-foreground italic">
-                                        No se encontraron registros de auditoría.
+                                        No se encontraron registros de auditoria.
                                     </td>
                                 </tr>
                             ) : (
@@ -413,7 +413,7 @@ function AuditoriaContent() {
                         >
                             Anterior
                         </button>
-                        <span className="text-sm font-medium text-muted-foreground">Página {page} de {totalPages}</span>
+                        <span className="text-sm font-medium text-muted-foreground">Pagina {page} de {totalPages}</span>
                         <button
                             onClick={() => setPage(p => Math.min(totalPages, p + 1))}
                             disabled={page === totalPages}
@@ -434,7 +434,7 @@ function AuditoriaContent() {
                                 <h3 className="text-xl font-bold">Detalles del Cambio</h3>
                                 <p className="text-sm text-muted-foreground flex items-center gap-2 mt-1">
                                     <span>{formatDate(selectedLog.created_at)}</span>
-                                    <span>•</span>
+                                    <span>&bull;</span>
                                     <span>Por: {selectedLog.user_name || "Sistema"}</span>
                                 </p>
                             </div>
@@ -451,7 +451,7 @@ function AuditoriaContent() {
                                 {/* Header Info */}
                                 <div className="flex flex-wrap gap-4 items-center p-4 bg-muted/30 rounded-lg border border-border/50">
                                     <div>
-                                        <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block mb-1">Acción</span>
+                                        <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider block mb-1">Accion</span>
                                         {renderActionBadge(selectedLog.action)}
                                     </div>
                                     <div className="h-8 w-px bg-border"></div>
@@ -481,7 +481,7 @@ function AuditoriaContent() {
                                 <details className="group">
                                     <summary className="flex items-center gap-2 cursor-pointer text-sm text-muted-foreground hover:text-foreground font-medium select-none">
                                         <svg className="w-4 h-4 transition-transform group-open:rotate-90" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6" /></svg>
-                                        Ver Datos Técnicos (JSON)
+                                        Ver Datos Tecnicos (JSON)
                                     </summary>
                                     <div className="mt-3">
                                         <pre className="bg-slate-950 text-slate-50 p-4 rounded-lg overflow-x-auto text-xs font-mono">
@@ -506,3 +506,4 @@ function AuditoriaContent() {
         </div>
     )
 }
+

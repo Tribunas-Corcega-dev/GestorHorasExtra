@@ -25,7 +25,7 @@ using (
   exists (
     select 1 from public.usuarios
     where usuarios.id = auth.uid()
-    and usuarios.rol in ('JEFE', 'TALENTO_HUMANO')
+    and usuarios.rol in ('JEFE', 'TALENTO_HUMANO', 'ASISTENTE_GERENCIA')
   )
 );
 

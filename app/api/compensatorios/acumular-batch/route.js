@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server"
+import { canManageOvertime } from "@/lib/permissions"
 import { logAudit } from "@/lib/logger"
 import { getUserFromRequest } from "@/lib/apiAuth"
 import { prisma } from "@/lib/prisma"
@@ -40,9 +41,8 @@ export async function POST(request) {
     let targetUserId = currentUser.id
 
     if (target_user_id && target_user_id !== currentUser.id) {
-      const allowedRoles = ["ADMIN", "COORDINADOR", "TALENTO_HUMANO", "GERENTE", "JEFE"]
-      if (!allowedRoles.includes(currentUser.rol) && !currentUser.is_admin) {
-        return NextResponse.json({ message: "No tienes permisos para realizar esta acción para otro usuario." }, { status: 403 })
+      if (!canManageOvertime(currentUser.rol) && !currentUser.is_admin) {
+        return NextResponse.json({ message: "No tienes permisos para realizar esta accion para otro usuario." }, { status: 403 })
       }
       targetUserId = target_user_id
     }
@@ -140,7 +140,7 @@ export async function POST(request) {
               tipo_movimiento: "ACUMULACION",
               minutos: total,
               saldo_resultante: finalBalance,
-              observacion: "Acumulación automática desde historial",
+              observacion: "Acumulacion automatica desde historial",
               realizado_por: currentUser.id,
             },
           })

@@ -1,16 +1,28 @@
 import { NextResponse } from "next/server"
 import { calculatePeriodFixedSurcharges, calculateEmployeeWorkValues, getRecargoPaymentFactor, findRecargoConfig } from "@/lib/calculations"
 import { getSalaryHistoryForUser, resolveEffectiveSalaryFromHistory } from "@/lib/salaryHistory"
+import { getUserFromRequest } from "@/lib/apiAuth"
+import { canManageOvertime, isCoordinator } from "@/lib/permissions"
 import { prisma } from "@/lib/prisma"
 
 export async function GET(request) {
   try {
+    const user = await getUserFromRequest(request)
+    if (!user) {
+      return NextResponse.json({ message: "No autorizado" }, { status: 401 })
+    }
+
     const { searchParams } = new URL(request.url)
     const empleado_id = searchParams.get("empleado_id")
     const periodo = searchParams.get("periodo")
 
     if (!empleado_id || !periodo) {
       return NextResponse.json({ message: "Faltan parametros" }, { status: 400 })
+    }
+
+    // Managers can preview any employee; workers only their own.
+    if (!canManageOvertime(user.rol) && user.id !== empleado_id) {
+      return NextResponse.json({ message: "No autorizado" }, { status: 403 })
     }
 
     const [year, month, quincena] = periodo.split("-").map(Number)
@@ -36,6 +48,10 @@ export async function GET(request) {
 
     if (!empleado) {
       return NextResponse.json({ message: "Empleado no encontrado" }, { status: 404 })
+    }
+
+    if (isCoordinator(user.rol) && empleado.area !== user.area) {
+      return NextResponse.json({ message: "No autorizado" }, { status: 403 })
     }
 
     const salaryHistory = await getSalaryHistoryForUser(prisma, empleado_id, endDate)

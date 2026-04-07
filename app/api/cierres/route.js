@@ -1,10 +1,21 @@
 import { NextResponse } from "next/server"
 import { calculatePeriodFixedSurcharges, getRecargoPaymentFactor, findRecargoConfig } from "@/lib/calculations"
 import { getSalaryHistoryForUser, resolveEffectiveSalaryFromHistory } from "@/lib/salaryHistory"
+import { getUserFromRequest } from "@/lib/apiAuth"
 import { prisma } from "@/lib/prisma"
 
 export async function POST(request) {
   try {
+    const user = await getUserFromRequest(request)
+    if (!user) {
+      return NextResponse.json({ message: "No autorizado" }, { status: 401 })
+    }
+
+    const canClosePeriod = ["TALENTO_HUMANO", "ASISTENTE_GERENCIA"].includes(user.rol)
+    if (!canClosePeriod) {
+      return NextResponse.json({ message: "No autorizado para cerrar quincenas" }, { status: 403 })
+    }
+
     const body = await request.json()
     const { empleado_id, periodo } = body
 

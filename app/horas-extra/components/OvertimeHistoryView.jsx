@@ -586,7 +586,7 @@ export function OvertimeHistoryView({ employeeId, showBackButton = true }) {
                 </button>
 
                 {/* Close Period Button */}
-                {user?.rol === 'TALENTO_HUMANO' && selectedPeriod !== 'all' && !closingRecord && (
+                {['TALENTO_HUMANO', 'ASISTENTE_GERENCIA'].includes(user?.rol) && selectedPeriod !== 'all' && !closingRecord && (
                     <button
                         onClick={handleClosePeriod}
                         disabled={loadingClosing}
