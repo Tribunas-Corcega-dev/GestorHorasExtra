@@ -74,8 +74,6 @@ model festivos {
   fecha       DateTime @id @db.Date
   descripcion String?
 }
-
-/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 model historial_bolsa {
   id                                               String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
   usuario_id                                       String    @db.Uuid
@@ -88,6 +86,26 @@ model historial_bolsa {
   realizado_por                                    String?   @db.Uuid
   usuarios_historial_bolsa_realizado_porTousuarios usuarios? @relation("historial_bolsa_realizado_porTousuarios", fields: [realizado_por], references: [id], onDelete: NoAction, onUpdate: NoAction)
   usuarios_historial_bolsa_usuario_idTousuarios    usuarios  @relation("historial_bolsa_usuario_idTousuarios", fields: [usuario_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+
+model historial_salarios {
+  id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  usuario_id      String    @db.Uuid
+  fecha_vigencia  DateTime  @db.Date
+  salario_base    Decimal?  @db.Decimal
+  valor_hora      Decimal?  @db.Decimal
+  horas_semanales Decimal?  @db.Decimal(10, 2)
+  horas_mensuales Decimal?  @db.Decimal(10, 2)
+  motivo          String?
+  origen          String?   @default("MANUAL")
+  created_by      String?   @db.Uuid
+  created_at      DateTime? @default(now()) @db.Timestamptz(6)
+  usuarios        usuarios  @relation(fields: [usuario_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([usuario_id, fecha_vigencia(sort: Desc), created_at(sort: Desc)], map: "idx_hist_salarios_usuario_fecha_desc")
+  @@index([usuario_id, created_at(sort: Desc)], map: "idx_hist_salarios_usuario_created_desc")
 }
 
 model horarios_base {
@@ -207,6 +225,7 @@ model usuarios {
   cierres_quincenales                                             cierres_quincenales[]
   historial_bolsa_historial_bolsa_realizado_porTousuarios         historial_bolsa[]      @relation("historial_bolsa_realizado_porTousuarios")
   historial_bolsa_historial_bolsa_usuario_idTousuarios            historial_bolsa[]      @relation("historial_bolsa_usuario_idTousuarios")
+  historial_salarios                                               historial_salarios[]
   jornadas_jornadas_aprobado_porTousuarios                        jornadas[]             @relation("jornadas_aprobado_porTousuarios")
   jornadas_jornadas_empleado_idTousuarios                         jornadas[]             @relation("jornadas_empleado_idTousuarios")
   jornadas_jornadas_registrado_porTousuarios                      jornadas[]             @relation("jornadas_registrado_porTousuarios")
@@ -244,3 +263,7 @@ enum role_type {
   coordinator
   worker
 }
+
+
+
+

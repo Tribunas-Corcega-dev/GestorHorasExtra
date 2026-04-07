@@ -42,6 +42,7 @@ The app uses PostgreSQL (hosted in Supabase) with Prisma as the ORM. Supabase is
 Core tables used by business flow:
 
 - `usuarios`
+- `historial_salarios` (nuevo historial salarial normalizado por fecha de vigencia)
 - `jornadas`
 - `solicitudes_tiempo`
 - `historial_bolsa`
@@ -59,6 +60,12 @@ Supabase Storage remains in use for:
 
 DB reads/writes are handled through Prisma.
 
+## Salary History Design
+
+- El historial salarial ya no depende operativamente de `usuarios.hist_salarios` JSONB.
+- La fuente de verdad es `historial_salarios` con indices por `(usuario_id, fecha_vigencia DESC)`.
+- La compatibilidad legacy en payload de APIs ya fue retirada; `hist_salarios` queda solo como dato historico legado en BD.
+
 ## Consistency and transactions
 
 High-impact compensatory flows use Prisma transactions with serializable isolation where race conditions can affect balances.
@@ -68,3 +75,4 @@ High-impact compensatory flows use Prisma transactions with serializable isolati
 - Add integration tests for compensatory race paths and role authorization
 - Add endpoint-level API docs with request/response examples for all role-sensitive routes
 - Keep constraints and indexes versioned in migrations as business rules evolve
+

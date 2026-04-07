@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
-import { calculatePeriodFixedSurcharges, getSalaryForDate, getRecargoPaymentFactor, findRecargoConfig } from "@/lib/calculations"
+import { calculatePeriodFixedSurcharges, getRecargoPaymentFactor, findRecargoConfig } from "@/lib/calculations"
+import { getSalaryHistoryForUser, resolveEffectiveSalaryFromHistory } from "@/lib/salaryHistory"
 import { prisma } from "@/lib/prisma"
 
 export async function POST(request) {
@@ -42,6 +43,8 @@ export async function POST(request) {
     if (!empleado) {
       return NextResponse.json({ message: "Empleado no encontrado" }, { status: 404 })
     }
+
+    const salaryHistory = await getSalaryHistoryForUser(prisma, empleado_id, endDate)
 
     let fixedSchedule = empleado.jornada_fija_hhmm
     if (typeof fixedSchedule === "string") {
@@ -111,10 +114,10 @@ export async function POST(request) {
       }
 
       let jornadaRate = 0
-      const historySalary = getSalaryForDate(empleado.hist_salarios, jornada.fecha)
+      const historySalary = resolveEffectiveSalaryFromHistory(salaryHistory, jornada.fecha)
       if (jornada.valor_hora_snapshot) {
         jornadaRate = Number(jornada.valor_hora_snapshot)
-      } else if (historySalary) {
+      } else if (historySalary?.hourlyRate) {
         jornadaRate = Number(historySalary.hourlyRate)
       } else {
         jornadaRate = Number(empleado.valor_hora)
@@ -135,10 +138,10 @@ export async function POST(request) {
       })
     })
 
-    let fixedHourlyRate = empleado.valor_hora
-    if (empleado.hist_salarios && Array.isArray(empleado.hist_salarios)) {
-      const historySalary = getSalaryForDate(empleado.hist_salarios, endDate)
-      if (historySalary) fixedHourlyRate = historySalary.hourlyRate
+    let fixedHourlyRate = Number(empleado.valor_hora || 0)
+    const fixedHistory = resolveEffectiveSalaryFromHistory(salaryHistory, endDate)
+    if (fixedHistory?.hourlyRate) {
+      fixedHourlyRate = Number(fixedHistory.hourlyRate)
     }
 
     if (fixedHourlyRate && recargos) {
@@ -171,4 +174,3 @@ export async function POST(request) {
     return NextResponse.json({ message: "Error interno" }, { status: 500 })
   }
 }
-

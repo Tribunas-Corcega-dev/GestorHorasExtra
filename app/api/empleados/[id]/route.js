@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import bcrypt from "bcryptjs"
 import { canManageEmployees, isCoordinator } from "@/lib/permissions"
 import { calculateEmployeeWorkValues, calculateScheduleSurcharges } from "@/lib/calculations"
+import { appendSalaryHistoryEntry } from "@/lib/salaryHistory"
 import { logAudit } from "@/lib/logger"
 import { getUserFromRequest } from "@/lib/apiAuth"
 import { prisma } from "@/lib/prisma"
@@ -12,7 +13,14 @@ export async function GET(request, props) {
     const user = await getUserFromRequest(request)
     const { id } = params
 
-    const empleado = await prisma.usuarios.findUnique({ where: { id } })
+    const empleado = await prisma.usuarios.findUnique({
+      where: { id },
+      include: {
+        historial_salarios: {
+          orderBy: [{ fecha_vigencia: "desc" }, { created_at: "desc" }],
+        },
+      },
+    })
 
     if (!empleado) {
       return NextResponse.json({ message: "Empleado no encontrado" }, { status: 404 })
@@ -26,9 +34,14 @@ export async function GET(request, props) {
       return NextResponse.json({ message: "No autorizado" }, { status: 403 })
     }
 
-    const { password_hash, ...empleadoSafe } = empleado
+    const { password_hash, historial_salarios, ...empleadoSafe } = empleado
 
-    return NextResponse.json(empleadoSafe)
+    const payload = {
+      ...empleadoSafe,
+      salary_history: historial_salarios,
+    }
+
+    return NextResponse.json(payload)
   } catch (error) {
     console.error("[v0] Error in GET empleado:", error)
     return NextResponse.json({ message: "Error interno del servidor" }, { status: 500 })
@@ -74,11 +87,11 @@ export async function PUT(request, props) {
       let enrichedSchedule = body.jornada_fija_hhmm
       if (enrichedSchedule) {
         let nightShiftRange = { start: "21:00", end: "06:00" }
-        const params = await prisma.parametros.findFirst({
+        const paramsConfig = await prisma.parametros.findFirst({
           select: { jornada_nocturna: true },
         })
-        if (params?.jornada_nocturna) {
-          nightShiftRange = params.jornada_nocturna
+        if (paramsConfig?.jornada_nocturna) {
+          nightShiftRange = paramsConfig.jornada_nocturna
         }
         enrichedSchedule = calculateScheduleSurcharges(body.jornada_fija_hhmm, nightShiftRange)
       }
@@ -87,8 +100,11 @@ export async function PUT(request, props) {
 
     if (body.foto_url !== undefined) updateData.foto_url = body.foto_url
 
-    if (body.jornada_fija_hhmm !== undefined || body.salario_base !== undefined) {
-      const scheduleToUse = updateData.jornada_fija_hhmm !== undefined ? updateData.jornada_fija_hhmm : currentEmpleado.jornada_fija_hhmm
+    const recalculatesCompensation = body.jornada_fija_hhmm !== undefined || body.salario_base !== undefined
+
+    if (recalculatesCompensation) {
+      const scheduleToUse =
+        updateData.jornada_fija_hhmm !== undefined ? updateData.jornada_fija_hhmm : currentEmpleado.jornada_fija_hhmm
       const salaryToUse = body.salario_base !== undefined ? body.salario_base : currentEmpleado.salario_base
 
       const { horas_semanales, horas_mensuales, valor_hora } = calculateEmployeeWorkValues(scheduleToUse, salaryToUse)
@@ -96,68 +112,65 @@ export async function PUT(request, props) {
       updateData.horas_semanales = horas_semanales
       updateData.horas_mensuales = horas_mensuales
       updateData.valor_hora = valor_hora
-
-      const historyToUpdate = [...(currentEmpleado.hist_salarios || [])]
-
-      if (historyToUpdate.length === 0) {
-        historyToUpdate.push({
-          date: "2000-01-01T00:00:00.000Z",
-          salary: currentEmpleado.salario_base,
-          hourlyRate: Number(currentEmpleado.valor_hora),
-          reason: "Linea base inicial",
-        })
-      }
-
-      const newEntry = {
-        date: body.fecha_cambio || new Date().toISOString(),
-        salary: salaryToUse,
-        hourlyRate: valor_hora,
-        reason: "Actualizacion individual",
-      }
-      updateData.hist_salarios = [...historyToUpdate, newEntry]
     }
 
     if (body.password) {
       if (body.password.length < 8) {
-        return NextResponse.json({ message: "La contraseña debe tener al menos 8 caracteres" }, { status: 400 })
+        return NextResponse.json({ message: "La contrasena debe tener al menos 8 caracteres" }, { status: 400 })
       }
       updateData.password_hash = await bcrypt.hash(body.password, 10)
     }
 
-    const updatedEmpleado = await prisma.usuarios.update({
-      where: { id },
-      data: updateData,
-      select: {
-        id: true,
-        username: true,
-        nombre: true,
-        cc: true,
-        foto_url: true,
-        area: true,
-        rol: true,
-        salario_base: true,
-        jornada_fija_hhmm: true,
-        minimo: true,
-      },
-    })
+    const updatedEmpleado = await prisma.$transaction(async (tx) => {
+      const updated = await tx.usuarios.update({
+        where: { id },
+        data: updateData,
+        select: {
+          id: true,
+          username: true,
+          nombre: true,
+          cc: true,
+          foto_url: true,
+          area: true,
+          rol: true,
+          salario_base: true,
+          jornada_fija_hhmm: true,
+          minimo: true,
+        },
+      })
 
-    if (updateData.valor_hora !== undefined && body.fecha_cambio) {
-      const effectiveDate = formatToDateString(body.fecha_cambio)
-      if (effectiveDate) {
-        await prisma.jornadas.updateMany({
-          where: {
-            empleado_id: id,
-            fecha: { gte: new Date(`${effectiveDate}T00:00:00.000Z`) },
-          },
-          data: { valor_hora_snapshot: updateData.valor_hora },
+      if (updateData.valor_hora !== undefined) {
+        await appendSalaryHistoryEntry(tx, {
+          usuarioId: id,
+          effectiveDate: body.fecha_cambio || new Date().toISOString(),
+          salarioBase: updateData.salario_base !== undefined ? updateData.salario_base : currentEmpleado.salario_base,
+          valorHora: updateData.valor_hora,
+          horasSemanales: updateData.horas_semanales,
+          horasMensuales: updateData.horas_mensuales,
+          motivo: "Actualizacion individual",
+          origen: "ACTUALIZACION_INDIVIDUAL",
+          createdBy: user.id,
         })
+
+        if (body.fecha_cambio) {
+          const effectiveDate = formatToDateString(body.fecha_cambio)
+          if (effectiveDate) {
+            await tx.jornadas.updateMany({
+              where: {
+                empleado_id: id,
+                fecha: { gte: new Date(`${effectiveDate}T00:00:00.000Z`) },
+              },
+              data: { valor_hora_snapshot: updateData.valor_hora },
+            })
+          }
+        }
       }
-    }
+
+      return updated
+    })
 
     const changes = {}
     Object.keys(updateData).forEach((key) => {
-      if (key === "hist_salarios") return
-
       if (JSON.stringify(updateData[key]) !== JSON.stringify(currentEmpleado[key])) {
         changes[key] = { old: currentEmpleado[key], new: updateData[key] }
       }
@@ -203,12 +216,12 @@ export async function DELETE(request, props) {
     const { password } = body
 
     if (!password) {
-      return NextResponse.json({ message: "Se requiere contraseña para eliminar" }, { status: 400 })
+      return NextResponse.json({ message: "Se requiere contrasena para eliminar" }, { status: 400 })
     }
 
     const passwordMatch = await bcrypt.compare(password, user.password_hash)
     if (!passwordMatch) {
-      return NextResponse.json({ message: "Contraseña incorrecta" }, { status: 401 })
+      return NextResponse.json({ message: "Contrasena incorrecta" }, { status: 401 })
     }
 
     const empleado = await prisma.usuarios.findUnique({

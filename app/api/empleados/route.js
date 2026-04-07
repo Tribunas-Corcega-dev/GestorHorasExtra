@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import bcrypt from "bcryptjs"
 import { canManageEmployees, isCoordinator } from "@/lib/permissions"
 import { calculateEmployeeWorkValues, calculateScheduleSurcharges } from "@/lib/calculations"
+import { appendSalaryHistoryEntry } from "@/lib/salaryHistory"
 import { logAudit } from "@/lib/logger"
 import { getUserFromRequest } from "@/lib/apiAuth"
 import { prisma } from "@/lib/prisma"
@@ -23,12 +24,10 @@ export async function GET(request) {
       is_active: true,
     }
 
-    // Si es coordinador, solo puede ver empleados de su área
     if (isCoordinator(user.rol)) {
       where.area = user.area
     }
 
-    // Filtros
     if (search) {
       where.OR = [
         { username: { contains: search, mode: "insensitive" } },
@@ -77,21 +76,18 @@ export async function POST(request) {
     const body = await request.json()
     const { username, password, nombre, cc, foto_url, area, rol, salario_base, jornada_fija_hhmm } = body
 
-    // Validaciones
     if (!username || !password || !cc) {
-      return NextResponse.json({ message: "Username, contraseña y cédula son obligatorios" }, { status: 400 })
+      return NextResponse.json({ message: "Username, contrasena y cedula son obligatorios" }, { status: 400 })
     }
 
     if (password.length < 8) {
-      return NextResponse.json({ message: "La contraseña debe tener al menos 8 caracteres" }, { status: 400 })
+      return NextResponse.json({ message: "La contrasena debe tener al menos 8 caracteres" }, { status: 400 })
     }
 
-    // Si es coordinador, solo puede crear empleados en su área
     if (isCoordinator(user.rol) && area !== user.area) {
-      return NextResponse.json({ message: "No puedes crear empleados fuera de tu área" }, { status: 403 })
+      return NextResponse.json({ message: "No puedes crear empleados fuera de tu area" }, { status: 403 })
     }
 
-    // Verificar si el usuario ya existe
     const existingUser = await prisma.usuarios.findUnique({
       where: { username },
       select: { id: true },
@@ -101,24 +97,20 @@ export async function POST(request) {
       return NextResponse.json({ message: "El username ya existe" }, { status: 400 })
     }
 
-    // Verificar si la cédula ya existe
     const existingCC = await prisma.usuarios.findFirst({
       where: { cc },
       select: { id: true },
     })
 
     if (existingCC) {
-      return NextResponse.json({ message: "La cédula ya está registrada" }, { status: 400 })
+      return NextResponse.json({ message: "La cedula ya esta registrada" }, { status: 400 })
     }
 
-    // Generar hash de la contraseña
     const password_hash = await bcrypt.hash(password, 10)
 
-    // Calculate Schedule Surcharges
     let enrichedSchedule = jornada_fija_hhmm
     if (jornada_fija_hhmm) {
-      // Fetch Night Shift Parameters
-      let nightShiftRange = { start: "21:00", end: "06:00" } // Default
+      let nightShiftRange = { start: "21:00", end: "06:00" }
       const currentYear = new Date().getFullYear().toString()
 
       let params = await prisma.parametros.findFirst({
@@ -133,45 +125,61 @@ export async function POST(request) {
         })
       }
 
-      if (params && params.jornada_nocturna) {
+      if (params?.jornada_nocturna) {
         nightShiftRange = params.jornada_nocturna
       }
+
       enrichedSchedule = calculateScheduleSurcharges(jornada_fija_hhmm, nightShiftRange)
     }
 
-    // Calculate work values
     const { horas_semanales, horas_mensuales, valor_hora } = calculateEmployeeWorkValues(enrichedSchedule, salario_base)
 
-    // Insertar nuevo usuario
-    const newUser = await prisma.usuarios.create({
-      data: {
-        username,
-        password_hash,
-        nombre: nombre || null,
-        cc: cc || null,
-        foto_url: foto_url || null,
-        area: area || null,
-        rol: rol || "OPERARIO",
-        salario_base: salario_base || null,
-        jornada_fija_hhmm: enrichedSchedule || null,
-        horas_semanales,
-        horas_mensuales,
-        valor_hora,
-      },
-      select: {
-        id: true,
-        username: true,
-        nombre: true,
-        cc: true,
-        foto_url: true,
-        area: true,
-        rol: true,
-        salario_base: true,
-        jornada_fija_hhmm: true,
-      },
+    const newUser = await prisma.$transaction(async (tx) => {
+      const created = await tx.usuarios.create({
+        data: {
+          username,
+          password_hash,
+          nombre: nombre || null,
+          cc: cc || null,
+          foto_url: foto_url || null,
+          area: area || null,
+          rol: rol || "OPERARIO",
+          salario_base: salario_base || null,
+          jornada_fija_hhmm: enrichedSchedule || null,
+          horas_semanales,
+          horas_mensuales,
+          valor_hora,
+        },
+        select: {
+          id: true,
+          username: true,
+          nombre: true,
+          cc: true,
+          foto_url: true,
+          area: true,
+          rol: true,
+          salario_base: true,
+          jornada_fija_hhmm: true,
+        },
+      })
+
+      if (created.salario_base !== null && created.salario_base !== undefined && valor_hora !== null && valor_hora !== undefined) {
+        await appendSalaryHistoryEntry(tx, {
+          usuarioId: created.id,
+          effectiveDate: new Date().toISOString(),
+          salarioBase: created.salario_base,
+          valorHora: valor_hora,
+          horasSemanales: horas_semanales,
+          horasMensuales: horas_mensuales,
+          motivo: "Creacion de empleado",
+          origen: "CREACION",
+          createdBy: user.id,
+        })
+      }
+
+      return created
     })
 
-    // Audit Log
     await logAudit({
       action: "CREATE",
       entity: "EMPLEADO",
@@ -181,9 +189,9 @@ export async function POST(request) {
         cc: newUser.cc,
         area: newUser.area,
         rol: newUser.rol,
-        salario_base: newUser.salario_base
+        salario_base: newUser.salario_base,
       },
-      user: user
+      user,
     })
 
     return NextResponse.json(newUser, { status: 201 })

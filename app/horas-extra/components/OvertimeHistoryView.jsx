@@ -8,7 +8,8 @@ import { canManageOvertime } from "@/lib/permissions"
 import { formatDateForDisplay } from "@/lib/utils"
 import { useRouter } from "next/navigation"
 import { formatMinutesToHHMM } from "@/hooks/useOvertimeCalculator"
-import { calculateTotalOvertimeValue, formatToAmPm, getSalaryForDate, getRecargoPaymentFactor, findRecargoConfig } from "@/lib/calculations"
+import { calculateTotalOvertimeValue, formatToAmPm, getRecargoPaymentFactor, findRecargoConfig } from "@/lib/calculations"
+import { resolveEffectiveSalaryFromHistory } from "@/lib/salaryHistory"
 import { supabase } from "@/lib/supabaseClient"
 import { CompensatoryRequestModal } from "./CompensatoryRequestModal"
 import { BalanceManagementModal } from "./BalanceManagementModal"
@@ -47,6 +48,18 @@ function parseDateOnlyLocal(dateValue) {
     const [y, m, d] = String(dateValue).split("-").map(Number)
     if (!y || !m || !d) return null
     return new Date(y, m - 1, d)
+}
+
+
+function getEmployeeSalaryForDate(empleado, dateValue) {
+    if (!empleado) return null
+
+    if (Array.isArray(empleado.salary_history) && empleado.salary_history.length > 0) {
+        const resolved = resolveEffectiveSalaryFromHistory(empleado.salary_history, dateValue)
+        if (resolved) return resolved
+    }
+
+    return null
 }
 
 export function OvertimeHistoryView({ employeeId, showBackButton = true }) {
@@ -380,7 +393,7 @@ export function OvertimeHistoryView({ employeeId, showBackButton = true }) {
 
                                 // Determine hourly rate based on snapshot > history > current
                 let hourlyRate = 0
-                const historySalary = empleado ? getSalaryForDate(empleado.hist_salarios, jornada.fecha) : null
+                const historySalary = getEmployeeSalaryForDate(empleado, jornada.fecha)
 
                 if (jornada && jornada.valor_hora_snapshot) {
                     hourlyRate = Number(jornada.valor_hora_snapshot)
@@ -849,7 +862,7 @@ export function OvertimeHistoryView({ employeeId, showBackButton = true }) {
 
                                         // Determine hourly rate
                                         let hourlyRate = 0
-                                        const historySalary = empleado ? getSalaryForDate(empleado.hist_salarios, jornada.fecha) : null
+                                        const historySalary = getEmployeeSalaryForDate(empleado, jornada.fecha)
 
                                         if (jornada.valor_hora_snapshot) {
                                             hourlyRate = Number(jornada.valor_hora_snapshot)

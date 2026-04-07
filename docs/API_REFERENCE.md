@@ -13,8 +13,8 @@ This file summarizes the most used API modules and their intent.
 
 - `GET /api/empleados`: list active employees with filters
 - `POST /api/empleados`: create employee
-- `GET /api/empleados/:id`: employee detail
-- `PUT /api/empleados/:id`: update employee profile and derived values
+- `GET /api/empleados/:id`: employee detail (salary history is exposed only in `salary_history`)
+- `PUT /api/empleados/:id`: update employee profile and derived values (writes normalized salary history entries by effective date)
 - `DELETE /api/empleados/:id`: soft-delete employee (`is_active = false`)
 
 ## Workdays and overtime
@@ -52,7 +52,7 @@ This file summarizes the most used API modules and their intent.
 
 - `GET /api/reportes/horas-extra`: accumulated overtime report
 - `GET /api/reportes/empleados-activos`: active employee ids in period
-- `GET /api/cierres/calcular`: calculate closure preview for period
+- `GET /api/cierres/calcular`: calculate closure preview for period using effective salary from normalized history
 - `POST /api/cierres`: create quincena closure record
 
 ## Configuration catalog endpoints
@@ -67,3 +67,4 @@ This file summarizes the most used API modules and their intent.
 - Most endpoints are role-protected and rely on JWT session cookie.
 - Prisma is the primary DB access layer.
 - Supabase SDK is used for Storage-related operations only.
+

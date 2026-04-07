@@ -98,6 +98,9 @@ Scripts en `scripts/`:
 - `force_populate_resumen.js`
 - `check_schema.js`
 - `debug_data.js`
+- `add_historial_salarios_table.sql`
+- `dedupe_historial_salarios.sql`
+- `reconcile_historial_salarios.js`
 
 Migraciones versionadas:
 
