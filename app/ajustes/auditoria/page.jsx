@@ -163,7 +163,7 @@ function AuditoriaContent() {
                                                             <div className="h-16 w-16 rounded-full bg-muted flex items-center justify-center border-2 border-red-200 border-dashed text-xs text-muted-foreground">Sin Foto</div>
                                                         )}
                                                     </div>
-                                                    <div className="text-muted-foreground">-></div>
+                                                    <div className="text-muted-foreground">{"->"}</div>
                                                     <div className="relative group">
                                                         <span className="absolute -top-2 left-0 text-[10px] bg-green-100 text-green-800 px-1 rounded border border-green-200">Despues</span>
                                                         {newVal ? (
@@ -182,7 +182,7 @@ function AuditoriaContent() {
                                             <span className="font-semibold capitalize text-muted-foreground">{field.replace(/_/g, " ")}:</span>
                                             <span className="flex gap-2 items-center">
                                                 <span className="line-through text-red-400 text-xs">{String(displayOld)}</span>
-                                                <span>-></span>
+                                                <span>{"->"}</span>
                                                 <span className="text-green-600 font-medium">{String(displayNew)}</span>
                                             </span>
                                         </li>
@@ -506,4 +506,5 @@ function AuditoriaContent() {
         </div>
     )
 }
+
 
