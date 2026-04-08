@@ -12,7 +12,6 @@ import { calculateTotalOvertimeValue, formatToAmPm, getRecargoPaymentFactor, fin
 import { resolveEffectiveSalaryFromHistory } from "@/lib/salaryHistory"
 import { supabase } from "@/lib/supabaseClient"
 import { CompensatoryRequestModal } from "./CompensatoryRequestModal"
-import { BalanceManagementModal } from "./BalanceManagementModal"
 import { ApprovalFormatModal } from "@/app/dashboard/jefe/components/ApprovalFormatModal"
 
 const LABELS = {
@@ -89,7 +88,6 @@ export function OvertimeHistoryView({ employeeId, showBackButton = true }) {
     const [isCoordinator, setIsCoordinator] = useState(false)
     const [balanceData, setBalanceData] = useState(null)
     const [showBankingModal, setShowBankingModal] = useState(false)
-    const [showManageModal, setShowManageModal] = useState(false)
     const [showApprovalPreviewModal, setShowApprovalPreviewModal] = useState(false)
     const [approvalPeriod, setApprovalPeriod] = useState(null)
 
@@ -505,7 +503,7 @@ export function OvertimeHistoryView({ employeeId, showBackButton = true }) {
                                     {isCoordinator && (
                                         <div className="mt-3 text-center">
                                             <button
-                                                onClick={() => setShowManageModal(true)}
+                                                onClick={() => router.push(`/horas-extra/${employeeId}/compensacion`)}
                                                 className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold uppercase py-2 px-4 rounded w-full shadow hover:shadow-md transition-all flex items-center justify-center gap-2"
                                             >
                                                 Gestionar Compensación
@@ -1286,12 +1284,8 @@ export function OvertimeHistoryView({ employeeId, showBackButton = true }) {
                 }}
             />
 
-            <BalanceManagementModal
-                isOpen={showManageModal}
-                onClose={() => setShowManageModal(false)}
-                employee={empleado}
-                onUpdate={fetchData}
-            />
         </div >
     )
 }
+
+
