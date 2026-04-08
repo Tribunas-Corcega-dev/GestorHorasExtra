@@ -256,9 +256,28 @@ export function BalanceManagementPage({ employeeId }) {
 
     if (loading) {
         return (
-            <div className="max-w-6xl mx-auto p-6">
-                <div className="bg-card border border-border rounded-xl p-10 text-center">
-                    <p className="text-muted-foreground">Cargando datos del empleado...</p>
+            <div className="max-w-6xl mx-auto p-4 md:p-6 space-y-4">
+                <div className="bg-card border border-border rounded-xl p-6 md:p-8">
+                    <div className="flex items-center gap-3 mb-6">
+                        <div className="h-5 w-5 rounded-full border-2 border-primary/30 border-t-primary animate-spin"></div>
+                        <p className="text-sm font-medium text-muted-foreground animate-pulse">Cargando gestión de compensación...</p>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div className="md:col-span-2 space-y-3">
+                            <div className="h-10 rounded-md bg-muted animate-pulse"></div>
+                            <div className="h-12 rounded-md bg-muted/80 animate-pulse"></div>
+                            <div className="h-12 rounded-md bg-muted/80 animate-pulse"></div>
+                            <div className="h-12 rounded-md bg-muted/80 animate-pulse"></div>
+                            <div className="h-12 rounded-md bg-muted/80 animate-pulse"></div>
+                        </div>
+                        <div className="space-y-3">
+                            <div className="h-24 rounded-md bg-muted animate-pulse"></div>
+                            <div className="h-10 rounded-md bg-muted/80 animate-pulse"></div>
+                            <div className="h-10 rounded-md bg-muted/80 animate-pulse"></div>
+                            <div className="h-24 rounded-md bg-muted/80 animate-pulse"></div>
+                        </div>
+                    </div>
                 </div>
             </div>
         )
@@ -494,3 +513,4 @@ function formatMinutesToFloat(minutes) {
     const hours = minutes / 60
     return `${parseFloat(hours.toFixed(2))}h`
 }
+
