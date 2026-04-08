@@ -92,7 +92,6 @@ export function OvertimeHistoryView({ employeeId, showBackButton = true }) {
     const [showManageModal, setShowManageModal] = useState(false)
     const [showApprovalPreviewModal, setShowApprovalPreviewModal] = useState(false)
     const [approvalPeriod, setApprovalPeriod] = useState(null)
-    const [approvalRecord, setApprovalRecord] = useState(null)
 
     useEffect(() => {
         // Generate mock periods for the last 3 months
@@ -105,8 +104,8 @@ export function OvertimeHistoryView({ employeeId, showBackButton = true }) {
             const monthName = date.toLocaleString('es-CO', { month: 'long' })
 
             mockPeriods.push({ id: `${year}-${month}-0`, label: `Mes Completo ${monthName} ${year}` })
-            mockPeriods.push({ id: `${year}-${month}-2`, label: `2ª Quincena ${monthName} ${year} (16-End)` })
-            mockPeriods.push({ id: `${year}-${month}-1`, label: `1ª Quincena ${monthName} ${year} (01-15)` })
+            mockPeriods.push({ id: `${year}-${month}-2`, label: `2┬¬ Quincena ${monthName} ${year} (16-End)` })
+            mockPeriods.push({ id: `${year}-${month}-1`, label: `1┬¬ Quincena ${monthName} ${year} (01-15)` })
         }
         setPeriods(mockPeriods)
     }, [])
@@ -225,7 +224,7 @@ export function OvertimeHistoryView({ employeeId, showBackButton = true }) {
     }
 
     async function handleClosePeriod() {
-        if (!confirm("¿Estás seguro de cerrar esta quincena? Esto generará un registro oficial de nómina.")) return
+        if (!confirm("┬┐Est├ís seguro de cerrar esta quincena? Esto generar├í un registro oficial de n├│mina.")) return
 
         try {
             const res = await fetch("/api/cierres", {
@@ -269,7 +268,7 @@ export function OvertimeHistoryView({ employeeId, showBackButton = true }) {
                 setRecargos(recargosData)
             }
 
-            // Fetch balance (Compensación en tiempo)
+            // Fetch balance (Compensaci├│n en tiempo)
             const balanceRes = await fetch(`/api/compensatorios/saldo?userId=${employeeId}`)
             if (balanceRes.ok) {
                 const balanceData = await balanceRes.json()
@@ -324,19 +323,6 @@ export function OvertimeHistoryView({ employeeId, showBackButton = true }) {
         }
 
         setApprovalPeriod(range)
-        setApprovalRecord(null)
-
-        try {
-            const res = await fetch(`/api/aprobaciones/firma?inicio=${range.start}&fin=${range.end}`)
-            if (res.ok) {
-                const data = await res.json()
-                const found = Array.isArray(data) ? data.find((a) => a.empleado_id === employeeId) : null
-                setApprovalRecord(found || null)
-            }
-        } catch (error) {
-            console.error("Error fetching existing approval:", error)
-        }
-
         setShowApprovalPreviewModal(true)
     }
     // Filter jornadas based on period
@@ -501,7 +487,7 @@ export function OvertimeHistoryView({ employeeId, showBackButton = true }) {
                             {balanceData && (
                                 <div className="mt-4 bg-blue-50 dark:bg-blue-900/20 px-4 py-2 rounded-lg border border-blue-200 dark:border-blue-800 min-w-[200px]">
                                     <p className="text-xs text-blue-600 dark:text-blue-400 font-semibold uppercase tracking-wider mb-1">
-                                        Compensación en Tiempo
+                                        Compensaci├│n en Tiempo
                                     </p>
                                     <div className="flex items-baseline gap-2">
                                         <span className="text-2xl font-bold text-blue-700 dark:text-blue-300">
@@ -522,7 +508,7 @@ export function OvertimeHistoryView({ employeeId, showBackButton = true }) {
                                                 onClick={() => setShowManageModal(true)}
                                                 className="bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold uppercase py-2 px-4 rounded w-full shadow hover:shadow-md transition-all flex items-center justify-center gap-2"
                                             >
-                                                Gestionar Compensación
+                                                Gestionar Compensaci├│n
                                                 <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" /><polyline points="15 3 21 3 21 9" /><line x1="10" y1="14" x2="21" y2="3" /></svg>
                                             </button>
                                         </div>
@@ -582,7 +568,7 @@ export function OvertimeHistoryView({ employeeId, showBackButton = true }) {
                     className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center justify-center gap-2 w-full sm:w-auto"
                 >
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 12h20" /><path d="M7 12v5a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2v-5" /><path d="M12 12V7" /></svg>
-                    Enviar a Compensación
+                    Enviar a Compensaci├│n
                 </button>
 
                 {/* Close Period Button */}
@@ -623,7 +609,7 @@ export function OvertimeHistoryView({ employeeId, showBackButton = true }) {
                                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-green-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                                 </svg>
-                                Nómina Cerrada - {periods.find(p => p.value === selectedPeriod)?.label}
+                                N├│mina Cerrada - {periods.find(p => p.value === selectedPeriod)?.label}
                             </h2>
                             <span className="px-3 py-1 bg-green-100 text-green-800 rounded-full text-xs font-bold uppercase">
                                 {closingRecord.estado}
@@ -633,7 +619,7 @@ export function OvertimeHistoryView({ employeeId, showBackButton = true }) {
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                             {/* Fixed Surcharges */}
                             <div className="space-y-2">
-                                <h3 className="font-semibold text-muted-foreground text-sm uppercase">Nómina Fija</h3>
+                                <h3 className="font-semibold text-muted-foreground text-sm uppercase">N├│mina Fija</h3>
                                 <div className="bg-muted/50 p-3 rounded-md space-y-2">
                                     <div className="flex justify-between text-sm">
                                         <span>Recargo Nocturno:</span>
@@ -652,7 +638,7 @@ export function OvertimeHistoryView({ employeeId, showBackButton = true }) {
 
                             {/* Reported Overtime */}
                             <div className="space-y-2">
-                                <h3 className="font-semibold text-muted-foreground text-sm uppercase">Nómina Variable</h3>
+                                <h3 className="font-semibold text-muted-foreground text-sm uppercase">N├│mina Variable</h3>
                                 <div className="bg-muted/50 p-3 rounded-md space-y-2">
                                     {Object.entries(closingRecord.horas_extra_reportadas || {}).map(([key, minutes]) => {
                                         if (minutes === 0) return null
@@ -683,7 +669,7 @@ export function OvertimeHistoryView({ employeeId, showBackButton = true }) {
                             {/* Fixed Surcharges Section (From DB Table) */}
                             <div className={`space-y-4 ${selectedPeriod === 'all' ? 'opacity-50 grayscale' : ''}`}>
                                 <h3 className="text-lg font-semibold text-foreground border-b border-border pb-2 flex items-center justify-between">
-                                    <span>Nómina Fija</span>
+                                    <span>N├│mina Fija</span>
                                     {selectedPeriod === 'all' && <span className="text-xs font-normal text-muted-foreground">(Selecciona periodo)</span>}
                                 </h3>
                                 <div className="bg-blue-50/50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-900 rounded-lg p-4 shadow-sm">
@@ -696,7 +682,7 @@ export function OvertimeHistoryView({ employeeId, showBackButton = true }) {
                                         ) : mockFixedSurcharges ? (
                                             <>
                                                 <div className="flex items-center gap-2 mb-3">
-                                                    <span className="text-xs font-bold bg-blue-100 text-blue-700 px-2 py-0.5 rounded">Automático</span>
+                                                    <span className="text-xs font-bold bg-blue-100 text-blue-700 px-2 py-0.5 rounded">Autom├ítico</span>
                                                     <span className="text-xs text-muted-foreground">Calculado por turno fijo</span>
                                                 </div>
                                                 <div className="space-y-3">
@@ -738,7 +724,7 @@ export function OvertimeHistoryView({ employeeId, showBackButton = true }) {
                             {/* Reported Overtime Section (Variable) */}
                             <div className="md:col-span-2 space-y-4">
                                 <h3 className="text-lg font-semibold text-foreground border-b border-border pb-2 flex items-center justify-between">
-                                    <span>Nómina Variable (Reportada)</span>
+                                    <span>N├│mina Variable (Reportada)</span>
                                     <span className="text-xs font-normal text-muted-foreground">Basado en {filteredJornadas.length} registros</span>
                                 </h3>
                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -819,7 +805,7 @@ export function OvertimeHistoryView({ employeeId, showBackButton = true }) {
                                 <thead className="bg-muted">
                                     <tr>
                                         <th className="px-4 py-3 text-left text-sm font-medium text-foreground">Fecha</th>
-                                        <th className="px-4 py-3 text-left text-sm font-medium text-foreground">Día</th>
+                                        <th className="px-4 py-3 text-left text-sm font-medium text-foreground">D├¡a</th>
                                         <th className="px-4 py-3 text-left text-sm font-medium text-foreground">Tipo</th>
                                         <th className="px-4 py-3 text-left text-sm font-medium text-foreground">Horario</th>
                                         <th className="px-4 py-3 text-left text-sm font-medium text-foreground">Horas Extra</th>
@@ -896,7 +882,7 @@ export function OvertimeHistoryView({ employeeId, showBackButton = true }) {
                                                     {jornada.horas_para_bolsa_minutos > 0 && (
                                                         <div className="mt-1">
                                                             <span className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300">
-                                                                Compensación: {formatMinutesToFloat(jornada.horas_para_bolsa_minutos)}
+                                                                Compensaci├│n: {formatMinutesToFloat(jornada.horas_para_bolsa_minutos)}
                                                             </span>
                                                         </div>
                                                     )}
@@ -949,7 +935,7 @@ export function OvertimeHistoryView({ employeeId, showBackButton = true }) {
                                                 <td className="px-4 py-3 text-sm font-bold text-green-600 dark:text-green-400 text-right whitespace-nowrap">
                                                     {['SOLICITADO', 'APROBADO'].includes(jornada.estado_compensacion) ? (
                                                         <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400 border border-blue-200 dark:border-blue-800">
-                                                            En compensación en tiempo
+                                                            En compensaci├│n en tiempo
                                                         </span>
                                                     ) : (
                                                         dayValue > 0 ? formatCurrency(dayValue) : "-"
@@ -1004,7 +990,7 @@ export function OvertimeHistoryView({ employeeId, showBackButton = true }) {
                                         <p className="font-medium text-foreground">{formatDateForDisplay(selectedJornada.fecha)}</p>
                                     </div>
                                     <div>
-                                        <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Tipo de Día</p>
+                                        <p className="text-xs text-muted-foreground uppercase tracking-wider mb-1">Tipo de D├¡a</p>
                                         <p className="font-medium text-foreground">
                                             {selectedJornada.es_festivo ? "Festivo" : "Ordinario"}
                                         </p>
@@ -1015,7 +1001,7 @@ export function OvertimeHistoryView({ employeeId, showBackButton = true }) {
                                     <p className="text-xs text-muted-foreground uppercase tracking-wider mb-2">Horario Base</p>
                                     <div className="bg-muted/50 p-3 rounded-md text-sm space-y-1">
                                         <div className="flex justify-between">
-                                            <span>Mañana:</span>
+                                            <span>Ma├▒ana:</span>
                                             <span className="font-medium">
                                                 {selectedJornada.jornada_base_calcular.morning.enabled
                                                     ? `${formatToAmPm(selectedJornada.jornada_base_calcular.morning.start)} - ${formatToAmPm(selectedJornada.jornada_base_calcular.morning.end)}`
@@ -1122,7 +1108,7 @@ export function OvertimeHistoryView({ employeeId, showBackButton = true }) {
                                             if (status !== 'NINGUNO') {
                                                 return (
                                                     <span className="px-3 py-2 bg-blue-100 text-blue-800 rounded-md text-sm font-medium border border-blue-200">
-                                                        {status === 'SOLICITADO' ? 'En solicitud de compensación en tiempo' : status === 'APROBADO' ? 'En compensación en tiempo' : status}
+                                                        {status === 'SOLICITADO' ? 'En solicitud de compensaci├│n en tiempo' : status === 'APROBADO' ? 'En compensaci├│n en tiempo' : status}
                                                     </span>
                                                 )
                                             }
@@ -1176,12 +1162,12 @@ export function OvertimeHistoryView({ employeeId, showBackButton = true }) {
 
                                 <div>
                                     <label className="block text-sm font-medium text-foreground mb-2">
-                                        Motivo de la apelación *
+                                        Motivo de la apelaci├│n *
                                     </label>
                                     <textarea
                                         value={appealDescription}
                                         onChange={(e) => setAppealDescription(e.target.value)}
-                                        placeholder="Describe por qué deseas apelar esta jornada..."
+                                        placeholder="Describe por qu├⌐ deseas apelar esta jornada..."
                                         rows={4}
                                         className="w-full px-3 py-2 border border-input bg-background text-foreground rounded-md focus:outline-none focus:ring-2 focus:ring-ring resize-none"
                                     />
@@ -1221,7 +1207,7 @@ export function OvertimeHistoryView({ employeeId, showBackButton = true }) {
                                 <button
                                     onClick={async () => {
                                         if (!appealDescription.trim()) {
-                                            alert("Por favor, describe el motivo de tu apelación")
+                                            alert("Por favor, describe el motivo de tu apelaci├│n")
                                             return
                                         }
 
@@ -1244,22 +1230,22 @@ export function OvertimeHistoryView({ employeeId, showBackButton = true }) {
                                             const data = await response.json()
 
                                             if (response.ok) {
-                                                alert(`✓ Apelación enviada exitosamente\n\nSu apelación ha sido registrada y será revisada por el equipo correspondiente.`)
+                                                alert(`Γ£ô Apelaci├│n enviada exitosamente\n\nSu apelaci├│n ha sido registrada y ser├í revisada por el equipo correspondiente.`)
                                                 setShowAppealModal(false)
                                                 setSelectedJornada(null)
                                                 setAppealDescription("")
                                                 setAppealFiles([])
                                             } else {
-                                                alert(`Error al enviar apelación:\n${data.message || "Error desconocido"}`)
+                                                alert(`Error al enviar apelaci├│n:\n${data.message || "Error desconocido"}`)
                                             }
                                         } catch (error) {
                                             console.error("Error submitting appeal:", error)
-                                            alert("Error al enviar la apelación. Por favor, intente nuevamente.")
+                                            alert("Error al enviar la apelaci├│n. Por favor, intente nuevamente.")
                                         }
                                     }}
                                     className="px-4 py-2 bg-orange-500 text-white rounded-md text-sm font-medium hover:bg-orange-600 transition-colors"
                                 >
-                                    Enviar Apelación
+                                    Enviar Apelaci├│n
                                 </button>
                             </div>
                         </div>
@@ -1273,9 +1259,6 @@ export function OvertimeHistoryView({ employeeId, showBackButton = true }) {
                     onClose={() => setShowApprovalPreviewModal(false)}
                     employee={empleado}
                     period={approvalPeriod}
-                    jefe={user}
-                    existingApproval={approvalRecord}
-                    forceReadOnly={true}
                 />
             )}
 
@@ -1294,7 +1277,7 @@ export function OvertimeHistoryView({ employeeId, showBackButton = true }) {
                         })
                     })
                     if (res.ok) {
-                        alert("Solicitud procesada con éxito.")
+                        alert("Solicitud procesada con ├⌐xito.")
                         fetchData()
                     } else {
                         const err = await res.json()

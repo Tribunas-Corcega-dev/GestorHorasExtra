@@ -1,7 +1,6 @@
-"use client"
+﻿"use client"
 
 import { useMemo, useState } from "react"
-import { useAuth } from "@/hooks/useAuth"
 import { ApprovalFormatModal } from "./components/ApprovalFormatModal"
 import useSWR from "swr"
 
@@ -21,52 +20,32 @@ function toArray(value) {
 }
 
 export function JefeContentClient({ initialPeriod }) {
-    const { user } = useAuth()
     const [period, setPeriod] = useState(initialPeriod)
     const [selectedEmployee, setSelectedEmployee] = useState(null)
 
-    // Parallel data fetching using SWR
     const { data: emps = [], isLoading: loadingEmps } = useSWR("/api/empleados", fetcher)
-    const { data: apps = [], isLoading: loadingApps, mutate: mutateApps } = useSWR(
-        `/api/aprobaciones/firma?inicio=${period.start}&fin=${period.end}`,
-        fetcher
-    )
     const { data: activeIds = [], isLoading: loadingActive } = useSWR(
         `/api/reportes/empleados-activos?inicio=${period.start}&fin=${period.end}`,
         fetcher
     )
 
-    const isLoading = loadingEmps || loadingApps || loadingActive
+    const isLoading = loadingEmps || loadingActive
 
     const empsList = useMemo(() => toArray(emps), [emps])
-    const appsList = useMemo(() => toArray(apps), [apps])
     const activeIdsList = useMemo(() => toArray(activeIds), [activeIds])
 
-    // js-index-maps: Create a Map for O(1) lookups instead of .find() in loops
-    const approvalsMap = new Map()
-    appsList.forEach(app => {
-        approvalsMap.set(app.empleado_id, app)
-    })
-
-    // js-set-map-lookups: Create a Set for active ids
     const activeIdsSet = new Set(activeIdsList)
-
-    // js-combine-iterations: Filter employees efficiently
-    const activeEmployees = empsList.filter(
-        e => activeIdsSet.has(e.id) || approvalsMap.has(e.id)
-    )
-
-    if (!user) return null
+    const activeEmployees = empsList.filter((e) => activeIdsSet.has(e.id))
 
     return (
         <div className="max-w-6xl mx-auto space-y-6">
             <div className="flex justify-between items-center">
                 <div>
-                    <h1 className="text-3xl font-bold text-foreground">Aprobación de Horas Extra</h1>
-                    <p className="text-muted-foreground">Panel de Control para Jefes</p>
+                    <h1 className="text-3xl font-bold text-foreground">Formato de Horas Extra</h1>
+                    <p className="text-muted-foreground">Panel de impresion para firma fisica</p>
                 </div>
                 <div className="flex gap-2 items-center bg-card p-2 rounded border border-border">
-                    <span className="text-sm font-medium">Período:</span>
+                    <span className="text-sm font-medium">Periodo:</span>
                     <input
                         type="date"
                         value={period.start}
@@ -80,9 +59,6 @@ export function JefeContentClient({ initialPeriod }) {
                         onChange={(e) => setPeriod({ ...period, end: e.target.value })}
                         className="border rounded px-2 py-1 text-sm"
                     />
-                    <button onClick={() => mutateApps()} className="ml-2 bg-primary text-primary-foreground px-3 py-1 rounded text-sm">
-                        Actualizar
-                    </button>
                 </div>
             </div>
 
@@ -91,7 +67,7 @@ export function JefeContentClient({ initialPeriod }) {
                     <thead className="bg-muted text-foreground font-medium uppercase text-xs">
                         <tr>
                             <th className="px-4 py-3">Empleado</th>
-                            <th className="px-4 py-3">Cédula</th>
+                            <th className="px-4 py-3">Cedula</th>
                             <th className="px-4 py-3 text-center">Estado</th>
                             <th className="px-4 py-3 text-right">Acciones</th>
                         </tr>
@@ -113,37 +89,23 @@ export function JefeContentClient({ initialPeriod }) {
                                 </td>
                             </tr>
                         ) : (
-                            activeEmployees.map(emp => {
-                                const appData = approvalsMap.get(emp.id)
-                                const status = appData ? "APROBADO" : "PENDIENTE"
-                                const fecha_aprobacion = appData?.fecha_aprobacion
-
-                                return (
-                                    <tr key={emp.id} className="hover:bg-accent/50">
-                                        <td className="px-4 py-3 font-medium">{emp.nombre}</td>
-                                        <td className="px-4 py-3 text-muted-foreground">{emp.cc || "-"}</td>
-                                        <td className="px-4 py-3 text-center">
-                                            <span className={`px-2 py-1 rounded-full text-xs font-bold ${status === 'APROBADO' ? 'bg-green-100 text-green-700' : 'bg-yellow-100 text-yellow-700'
-                                                }`}>
-                                                {status}
-                                            </span>
-                                            {fecha_aprobacion ? (
-                                                <div className="text-[10px] text-muted-foreground mt-1">
-                                                    {new Date(fecha_aprobacion).toLocaleDateString()}
-                                                </div>
-                                            ) : null}
-                                        </td>
-                                        <td className="px-4 py-3 text-right">
-                                            <button
-                                                onClick={() => setSelectedEmployee(emp)}
-                                                className="px-3 py-1 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded border border-blue-200 transition-colors font-medium"
-                                            >
-                                                Ver Formato
-                                            </button>
-                                        </td>
-                                    </tr>
-                                )
-                            })
+                            activeEmployees.map((emp) => (
+                                <tr key={emp.id} className="hover:bg-accent/50">
+                                    <td className="px-4 py-3 font-medium">{emp.nombre}</td>
+                                    <td className="px-4 py-3 text-muted-foreground">{emp.cc || "-"}</td>
+                                    <td className="px-4 py-3 text-center">
+                                        <span className="px-2 py-1 rounded-full text-xs font-bold bg-blue-100 text-blue-700">DISPONIBLE</span>
+                                    </td>
+                                    <td className="px-4 py-3 text-right">
+                                        <button
+                                            onClick={() => setSelectedEmployee(emp)}
+                                            className="px-3 py-1 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded border border-blue-200 transition-colors font-medium"
+                                        >
+                                            Ver Formato
+                                        </button>
+                                    </td>
+                                </tr>
+                            ))
                         )}
                     </tbody>
                 </table>
@@ -152,14 +114,9 @@ export function JefeContentClient({ initialPeriod }) {
             {selectedEmployee ? (
                 <ApprovalFormatModal
                     isOpen={!!selectedEmployee}
-                    onClose={() => { 
-                        setSelectedEmployee(null); 
-                        mutateApps(); 
-                    }}
+                    onClose={() => setSelectedEmployee(null)}
                     employee={selectedEmployee}
                     period={period}
-                    jefe={user}
-                    existingApproval={approvalsMap.get(selectedEmployee.id) || null}
                 />
             ) : null}
         </div>
