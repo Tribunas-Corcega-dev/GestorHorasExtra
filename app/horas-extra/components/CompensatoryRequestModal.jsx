@@ -1,6 +1,4 @@
-
-import { useState, useEffect } from "react"
-import { formatMinutesToHHMM } from "@/hooks/useOvertimeCalculator"
+﻿import { useMemo, useState } from "react"
 
 const LABELS = {
     extra_diurna: "Extra Diurna",
@@ -9,6 +7,8 @@ const LABELS = {
     extra_nocturna_festivo: "Extra Nocturna Festivo"
 }
 
+const LABEL_ENTRIES = Object.entries(LABELS)
+
 export function CompensatoryRequestModal({ isOpen, onClose, checkAvailable, onConfirm }) {
     const [selectedType, setSelectedType] = useState("extra_diurna")
     const [hours, setHours] = useState("")
@@ -16,13 +16,30 @@ export function CompensatoryRequestModal({ isOpen, onClose, checkAvailable, onCo
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState("")
 
-    if (!isOpen) return null
-
-    // Determine available hours for display
+    // Keep this object stable enough for derived calculations.
     const available = checkAvailable || {}
+
+    const availableTypes = useMemo(
+        () => LABEL_ENTRIES.filter(([type]) => (available[type] || 0) > 0),
+        [available]
+    )
+
+    const resetLocalState = () => {
+        setError("")
+        setHours("")
+        setMinutes("")
+        setSelectedType("extra_diurna")
+    }
+
+    const handleClose = () => {
+        if (loading) return
+        resetLocalState()
+        onClose()
+    }
 
     const handleSubmit = async () => {
         setError("")
+
         const h = parseInt(hours || "0", 10)
         const m = parseInt(minutes || "0", 10)
         const totalMinutes = h * 60 + m
@@ -45,11 +62,7 @@ export function CompensatoryRequestModal({ isOpen, onClose, checkAvailable, onCo
         setLoading(true)
         try {
             await onConfirm(requests)
-            onClose()
-            // Reset form
-            setHours("")
-            setMinutes("")
-            setSelectedType("extra_diurna")
+            handleClose()
         } catch (err) {
             setError("Error al procesar la solicitud.")
         } finally {
@@ -57,19 +70,18 @@ export function CompensatoryRequestModal({ isOpen, onClose, checkAvailable, onCo
         }
     }
 
-    const availableTypes = Object.entries(available).filter(([k, v]) => v > 0 && LABELS[k])
+    if (!isOpen) return null
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in">
-            <div className="bg-card border border-border rounded-xl shadow-2xl max-w-lg w-full p-6 animate-in zoom-in-95 duration-200">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 animate-in fade-in">
+            <div className="bg-card border border-border rounded-xl shadow-xl max-w-lg w-full p-6 animate-in zoom-in-95 duration-150">
                 <h2 className="text-xl font-bold mb-2">Solicitar Compensación en Tiempo</h2>
                 <p className="text-sm text-muted-foreground mb-6">
                     Ingresa la cantidad de tiempo que deseas enviar a compensación en tiempo.
                 </p>
 
-                {/* Summary of Available Hours */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
-                    {Object.entries(LABELS).map(([type, label]) => {
+                    {LABEL_ENTRIES.map(([type, label]) => {
                         const mins = available[type] || 0
                         if (mins <= 0) return null
                         return (
@@ -79,14 +91,12 @@ export function CompensatoryRequestModal({ isOpen, onClose, checkAvailable, onCo
                             </div>
                         )
                     })}
-                    {/* Show empty state if nothing available */}
-                    {Object.values(available).every(m => m <= 0) && (
+                    {availableTypes.length === 0 && (
                         <p className="col-span-2 text-sm text-amber-600 text-center py-2">No tienes horas extra disponibles para auditar.</p>
                     )}
                 </div>
 
                 <div className="space-y-4">
-                    {/* Type Selector */}
                     <div>
                         <label className="block text-sm font-medium mb-1">Tipo de Hora</label>
                         <select
@@ -94,7 +104,7 @@ export function CompensatoryRequestModal({ isOpen, onClose, checkAvailable, onCo
                             onChange={(e) => setSelectedType(e.target.value)}
                             className="w-full px-3 py-2 border border-input bg-background rounded-md text-sm focus:ring-2 focus:ring-primary/50 outline-none"
                         >
-                            {Object.entries(LABELS).map(([key, label]) => (
+                            {LABEL_ENTRIES.map(([key, label]) => (
                                 <option key={key} value={key}>
                                     {label}
                                 </option>
@@ -105,7 +115,6 @@ export function CompensatoryRequestModal({ isOpen, onClose, checkAvailable, onCo
                         </p>
                     </div>
 
-                    {/* Time Input */}
                     <div className="flex items-center gap-2">
                         <div className="flex-1">
                             <label className="block text-xs text-muted-foreground mb-1">Horas</label>
@@ -148,8 +157,9 @@ export function CompensatoryRequestModal({ isOpen, onClose, checkAvailable, onCo
 
                 <div className="mt-8 flex justify-end gap-3">
                     <button
-                        onClick={onClose}
-                        className="px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+                        onClick={handleClose}
+                        disabled={loading}
+                        className="px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
                     >
                         Cancelar
                     </button>
@@ -170,5 +180,8 @@ function formatMinutesToFloat(minutes) {
     if (!minutes) return "0h"
     const hours = Math.floor(minutes / 60)
     const mins = minutes % 60
-    return `${hours}h ${mins > 0 ? `${mins}m` : ''}`
+    return `${hours}h ${mins > 0 ? `${mins}m` : ""}`
 }
+
+
+
