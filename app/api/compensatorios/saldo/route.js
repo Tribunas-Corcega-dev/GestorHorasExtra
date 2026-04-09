@@ -41,11 +41,14 @@ export async function GET(request) {
         const totalMinutes = targetUser.bolsa_horas_minutos || 0
         const availableMinutes = totalMinutes - pendingMinutes
 
-        // Fetch full request history
-        const requestHistory = await prisma.solicitudes_tiempo.findMany({
-            where: { usuario_id: targetId },
-            orderBy: { fecha_inicio: "desc" }
-        })
+        // Operario is now read-only: do not expose request subsystem list in self-view.
+        const shouldExposeRequests = !(user.rol === "OPERARIO" && targetId === user.id)
+        const requestHistory = shouldExposeRequests
+            ? await prisma.solicitudes_tiempo.findMany({
+                where: { usuario_id: targetId },
+                orderBy: { fecha_inicio: "desc" }
+            })
+            : []
 
         // Fetch history (Balance Log)
         const history = await prisma.historial_bolsa.findMany({
@@ -61,12 +64,12 @@ export async function GET(request) {
                 id: item.id,
                 fecha: item.fecha,
                 tipo_operacion: item.tipo_movimiento,
-                unidad: 'minutos', // Adding default unit
+                unidad: "minutos",
                 cantidad_minutos: item.minutos,
                 saldo_nuevo: item.saldo_resultante,
                 descripcion: item.observacion || "Movimiento de compensación en tiempo"
             })),
-            solicitudes: requestHistory,
+            solicitudes: shouldExposeRequests ? requestHistory : [],
             jornada_fija_hhmm: targetUser.jornada_fija_hhmm,
             rol: targetUser.rol
         })

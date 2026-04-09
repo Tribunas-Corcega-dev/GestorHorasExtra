@@ -557,17 +557,19 @@ export function OvertimeHistoryView({ employeeId, showBackButton = true }) {
                     </button>
                 )}
 
-                {/* Banking Button (Visible to Employee and Coordinators) */}
-                <button
-                    onClick={() => {
-                        fetchBalanceSummary()
-                        setShowBankingModal(true)
-                    }}
-                    className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center justify-center gap-2 w-full sm:w-auto"
-                >
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 12h20" /><path d="M7 12v5a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2v-5" /><path d="M12 12V7" /></svg>
-                    Enviar a Compensación
-                </button>
+                {/* Banking Button (Managers only in this version) */}
+                {canManageOvertime(user?.rol) && (
+                    <button
+                        onClick={() => {
+                            fetchBalanceSummary()
+                            setShowBankingModal(true)
+                        }}
+                        className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center justify-center gap-2 w-full sm:w-auto"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 12h20" /><path d="M7 12v5a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2v-5" /><path d="M12 12V7" /></svg>
+                        Enviar a Compensación
+                    </button>
+                )}
 
                 {/* Close Period Button */}
                 {['TALENTO_HUMANO', 'ASISTENTE_GERENCIA'].includes(user?.rol) && selectedPeriod !== 'all' && !closingRecord && (
@@ -1258,34 +1260,37 @@ export function OvertimeHistoryView({ employeeId, showBackButton = true }) {
                     employee={empleado}
                     period={approvalPeriod}
                 />
-            )}
-
-            <CompensatoryRequestModal
-                isOpen={showBankingModal}
-                onClose={() => setShowBankingModal(false)}
-                // Data is now fetched from server when modal opens
-                checkAvailable={balanceSummary}
-                onConfirm={async (requests) => {
-                    const res = await fetch("/api/compensatorios/acumular-batch", {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({
-                            requests,
-                            target_user_id: employeeId
+            )}            {canManageOvertime(user?.rol) && (
+                <CompensatoryRequestModal
+                    isOpen={showBankingModal}
+                    onClose={() => setShowBankingModal(false)}
+                    // Data is now fetched from server when modal opens
+                    checkAvailable={balanceSummary}
+                    onConfirm={async (requests) => {
+                        const res = await fetch("/api/compensatorios/acumular-batch", {
+                            method: "POST",
+                            headers: { "Content-Type": "application/json" },
+                            body: JSON.stringify({
+                                requests,
+                                target_user_id: employeeId
+                            })
                         })
-                    })
-                    if (res.ok) {
-                        alert("Solicitud procesada con éxito.")
-                        fetchData()
-                    } else {
-                        const err = await res.json()
-                        throw new Error(err.message || "Error")
-                    }
-                }}
-            />
-
-        </div >
+                        if (res.ok) {
+                            alert("Solicitud procesada con éxito.")
+                            fetchData()
+                        } else {
+                            const err = await res.json()
+                            throw new Error(err.message || "Error")
+                        }
+                    }}
+                />
+            )}
+</div >
     )
 }
+
+
+
+
 
 

@@ -1,9 +1,12 @@
-﻿import { useState, useEffect } from "react"
+import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { calculateTotalMinutes, getIntervals, timeToMinutes, formatMinutesToHHMM } from "@/lib/calculations"
+import { useAuth } from "@/hooks/useAuth"
+import { canManageOvertime } from "@/lib/permissions"
 
 export function BalanceManagementPage({ employeeId }) {
     const router = useRouter()
+    const { user, loading: authLoading } = useAuth()
 
     const [employee, setEmployee] = useState(null)
     const [balanceData, setBalanceData] = useState(null)
@@ -365,6 +368,24 @@ export function BalanceManagementPage({ employeeId }) {
         }
     }
 
+
+    if (!authLoading && user && !canManageOvertime(user.rol)) {
+        return (
+            <div className="max-w-3xl mx-auto p-4 md:p-6">
+                <div className="bg-card border border-border rounded-xl p-6 space-y-3">
+                    <h2 className="text-xl font-bold text-foreground">Acceso solo consulta</h2>
+                    <p className="text-sm text-muted-foreground">Este perfil no tiene permisos para gestionar canjeos de compensacion.</p>
+                    <button
+                        type="button"
+                        onClick={() => router.push("/dashboard")}
+                        className="px-4 py-2 border border-input rounded-md text-sm hover:bg-accent transition-colors"
+                    >
+                        Volver al dashboard
+                    </button>
+                </div>
+            </div>
+        )
+    }
     if (loading) {
         return (
             <div className="max-w-6xl mx-auto p-4 md:p-6 space-y-4">
