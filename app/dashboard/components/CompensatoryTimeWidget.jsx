@@ -13,7 +13,7 @@ function formatMinutesToTime(minutes) {
 // Import helper
 import { calculateTotalMinutes, getIntervals, timeToMinutes, formatMinutesToHHMM } from "@/lib/calculations"
 
-export function CompensatoryTimeWidget() {
+export function CompensatoryTimeWidget({ showReadOnlyNotice = true, includePending = true }) {
     const { user } = useAuth()
     const [balance, setBalance] = useState(0) // Now represents AVAILABLE balance
     const [balanceTotal, setBalanceTotal] = useState(0)
@@ -58,12 +58,12 @@ export function CompensatoryTimeWidget() {
 
     async function fetchBalance() {
         try {
-            const res = await fetch("/api/compensatorios/saldo")
+            const res = await fetch(`/api/compensatorios/saldo${includePending ? "" : "?includePending=false"}`)
             if (res.ok) {
                 const data = await res.json()
                 setBalance(data.saldo_disponible || 0)
                 setBalanceTotal(data.saldo_total || 0)
-                setBalancePending(data.saldo_pendiente || 0)
+                setBalancePending(includePending ? (data.saldo_pendiente || 0) : 0)
                 setHistory(data.historial || [])
                 setRequestHistory(data.solicitudes || [])
 
@@ -106,7 +106,7 @@ export function CompensatoryTimeWidget() {
         const selectedDate = new Date(dateStr + 'T00:00:00')
 
         if (selectedDate <= today) {
-            alert("La fecha debe ser posterior al día actual.")
+            alert("La fecha debe ser posterior al dia actual.")
             setMinutosSolicitados("")
             setCalculatedDisplay("")
             return
@@ -115,7 +115,7 @@ export function CompensatoryTimeWidget() {
         const daySchedule = getDaySchedule(dateStr)
 
         if (!daySchedule || !daySchedule.enabled) {
-            alert("No tienes turno programado para este día.")
+            alert("No tienes turno programado para este dia.")
             setMinutosSolicitados("")
             setCalculatedDisplay("")
             return
@@ -156,7 +156,7 @@ export function CompensatoryTimeWidget() {
         const selectedDate = new Date(dateStr + 'T00:00:00')
 
         if (selectedDate <= today) {
-            alert("La fecha debe ser posterior al día actual.")
+            alert("La fecha debe ser posterior al dia actual.")
             setMinutosSolicitados("")
             setCalculatedDisplay("")
             return
@@ -197,7 +197,7 @@ export function CompensatoryTimeWidget() {
 
         // Calculate minutes based on start time
         // Note: If I arrive in the afternoon, do I deduct morning + part of afternoon?
-        // Yes. "Llegada Tardía" implies I missed everything before.
+        // Yes. "Llegada Tardia" implies I missed everything before.
         // So Diff = Arrival - FirstStart - (Break if applicable?)
         // Wait, simply: Time missed = Total Working Minutes *scheduled BEFORE arrival*.
         // Correct logic:
@@ -240,7 +240,7 @@ export function CompensatoryTimeWidget() {
         const selectedDate = new Date(dateStr + 'T00:00:00')
 
         if (selectedDate <= today) {
-            alert("La fecha debe ser posterior al día actual.")
+            alert("La fecha debe ser posterior al dia actual.")
             setMinutosSolicitados("")
             setCalculatedDisplay("")
             return
@@ -312,7 +312,7 @@ export function CompensatoryTimeWidget() {
         try {
             // Basic validation
             if (!minutosSolicitados || parseInt(minutosSolicitados) <= 0) {
-                alert("Por favor ingrese una cantidad de tiempo válida")
+                alert("Por favor ingrese una cantidad de tiempo valida")
                 setSubmitting(false)
                 return
             }
@@ -369,8 +369,8 @@ export function CompensatoryTimeWidget() {
         <div className="bg-card border border-border rounded-lg shadow-sm p-6">
             <div className="flex justify-between items-start mb-4">
                 <div>
-                    <h3 className="text-lg font-bold text-foreground">Compensación en Tiempo</h3>
-                    <p className="text-sm text-muted-foreground">Compensación en tiempo disponible</p>
+                    <h3 className="text-lg font-bold text-foreground">Compensacion en Tiempo</h3>
+                    <p className="text-sm text-muted-foreground">Compensacion en tiempo disponible</p>
                 </div>
                 {canRequestCompensation && (
                 <button
@@ -382,21 +382,23 @@ export function CompensatoryTimeWidget() {
                 )}
             </div>
 
-            {!canRequestCompensation && (
+            {!canRequestCompensation && showReadOnlyNotice && (
                 <div className="mb-4 rounded-md border border-amber-300/60 bg-amber-50 px-3 py-2 text-xs text-amber-800">
                     Perfil en modo solo consulta: no puedes crear solicitudes de compensacion.
                 </div>
             )}
 
-            <div className="mb-6 grid grid-cols-3 gap-2 text-center border-b border-border pb-4">
+            <div className={`mb-6 grid ${includePending ? "grid-cols-3" : "grid-cols-2"} gap-2 text-center border-b border-border pb-4`}>
                 <div>
                     <span className="block text-2xl font-bold text-foreground">{formatMinutesToTime(balanceTotal)}</span>
                     <span className="text-[10px] uppercase text-muted-foreground font-semibold">Total</span>
                 </div>
+                {includePending && (
                 <div>
                     <span className="block text-2xl font-bold text-orange-500">{formatMinutesToTime(balancePending)}</span>
                     <span className="text-[10px] uppercase text-muted-foreground font-semibold">En Solicitud</span>
                 </div>
+                )}
                 <div>
                     <span className="block text-2xl font-bold text-green-600">{formatMinutesToTime(balance)}</span>
                     <span className="text-[10px] uppercase text-muted-foreground font-semibold">Disponible</span>
@@ -417,7 +419,7 @@ export function CompensatoryTimeWidget() {
                                         item.tipo_movimiento === 'USO' ? 'bg-orange-500' : 'bg-blue-500'
                                         }`}></span>
                                     <span className="font-medium text-foreground">
-                                        {item.tipo_movimiento === 'ACUMULACION' ? 'Acumulación' :
+                                        {item.tipo_movimiento === 'ACUMULACION' ? 'Acumulacion' :
                                             item.tipo_movimiento === 'USO' ? 'Uso' : 'Ajuste'}
                                     </span>
                                 </div>
@@ -499,9 +501,9 @@ export function CompensatoryTimeWidget() {
                                     className="w-full px-3 py-2 border border-input bg-background text-foreground rounded-md focus:outline-none focus:ring-2 focus:ring-ring"
                                 >
                                     <option value="DIA_COMPLETO" disabled={!canFullDay}>
-                                        {canFullDay ? "Día Completo" : "Día Completo (Saldo insuficiente)"}
+                                        {canFullDay ? "Dia Completo" : "Dia Completo (Saldo insuficiente)"}
                                     </option>
-                                    <option value="LLEGADA_TARDIA">Llegada Tardía</option>
+                                    <option value="LLEGADA_TARDIA">Llegada Tardia</option>
                                     <option value="SALIDA_TEMPRANA">Salida Temprana</option>
                                 </select>
                             </div>
@@ -518,7 +520,7 @@ export function CompensatoryTimeWidget() {
                                         className="w-full px-3 py-2 border border-input bg-background text-foreground rounded-md focus:outline-none focus:ring-2 focus:ring-ring text-sm"
                                     />
                                     <p className="text-xs text-muted-foreground mt-1">
-                                        Se descontarán horas según tu horario fijo.
+                                        Se descontaran horas segun tu horario fijo.
                                     </p>
                                 </div>
                             )}
@@ -573,7 +575,9 @@ export function CompensatoryTimeWidget() {
                                         />
                                     </div>
                                 </div>
-                            )}
+                            )}
+
+
                             <div>
                                 <label className="block text-sm font-medium text-foreground mb-1">Tiempo a descontar</label>
                                 <div className="relative">
@@ -624,6 +628,7 @@ export function CompensatoryTimeWidget() {
         </div>
     )
 }
-
+
+
 
 

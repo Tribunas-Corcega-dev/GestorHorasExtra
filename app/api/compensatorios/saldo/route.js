@@ -13,6 +13,7 @@ export async function GET(request) {
 
         const { searchParams } = new URL(request.url)
         const targetUserId = searchParams.get("userId")
+        const includePending = searchParams.get("includePending") !== "false"
 
         let targetId = user.id
 
@@ -33,11 +34,12 @@ export async function GET(request) {
             targetUser = tUser
         }
 
-        const pendingRequests = await prisma.solicitudes_tiempo.findMany({
-            where: { usuario_id: targetId, estado: "PENDIENTE" },
-            select: { minutos_solicitados: true }
-        })
-        const pendingMinutes = pendingRequests.reduce((sum, req) => sum + (req.minutos_solicitados || 0), 0)
+        const pendingMinutes = includePending
+            ? (await prisma.solicitudes_tiempo.findMany({
+                where: { usuario_id: targetId, estado: "PENDIENTE" },
+                select: { minutos_solicitados: true }
+            })).reduce((sum, req) => sum + (req.minutos_solicitados || 0), 0)
+            : 0
         const totalMinutes = targetUser.bolsa_horas_minutos || 0
         const availableMinutes = totalMinutes - pendingMinutes
 
@@ -67,7 +69,7 @@ export async function GET(request) {
                 unidad: "minutos",
                 cantidad_minutos: item.minutos,
                 saldo_nuevo: item.saldo_resultante,
-                descripcion: item.observacion || "Movimiento de compensación en tiempo"
+                descripcion: item.observacion || "Movimiento de compensaciÃƒÆ’Ã†â€™Ãƒâ€šÃ‚Â³n en tiempo"
             })),
             solicitudes: shouldExposeRequests ? requestHistory : [],
             jornada_fija_hhmm: targetUser.jornada_fija_hhmm,
