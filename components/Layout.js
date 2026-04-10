@@ -76,7 +76,7 @@ export function Layout({ children }) {
               onClick={() => setIsSidebarOpen(!isSidebarOpen)}
               className="hidden md:block p-1 mr-2 text-primary-foreground hover:bg-primary-foreground/10 rounded-md focus:outline-none transition-colors"
               aria-label="Toggle Sidebar"
-              title={isSidebarOpen ? "Ocultar menú" : "Mostrar menú"}
+              title={isSidebarOpen ? "Ocultar menu" : "Mostrar menu"}
             >
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
@@ -98,7 +98,7 @@ export function Layout({ children }) {
               onClick={logout}
               className="bg-primary-foreground text-primary px-4 py-2 rounded-md hover:opacity-90 transition-opacity text-sm font-medium hidden md:block flex-shrink-0"
             >
-              Cerrar sesión
+              Cerrar sesion
             </button>
             <button
               onClick={logout}
@@ -174,26 +174,6 @@ export function Layout({ children }) {
               {canManageOvertime(user.rol) && (
                 <>
                   {/* Managers use Empleados for Overtime now, so no separate link needed */}
-                  <Link
-                    href="/aprobaciones"
-                    ref={el => linksRef.current["/aprobaciones"] = el}
-                    className={`block px-4 py-2 rounded-md transition-colors whitespace-nowrap ${pathname.startsWith("/aprobaciones")
-                      ? "text-primary bg-primary/10 font-medium"
-                      : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-                      }`}
-                  >
-                    Aprobaciones
-                  </Link>
-                  <Link
-                    href="/apelaciones"
-                    ref={el => linksRef.current["/apelaciones"] = el}
-                    className={`block px-4 py-2 rounded-md transition-colors whitespace-nowrap ${pathname.startsWith("/apelaciones")
-                      ? "text-primary bg-primary/10 font-medium"
-                      : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-                      }`}
-                  >
-                    Apelaciones
-                  </Link>
                   {["TALENTO_HUMANO", "ASISTENTE_GERENCIA", "COORDINADOR"].includes(user.rol) && (
                     <Link
                       href="/dashboard/talento-humano/horas-extra"
@@ -251,18 +231,6 @@ export function Layout({ children }) {
 
           {canManageOvertime(user.rol) && (
             <>
-              <Link href="/aprobaciones" className="flex flex-col items-center justify-center w-full h-full text-muted-foreground hover:text-primary">
-                <svg className="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-                <span className="text-[10px]">Aprobaciones</span>
-              </Link>
-              <Link href="/apelaciones" className="flex flex-col items-center justify-center w-full h-full text-muted-foreground hover:text-primary">
-                <svg className="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                </svg>
-                <span className="text-[10px]">Apelaciones</span>
-              </Link>
               <Link href="/ajustes" className="flex flex-col items-center justify-center w-full h-full text-muted-foreground hover:text-primary">
                 <svg className="w-6 h-6 mb-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />

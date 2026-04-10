@@ -168,7 +168,7 @@ export function CompensatoryRequestModal({ isOpen, onClose, checkAvailable, onCo
                         disabled={loading}
                         className="px-4 py-2 bg-primary text-primary-foreground rounded-md text-sm font-medium hover:opacity-90 transition-opacity disabled:opacity-50"
                     >
-                        {loading ? "Procesando..." : "Confirmar Solicitud"}
+                        {loading ? "Procesando..." : "Enviar tiempo a Compensación"}
                     </button>
                 </div>
             </div>
