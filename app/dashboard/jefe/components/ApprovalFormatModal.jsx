@@ -140,7 +140,7 @@ export function ApprovalFormatModal({ isOpen, onClose, employee, period }) {
                     #approval-format-content {
                         position: fixed;
                         left: 20px;
-                        top: -300px;
+                        top: 10px;
                         width: 100%;
                         height: 100%;
                         margin: 0 !important;
