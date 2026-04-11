@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import { useAuth } from "@/hooks/useAuth"
 import { Layout } from "@/components/Layout"
-
+import { useRouter } from "next/navigation"
 import Link from "next/link"
 
 function getInitialPeriod() {
@@ -28,6 +28,8 @@ function getInitialPeriod() {
 
 export default function ReporteHorasExtraPage() {
     const { user } = useAuth()
+    const router = useRouter()
+
     const [reportData, setReportData] = useState([])
     const [filteredData, setFilteredData] = useState([])
     const [loading, setLoading] = useState(true)
@@ -47,15 +49,14 @@ export default function ReporteHorasExtraPage() {
         }
     }, [user, period.start, period.end])
 
-    // Update filtered data when reportData or filters change
     useEffect(() => {
         if (reportData.length > 0) {
-            const uniqueAreas = [...new Set(reportData.map(item => item.area).filter(Boolean))].sort()
+            const uniqueAreas = [...new Set(reportData.map((item) => item.area).filter(Boolean))].sort()
             setAreas(uniqueAreas)
 
             let data = reportData
             if (areaFilter && user?.rol !== "COORDINADOR") {
-                data = data.filter(item => item.area === areaFilter)
+                data = data.filter((item) => item.area === areaFilter)
             }
             setFilteredData(data)
             return
@@ -97,11 +98,22 @@ export default function ReporteHorasExtraPage() {
         return `${h.toString().padStart(2, "0")}:${m.toString().padStart(2, "0")}`
     }
 
+    const formatCurrency = (value) => {
+        return new Intl.NumberFormat("es-CO", {
+            style: "currency",
+            currency: "COP",
+            minimumFractionDigits: 0,
+            maximumFractionDigits: 0,
+        }).format(Number(value) || 0)
+    }
+
+
+
     return (
         <Layout>
             <div className="p-6">
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
-                    <h1 className="text-2xl font-bold">Reporte de Horas Extra (Acumulado)</h1>
+                    <h1 className="text-2xl font-bold">Reporte de Horas Extra</h1>
                     <Link href={user?.rol === "COORDINADOR" ? "/dashboard/coordinador" : "/dashboard/talento-humano"} className="text-sm text-blue-600 hover:underline">
                         &larr; Volver al Dashboard
                     </Link>
@@ -141,7 +153,7 @@ export default function ReporteHorasExtraPage() {
                                     className="w-full px-3 py-2 border border-input bg-background/50 rounded-md text-sm focus:ring-2 focus:ring-primary"
                                 >
                                     <option value="">Todas las Areas</option>
-                                    {areas.map(area => (
+                                    {areas.map((area) => (
                                         <option key={area} value={area}>{area}</option>
                                     ))}
                                 </select>
@@ -149,6 +161,7 @@ export default function ReporteHorasExtraPage() {
                         )}
                     </div>
                 </div>
+
 
                 {loading ? (
                     <div className="flex flex-col items-center justify-center py-12">
@@ -163,7 +176,6 @@ export default function ReporteHorasExtraPage() {
                             <thead className="bg-gray-50">
                                 <tr>
                                     <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Empleado</th>
-                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Area</th>
                                     <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">HED</th>
                                     <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">HEN</th>
                                     <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">HEDF</th>
@@ -173,19 +185,29 @@ export default function ReporteHorasExtraPage() {
                                     <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">RDON</th>
                                     <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider bg-gray-100">Total HE</th>
                                     <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Compensacion en Tiempo</th>
-                                    <th className="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">Acciones</th>
+                                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Valor a Pagar</th>
                                 </tr>
                             </thead>
                             <tbody className="bg-white divide-y divide-gray-200">
                                 {filteredData.map((row) => (
-                                    <tr key={row.id}>
+                                    <tr
+                                        key={row.id}
+                                        tabIndex={0}
+                                        role="button"
+                                        onClick={() => router.push(`/horas-extra/${row.id}/historial`)}
+                                        onKeyDown={(e) => {
+                                            if (e.key === "Enter" || e.key === " ") {
+                                                e.preventDefault()
+                                                router.push(`/horas-extra/${row.id}/historial`)
+                                            }
+                                        }}
+                                        className="cursor-pointer hover:bg-blue-50/40 focus:outline-none focus:ring-2 focus:ring-primary/40"
+                                    >
                                         <td className="px-6 py-4 whitespace-nowrap">
-                                            <Link href={`/horas-extra/${row.id}/historial`} className="text-sm font-medium text-gray-900 hover:text-blue-600 hover:underline">
-                                                {row.nombre || row.username}
-                                            </Link>
+                                            <span className="text-sm font-medium text-gray-900">{row.nombre || row.username}</span>
+                                            <div className="text-[11px] text-gray-400">{row.area || "Sin area"}</div>
                                             <div className="text-xs text-gray-500">{row.cc}</div>
                                         </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{row.area}</td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-500">{formatMinutes(row.totals.hed)}</td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-500">{formatMinutes(row.totals.hen)}</td>
                                         <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-gray-500">{formatMinutes(row.totals.hedf)}</td>
@@ -199,10 +221,8 @@ export default function ReporteHorasExtraPage() {
                                                 {formatMinutes(row.bolsa_balance)}
                                             </span>
                                         </td>
-                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-center">
-                                            <Link href={`/horas-extra/${row.id}/historial`} className="text-blue-600 hover:text-blue-900 font-medium">
-                                                Ver Detalles
-                                            </Link>
+                                        <td className="px-6 py-4 whitespace-nowrap text-sm text-right font-semibold text-emerald-700">
+                                            {formatCurrency(row.valor_a_pagar)}
                                         </td>
                                     </tr>
                                 ))}

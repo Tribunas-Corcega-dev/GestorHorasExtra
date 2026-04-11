@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { canManageEmployees } from "@/lib/permissions"
 import { getUserFromRequest } from "@/lib/apiAuth"
 import { prisma } from "@/lib/prisma"
+import { calculateTotalOvertimeValue } from "@/lib/calculations"
 
 function safeNumber(value) {
     const n = Number(value)
@@ -71,12 +72,17 @@ export async function GET(request) {
                 rol: true,
                 jornada_fija_hhmm: true,
                 bolsa_horas_minutos: true,
+                valor_hora: true,
             }
         })
 
         const employeeIds = employees.map((emp) => emp.id).filter(Boolean)
+        const recargos = await prisma.recargos_he.findMany({
+            select: { tipo_hora_extra: true, recargo: true }
+        })
 
         let totalsByUser = new Map()
+        let payableByUser = new Map()
 
         if (inicio || fin) {
             const whereFecha = {
@@ -93,16 +99,20 @@ export async function GET(request) {
                     select: {
                         empleado_id: true,
                         horas_extra_hhmm: true,
+                        desglose_compensacion: true,
+                        valor_hora_snapshot: true,
                     }
                 })
                 : []
 
-            totalsByUser = jornadas.reduce((acc, jornada) => {
+            const employeeMap = new Map(employees.map((emp) => [emp.id, emp]))
+
+            for (const jornada of jornadas) {
                 const uid = jornada.empleado_id
-                if (!uid) return acc
+                if (!uid) continue
 
                 const extracted = extractBreakdown(jornada.horas_extra_hhmm)
-                const current = acc.get(uid) || emptyTotals()
+                const current = totalsByUser.get(uid) || emptyTotals()
 
                 current.hed += extracted.extra_diurna
                 current.hen += extracted.extra_nocturna
@@ -112,10 +122,34 @@ export async function GET(request) {
                 current.rdo += extracted.dominical_festivo
                 current.rdon += extracted.recargo_nocturno_festivo
                 current.total = current.hed + current.hen + current.hedf + current.henf + current.rn + current.rdo + current.rdon
+                totalsByUser.set(uid, current)
 
-                acc.set(uid, current)
-                return acc
-            }, new Map())
+                const payableBreakdown = {
+                    extra_diurna: extracted.extra_diurna,
+                    extra_nocturna: extracted.extra_nocturna,
+                    extra_diurna_festivo: extracted.extra_diurna_festivo,
+                    extra_nocturna_festivo: extracted.extra_nocturna_festivo,
+                    recargo_nocturno: extracted.recargo_nocturno,
+                    dominical_festivo: extracted.dominical_festivo,
+                    recargo_nocturno_festivo: extracted.recargo_nocturno_festivo,
+                }
+
+                const banked = jornada.desglose_compensacion && typeof jornada.desglose_compensacion === "object"
+                    ? jornada.desglose_compensacion
+                    : {}
+
+                for (const [type, value] of Object.entries(banked)) {
+                    if (payableBreakdown[type] !== undefined) {
+                        payableBreakdown[type] = Math.max(0, safeNumber(payableBreakdown[type]) - safeNumber(value))
+                    }
+                }
+
+                const emp = employeeMap.get(uid)
+                const hourlyRate = safeNumber(jornada.valor_hora_snapshot) || safeNumber(emp?.valor_hora)
+                const jornadaPayable = hourlyRate > 0 ? calculateTotalOvertimeValue(payableBreakdown, hourlyRate, recargos) : 0
+
+                payableByUser.set(uid, safeNumber(payableByUser.get(uid)) + jornadaPayable)
+            }
         } else {
             const summaries = await prisma.resumen_horas_extra.findMany({
                 select: {
@@ -144,8 +178,9 @@ export async function GET(request) {
 
         const reportData = employees.map((emp) => {
             const totals = totalsByUser.get(emp.id) || emptyTotals()
+            const valorAPagar = safeNumber(payableByUser.get(emp.id))
 
-            if (totals.total === 0 && (!emp.bolsa_horas_minutos || emp.bolsa_horas_minutos === 0)) {
+            if (totals.total === 0 && (!emp.bolsa_horas_minutos || emp.bolsa_horas_minutos === 0) && valorAPagar === 0) {
                 return null
             }
 
@@ -153,6 +188,7 @@ export async function GET(request) {
                 ...emp,
                 bolsa_balance: emp.bolsa_horas_minutos || 0,
                 compensacion_tiempo_balance: emp.bolsa_horas_minutos || 0,
+                valor_a_pagar: Math.round(valorAPagar),
                 totals,
             }
         }).filter(Boolean)
