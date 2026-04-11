@@ -26,6 +26,137 @@ function getInitialPeriod() {
     }
 }
 
+function formatMinutes(minutes) {
+    if (!minutes) return "00:00"
+    const h = Math.floor(minutes / 60)
+    const m = Math.round(minutes % 60)
+    return `${h.toString().padStart(2, "0")}:${m.toString().padStart(2, "0")}`
+}
+
+function formatCurrency(value) {
+    return new Intl.NumberFormat("es-CO", {
+        style: "currency",
+        currency: "COP",
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0,
+    }).format(Number(value) || 0)
+}
+
+function PrintPreviewModal({ isOpen, onClose, onConfirmPrint, period, rows }) {
+    if (!isOpen) return null
+
+    return (
+        <div className="fixed inset-0 z-50 bg-black/60 p-4 overflow-y-auto flex items-start justify-center print:block print:bg-white print:p-0 print:overflow-visible">
+            <style jsx global>{`
+                @media print {
+                    @page { size: A4 landscape; margin: 8mm; }
+                    body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+                    body * { visibility: hidden; }
+                    #th-print-preview, #th-print-preview * { visibility: visible; }
+                    #th-print-preview {
+                        position: fixed;
+                        left: 0;
+                        top: 0;
+                        width: 100vw;
+                        background: white;
+                        padding: 0;
+                        margin: 0;
+                        border: 0;
+                        border-radius: 0;
+                        box-shadow: none;
+                    }
+                    #th-print-sheet {
+                        width: 100%;
+                        overflow: visible !important;
+                    }
+                    #th-print-sheet table {
+                        width: 100%;
+                        table-layout: fixed;
+                        border-collapse: collapse;
+                    }
+                    #th-print-sheet th,
+                    #th-print-sheet td {
+                        font-size: 11px;
+                        padding: 4px 6px;
+                    }
+                }
+            `}</style>
+
+            <div id="th-print-preview" className="bg-white w-full max-w-[1200px] rounded-lg shadow-2xl border border-gray-200 print:max-w-none print:rounded-none print:shadow-none print:border-0">
+                <div className="p-6 border-b border-gray-200 print:hidden flex items-center justify-between gap-3">
+                    <div>
+                        <h2 className="text-xl font-bold text-gray-900">Vista previa de impresion</h2>
+                        <p className="text-sm text-gray-600">Confirma la impresion del periodo seleccionado.</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <button
+                            type="button"
+                            onClick={onClose}
+                            className="px-3 py-2 text-sm font-medium text-gray-700 border border-gray-300 rounded-md hover:bg-gray-50"
+                        >
+                            Cerrar
+                        </button>
+                        <button
+                            type="button"
+                            onClick={onConfirmPrint}
+                            className="px-3 py-2 text-sm font-medium bg-primary text-primary-foreground rounded-md hover:opacity-90"
+                        >
+                            Confirmar impresion
+                        </button>
+                    </div>
+                </div>
+
+                <div id="th-print-sheet" className="p-6 print:p-0">
+                    <div className="mb-4">
+                        <h1 className="text-2xl font-bold text-gray-900">Reporte de Horas Extra</h1>
+                        <p className="text-sm text-gray-600 mt-1">Periodo: {period.start} - {period.end}</p>
+                    </div>
+
+                    <div className="overflow-x-auto print:overflow-visible">
+                        <table className="w-full divide-y divide-gray-200 text-sm table-fixed">
+                            <thead className="bg-gray-50">
+                                <tr>
+                                    <th className="px-4 py-2 text-left font-semibold text-gray-700 w-[22%]">Empleado</th>
+                                    <th className="px-4 py-2 text-right font-semibold text-gray-700">HED</th>
+                                    <th className="px-4 py-2 text-right font-semibold text-gray-700">HEN</th>
+                                    <th className="px-4 py-2 text-right font-semibold text-gray-700">HEDF</th>
+                                    <th className="px-4 py-2 text-right font-semibold text-gray-700">HENF</th>
+                                    <th className="px-4 py-2 text-right font-semibold text-gray-700">RN</th>
+                                    <th className="px-4 py-2 text-right font-semibold text-gray-700">RDO</th>
+                                    <th className="px-4 py-2 text-right font-semibold text-gray-700">RDON</th>
+                                    <th className="px-4 py-2 text-right font-semibold text-gray-700">Total HE</th>
+                                    <th className="px-4 py-2 text-right font-semibold text-gray-700">Compensacion</th>
+                                    <th className="px-4 py-2 text-right font-semibold text-gray-700">Valor a Pagar</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-200">
+                                {rows.map((row) => (
+                                    <tr key={row.id}>
+                                        <td className="px-4 py-2">
+                                            <div className="font-medium text-gray-900 leading-tight break-words">{row.nombre || row.username}</div>
+                                            <div className="text-[11px] text-gray-500">{row.area || "Sin area"}</div>
+                                            <div className="text-xs text-gray-500">{row.cc}</div>
+                                        </td>
+                                        <td className="px-4 py-2 text-right">{formatMinutes(row.totals.hed)}</td>
+                                        <td className="px-4 py-2 text-right">{formatMinutes(row.totals.hen)}</td>
+                                        <td className="px-4 py-2 text-right">{formatMinutes(row.totals.hedf)}</td>
+                                        <td className="px-4 py-2 text-right">{formatMinutes(row.totals.henf)}</td>
+                                        <td className="px-4 py-2 text-right">{formatMinutes(row.totals.rn)}</td>
+                                        <td className="px-4 py-2 text-right">{formatMinutes(row.totals.rdo)}</td>
+                                        <td className="px-4 py-2 text-right">{formatMinutes(row.totals.rdon)}</td>
+                                        <td className="px-4 py-2 text-right font-semibold">{formatMinutes(row.totals.total)}</td>
+                                        <td className="px-4 py-2 text-right">{formatMinutes(row.bolsa_balance)}</td>
+                                        <td className="px-4 py-2 text-right font-semibold">{formatCurrency(row.valor_a_pagar)}</td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    )
+}
 export default function ReporteHorasExtraPage() {
     const { user } = useAuth()
     const router = useRouter()
@@ -36,6 +167,7 @@ export default function ReporteHorasExtraPage() {
     const [areaFilter, setAreaFilter] = useState("")
     const [areas, setAreas] = useState([])
     const [period, setPeriod] = useState(getInitialPeriod)
+    const [showPrintPreview, setShowPrintPreview] = useState(false)
 
     useEffect(() => {
         if (user?.rol === "COORDINADOR" && user.area) {
@@ -91,32 +223,32 @@ export default function ReporteHorasExtraPage() {
         }
     }
 
-    const formatMinutes = (minutes) => {
-        if (!minutes) return "00:00"
-        const h = Math.floor(minutes / 60)
-        const m = Math.round(minutes % 60)
-        return `${h.toString().padStart(2, "0")}:${m.toString().padStart(2, "0")}`
+    const openPrintPreview = () => {
+        setShowPrintPreview(true)
     }
 
-    const formatCurrency = (value) => {
-        return new Intl.NumberFormat("es-CO", {
-            style: "currency",
-            currency: "COP",
-            minimumFractionDigits: 0,
-            maximumFractionDigits: 0,
-        }).format(Number(value) || 0)
+    const confirmPrint = () => {
+        window.print()
     }
-
-
 
     return (
         <Layout>
             <div className="p-6">
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
                     <h1 className="text-2xl font-bold">Reporte de Horas Extra</h1>
-                    <Link href={user?.rol === "COORDINADOR" ? "/dashboard/coordinador" : "/dashboard/talento-humano"} className="text-sm text-blue-600 hover:underline">
-                        &larr; Volver al Dashboard
-                    </Link>
+                    <div className="flex items-center gap-3">
+                        <button
+                            type="button"
+                            onClick={openPrintPreview}
+                            disabled={loading || filteredData.length === 0}
+                            className="px-3 py-2 text-sm font-medium bg-primary text-primary-foreground rounded-md hover:opacity-90 transition-opacity disabled:opacity-50"
+                        >
+                            Imprimir periodo
+                        </button>
+                        <Link href={user?.rol === "COORDINADOR" ? "/dashboard/coordinador" : "/dashboard/talento-humano"} className="text-sm text-blue-600 hover:underline">
+                            &larr; Volver al Dashboard
+                        </Link>
+                    </div>
                 </div>
 
                 <div className="bg-card border border-border rounded-lg p-4 mb-6 flex flex-col gap-4">
@@ -161,7 +293,6 @@ export default function ReporteHorasExtraPage() {
                         )}
                     </div>
                 </div>
-
 
                 {loading ? (
                     <div className="flex flex-col items-center justify-center py-12">
@@ -231,6 +362,14 @@ export default function ReporteHorasExtraPage() {
                     </div>
                 )}
             </div>
+
+            <PrintPreviewModal
+                isOpen={showPrintPreview}
+                onClose={() => setShowPrintPreview(false)}
+                onConfirmPrint={confirmPrint}
+                period={period}
+                rows={filteredData}
+            />
         </Layout>
     )
 }
