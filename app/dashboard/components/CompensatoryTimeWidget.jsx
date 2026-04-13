@@ -13,11 +13,11 @@ function formatMinutesToTime(minutes) {
 // Import helper
 import { calculateTotalMinutes, getIntervals, timeToMinutes, formatMinutesToHHMM } from "@/lib/calculations"
 
-export function CompensatoryTimeWidget({ showReadOnlyNotice = true, includePending = true }) {
+export function CompensatoryTimeWidget({ showReadOnlyNotice = true }) {
     const { user } = useAuth()
     const [balance, setBalance] = useState(0) // Now represents AVAILABLE balance
     const [balanceTotal, setBalanceTotal] = useState(0)
-    const [balancePending, setBalancePending] = useState(0)
+
     const [history, setHistory] = useState([]) // Balance Log
     const [requestHistory, setRequestHistory] = useState([]) // Requests Log
     const [schedule, setSchedule] = useState(null)
@@ -58,12 +58,12 @@ export function CompensatoryTimeWidget({ showReadOnlyNotice = true, includePendi
 
     async function fetchBalance() {
         try {
-            const res = await fetch(`/api/compensatorios/saldo${includePending ? "" : "?includePending=false"}`)
+            const res = await fetch(`/api/compensatorios/saldo?includePending=false`)
             if (res.ok) {
                 const data = await res.json()
                 setBalance(data.saldo_disponible || 0)
                 setBalanceTotal(data.saldo_total || 0)
-                setBalancePending(includePending ? (data.saldo_pendiente || 0) : 0)
+
                 setHistory(data.historial || [])
                 setRequestHistory(data.solicitudes || [])
 
@@ -388,17 +388,11 @@ export function CompensatoryTimeWidget({ showReadOnlyNotice = true, includePendi
                 </div>
             )}
 
-            <div className={`mb-6 grid ${includePending ? "grid-cols-3" : "grid-cols-2"} gap-2 text-center border-b border-border pb-4`}>
+            <div className="mb-6 grid grid-cols-2 gap-2 text-center border-b border-border pb-4">
                 <div>
                     <span className="block text-2xl font-bold text-foreground">{formatMinutesToTime(balanceTotal)}</span>
                     <span className="text-[10px] uppercase text-muted-foreground font-semibold">Total</span>
                 </div>
-                {includePending && (
-                <div>
-                    <span className="block text-2xl font-bold text-orange-500">{formatMinutesToTime(balancePending)}</span>
-                    <span className="text-[10px] uppercase text-muted-foreground font-semibold">En Solicitud</span>
-                </div>
-                )}
                 <div>
                     <span className="block text-2xl font-bold text-green-600">{formatMinutesToTime(balance)}</span>
                     <span className="text-[10px] uppercase text-muted-foreground font-semibold">Disponible</span>
