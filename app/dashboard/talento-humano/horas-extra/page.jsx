@@ -46,24 +46,34 @@ function PrintPreviewModal({ isOpen, onClose, onConfirmPrint, period, rows }) {
     if (!isOpen) return null
 
     return (
-        <div className="fixed inset-0 z-50 bg-black/60 p-4 overflow-y-auto flex items-start justify-center print:block print:bg-white print:p-0 print:overflow-visible">
+        <div id="th-print-modal-root" className="fixed inset-0 z-50 bg-black/60 p-4 overflow-y-auto flex items-start justify-center">
             <style jsx global>{`
                 @media print {
                     @page { size: A4 landscape; margin: 8mm; }
                     body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-                    body * { visibility: hidden; }
-                    #th-print-preview, #th-print-preview * { visibility: visible; }
+                    .report-screen-content { display: none !important; }
+                    #th-print-modal-root {
+                        position: static !important;
+                        inset: auto !important;
+                        z-index: auto !important;
+                        display: block !important;
+                        background: white !important;
+                        padding: 0 !important;
+                        overflow: visible !important;
+                    }
                     #th-print-preview {
-                        position: fixed;
-                        left: 0;
-                        top: 0;
-                        width: 100vw;
+                        position: static !important;
+                        width: 100% !important;
+                        max-width: none !important;
                         background: white;
                         padding: 0;
                         margin: 0;
                         border: 0;
                         border-radius: 0;
                         box-shadow: none;
+                    }
+                    .th-print-actions {
+                        display: none !important;
                     }
                     #th-print-sheet {
                         width: 100%;
@@ -83,7 +93,7 @@ function PrintPreviewModal({ isOpen, onClose, onConfirmPrint, period, rows }) {
             `}</style>
 
             <div id="th-print-preview" className="bg-white w-full max-w-[1200px] rounded-lg shadow-2xl border border-gray-200 print:max-w-none print:rounded-none print:shadow-none print:border-0">
-                <div className="p-6 border-b border-gray-200 print:hidden flex items-center justify-between gap-3">
+                <div className="th-print-actions p-6 border-b border-gray-200 flex items-center justify-between gap-3">
                     <div>
                         <h2 className="text-xl font-bold text-gray-900">Vista previa de impresion</h2>
                         <p className="text-sm text-gray-600">Confirma la impresion del periodo seleccionado.</p>
@@ -233,7 +243,7 @@ export default function ReporteHorasExtraPage() {
 
     return (
         <Layout>
-            <div className="p-6">
+            <div className="report-screen-content p-6">
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
                     <h1 className="text-2xl font-bold">Reporte de Horas Extra</h1>
                     <div className="flex items-center gap-3">
