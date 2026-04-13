@@ -76,9 +76,6 @@ export function OvertimeHistoryView({ employeeId, showBackButton = true }) {
     })
 
     const [selectedJornada, setSelectedJornada] = useState(null)
-    const [showAppealModal, setShowAppealModal] = useState(false)
-    const [appealDescription, setAppealDescription] = useState("")
-    const [appealFiles, setAppealFiles] = useState([])
 
     // --- Bi-weekly Period Mockup State ---
     const [selectedPeriod, setSelectedPeriod] = useState("all") // 'all' or '2025-12-1', '2025-12-2', etc.
@@ -1090,17 +1087,6 @@ export function OvertimeHistoryView({ employeeId, showBackButton = true }) {
                                 {/* Actions for User */}
                                 {user && user.id === employeeId && (
                                     <div className="flex gap-2">
-                                        <button
-                                            onClick={() => {
-                                                setShowAppealModal(true)
-                                                setAppealDescription("")
-                                                setAppealFiles([])
-                                            }}
-                                            className="px-4 py-2 bg-orange-500 text-white rounded-md text-sm font-medium hover:bg-orange-600 transition-colors"
-                                        >
-                                            Apelar
-                                        </button>
-
                                         {/* Status Badge */}
                                         {(() => {
                                             const status = selectedJornada.estado_compensacion || 'NINGUNO'
@@ -1139,120 +1125,6 @@ export function OvertimeHistoryView({ employeeId, showBackButton = true }) {
                 )
             }
 
-            {/* Appeal Modal */}
-            {
-                showAppealModal && selectedJornada && (
-                    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-                        <div className="bg-card border border-border rounded-xl shadow-2xl max-w-md w-full overflow-hidden animate-in fade-in zoom-in duration-200">
-                            <div className="p-6 border-b border-border flex justify-between items-center bg-orange-50 dark:bg-orange-950/20">
-                                <h3 className="text-xl font-bold text-foreground">Apelar Jornada</h3>
-                                <button
-                                    onClick={() => setShowAppealModal(false)}
-                                    className="text-muted-foreground hover:text-foreground transition-colors"
-                                >
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg>
-                                </button>
-                            </div>
-                            <div className="p-6 space-y-4">
-                                <div className="bg-orange-50 dark:bg-orange-950/20 border border-orange-200 dark:border-orange-800 rounded-md p-3">
-                                    <p className="text-sm text-orange-800 dark:text-orange-200">
-                                        <strong>Jornada:</strong> {formatDateForDisplay(selectedJornada.fecha)}
-                                    </p>
-                                </div>
-
-                                <div>
-                                    <label className="block text-sm font-medium text-foreground mb-2">
-                                        Motivo de la apelación *
-                                    </label>
-                                    <textarea
-                                        value={appealDescription}
-                                        onChange={(e) => setAppealDescription(e.target.value)}
-                                        placeholder="Describe por qué deseas apelar esta jornada..."
-                                        rows={4}
-                                        className="w-full px-3 py-2 border border-input bg-background text-foreground rounded-md focus:outline-none focus:ring-2 focus:ring-ring resize-none"
-                                    />
-                                </div>
-
-                                <div>
-                                    <label className="block text-sm font-medium text-foreground mb-2">
-                                        Adjuntar archivos o fotos (opcional)
-                                    </label>
-                                    <input
-                                        type="file"
-                                        multiple
-                                        accept="image/*,.pdf,.doc,.docx"
-                                        onChange={(e) => setAppealFiles(Array.from(e.target.files || []))}
-                                        className="w-full px-3 py-2 border border-input bg-background text-foreground rounded-md focus:outline-none focus:ring-2 focus:ring-ring file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-primary-foreground hover:file:opacity-90"
-                                    />
-                                    {appealFiles.length > 0 && (
-                                        <div className="mt-2 space-y-1">
-                                            {appealFiles.map((file, idx) => (
-                                                <div key={idx} className="text-xs text-muted-foreground flex items-center gap-2">
-                                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /></svg>
-                                                    <span className="truncate">{file.name}</span>
-                                                    <span className="text-muted-foreground">({(file.size / 1024).toFixed(1)} KB)</span>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-                            <div className="p-4 bg-muted/30 border-t border-border flex justify-end gap-3">
-                                <button
-                                    onClick={() => setShowAppealModal(false)}
-                                    className="px-4 py-2 border border-border rounded-md text-sm font-medium hover:bg-accent transition-colors"
-                                >
-                                    Cancelar
-                                </button>
-                                <button
-                                    onClick={async () => {
-                                        if (!appealDescription.trim()) {
-                                            alert("Por favor, describe el motivo de tu apelación")
-                                            return
-                                        }
-
-                                        try {
-                                            // Create FormData for file upload
-                                            const formData = new FormData()
-                                            formData.append("jornada_id", selectedJornada.id)
-                                            formData.append("motivo", appealDescription)
-
-                                            // Append files
-                                            appealFiles.forEach(file => {
-                                                formData.append("files", file)
-                                            })
-
-                                            const response = await fetch("/api/apelaciones", {
-                                                method: "POST",
-                                                body: formData
-                                            })
-
-                                            const data = await response.json()
-
-                                            if (response.ok) {
-                                                alert(`✓ Apelación enviada exitosamente\n\nSu apelación ha sido registrada y será revisada por el equipo correspondiente.`)
-                                                setShowAppealModal(false)
-                                                setSelectedJornada(null)
-                                                setAppealDescription("")
-                                                setAppealFiles([])
-                                            } else {
-                                                alert(`Error al enviar apelación:\n${data.message || "Error desconocido"}`)
-                                            }
-                                        } catch (error) {
-                                            console.error("Error submitting appeal:", error)
-                                            alert("Error al enviar la apelación. Por favor, intente nuevamente.")
-                                        }
-                                    }}
-                                    className="px-4 py-2 bg-orange-500 text-white rounded-md text-sm font-medium hover:bg-orange-600 transition-colors"
-                                >
-                                    Enviar Apelación
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                )
-            }
-
             {showApprovalPreviewModal && empleado && approvalPeriod && (
                 <ApprovalFormatModal
                     isOpen={showApprovalPreviewModal}
@@ -1260,7 +1132,8 @@ export function OvertimeHistoryView({ employeeId, showBackButton = true }) {
                     employee={empleado}
                     period={approvalPeriod}
                 />
-            )}            {canManageOvertime(user?.rol) && (
+            )}
+            {canManageOvertime(user?.rol) && (
                 <CompensatoryRequestModal
                     isOpen={showBankingModal}
                     onClose={() => setShowBankingModal(false)}

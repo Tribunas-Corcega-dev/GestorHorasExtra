@@ -93,3 +93,4 @@ Status:
 
 - Code remains in repository for future reactivation/refactor.
 - They should be treated as "created but not currently implemented in active UI navigation".
+- Operario appeal trigger from overtime history detail view is disabled in active UI.

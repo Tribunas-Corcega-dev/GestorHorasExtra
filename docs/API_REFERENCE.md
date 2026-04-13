@@ -43,6 +43,7 @@ This file summarizes the most used API modules and their intent.
 
 ## Appeals
 
+UI note: appeals are currently treated as deferred/inactive in active navigation and operario detail actions.
 - `POST /api/apelaciones`: create appeal and upload files to storage
 - `GET /api/apelaciones`: list appeals by role/scope
 - `GET /api/apelaciones/:id`: appeal detail with signed file URLs
