@@ -51,14 +51,17 @@ function PrintPreviewModal({ isOpen, onClose, onConfirmPrint, period, rows }) {
                 @media print {
                     @page { size: A4 landscape; margin: 8mm; }
                     body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-                    .report-screen-content { display: none !important; }
+                    header, aside, nav, .report-screen-content { display: none !important; }
+                    main { padding: 0 !important; }
                     #th-print-modal-root {
                         position: static !important;
                         inset: auto !important;
                         z-index: auto !important;
                         display: block !important;
+                        width: 100% !important;
                         background: white !important;
                         padding: 0 !important;
+                        margin: 0 !important;
                         overflow: visible !important;
                     }
                     #th-print-preview {
