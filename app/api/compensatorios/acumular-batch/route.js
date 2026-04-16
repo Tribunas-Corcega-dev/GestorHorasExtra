@@ -30,6 +30,10 @@ export async function POST(request) {
       return NextResponse.json({ message: "No autorizado" }, { status: 401 })
     }
 
+    if (currentUser.rol === "OPERARIO") {
+      return NextResponse.json({ message: "Este perfil es solo de consulta para compensacion en tiempo" }, { status: 403 })
+    }
+
     const body = await request.json()
     const { requests, target_user_id } = body
     const normalizedRequests = normalizeRequestMap(requests)

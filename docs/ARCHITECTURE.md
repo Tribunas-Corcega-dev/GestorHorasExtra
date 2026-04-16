@@ -76,3 +76,21 @@ High-impact compensatory flows use Prisma transactions with serializable isolati
 - Add endpoint-level API docs with request/response examples for all role-sensitive routes
 - Keep constraints and indexes versioned in migrations as business rules evolve
 
+
+## Deferred UI Modules
+
+The following modules are implemented at route/API level but intentionally hidden from the active sidebar UI:
+
+- `Aprobaciones` (`/aprobaciones`)
+- `Apelaciones` (`/apelaciones`)
+
+Reason:
+
+- They were created during earlier workflow design but are currently considered deferred features.
+- The current UX keeps those sections out of user navigation while business flow is consolidated in other views.
+
+Status:
+
+- Code remains in repository for future reactivation/refactor.
+- They should be treated as "created but not currently implemented in active UI navigation".
+- Operario appeal trigger from overtime history detail view is disabled in active UI.

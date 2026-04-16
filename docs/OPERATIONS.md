@@ -98,4 +98,4 @@ Use local date-only parsing for `YYYY-MM-DD` filtering logic instead of direct `
 
 ### Pending compensatory requests not visible to approvers
 
-Managers should access `Aprobaciones` from sidebar/mobile nav. Endpoint used: `GET /api/compensatorios/gestionar`.
+`Aprobaciones`/`Apelaciones` are currently removed from active sidebar/mobile navigation by design (deferred UI modules). Operario appeal creation from overtime history detail is also disabled in active UI. Endpoint used for approvals remains: `GET /api/compensatorios/gestionar`.

@@ -26,7 +26,7 @@ function OperarioContent() {
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {/* Widget Column */}
                 <div className="md:col-span-1">
-                    <CompensatoryTimeWidget />
+                    <CompensatoryTimeWidget showReadOnlyNotice={false} includePending={false} />
                 </div>
 
                 {/* Details Column - Full width on mobile, 2/3 on desktop */}

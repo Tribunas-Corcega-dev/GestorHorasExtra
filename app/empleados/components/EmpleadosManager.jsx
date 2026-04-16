@@ -6,205 +6,37 @@ import Link from "next/link"
 import { useRouter } from "next/navigation"
 import useSWR from "swr"
 import { canManageEmployees, canManageOvertime, isCoordinator } from "@/lib/permissions"
-import { calculateTotalMinutes, getIntervals, timeToMinutes, formatMinutesToHHMM } from "@/lib/calculations"
 
-const fetcher = url => fetch(url).then(r => r.json())
+const fetcher = (url) => fetch(url).then((r) => r.json())
 
 export function EmpleadosManager() {
     const { user } = useAuth()
     const router = useRouter()
-    
-    // Filters state
+
     const [search, setSearch] = useState("")
     const [areaFilter, setAreaFilter] = useState("")
     const [rolFilter, setRolFilter] = useState("")
-    const [sortOrder, setSortOrder] = useState("asc")
+    const [sortOrder] = useState("asc")
 
-    // SWR Data Fetching
     const { data: roles = [] } = useSWR("/api/roles", fetcher)
-    
-    // Build query params
+
     const searchParams = new URLSearchParams()
     if (search) searchParams.append("search", search)
     if (areaFilter) searchParams.append("area", areaFilter)
     if (rolFilter) searchParams.append("rol", rolFilter)
-    
-    const { data: empleados = [], isLoading: loading, mutate: mutateEmpleados } = useSWR(
+
+    const { data: empleados = [], isLoading: loading } = useSWR(
         `/api/empleados?${searchParams.toString()}`,
         fetcher
     )
 
-    // Derived State (Synchronous during render)
     const areas = [...new Set(empleados.map((e) => e.area).filter(Boolean))]
-
-    // Balance Modal State
-    const [showBalanceModal, setShowBalanceModal] = useState(false)
-    const [selectedEmployeeForBalance, setSelectedEmployeeForBalance] = useState(null)
-    const [balanceData, setBalanceData] = useState(null)
-    const [schedule, setSchedule] = useState(null)
-    const [redeeming, setRedeeming] = useState(false)
-
-    // Redemption Form State
-    const [tipo, setTipo] = useState("DIA_COMPLETO")
-    const [fechaSingle, setFechaSingle] = useState("")
-    const [horaLlegada, setHoraLlegada] = useState("")
-    const [horaSalida, setHoraSalida] = useState("")
-    const [calculatedDisplay, setCalculatedDisplay] = useState("")
-    const [redemptionForm, setRedemptionForm] = useState({
-        fecha_inicio: "",
-        fecha_fin: "",
-        minutos: "",
-        motivo: ""
-    })
-
-    // --- Balance Logic ---
-    async function fetchBalance(employeeId) {
-        try {
-            const res = await fetch(`/api/compensatorios/saldo?userId=${employeeId}`)
-            if (res.ok) {
-                const data = await res.json()
-                setBalanceData(data)
-                if (data.jornada_fija_hhmm) {
-                    try {
-                        const parsed = typeof data.jornada_fija_hhmm === 'string'
-                            ? JSON.parse(data.jornada_fija_hhmm)
-                            : data.jornada_fija_hhmm
-                        setSchedule(parsed)
-                    } catch (e) { console.error(e); setSchedule(null) }
-                } else setSchedule(null)
-            }
-        } catch (error) { console.error(error) }
-    }
-
-    const handleOpenBalanceModal = async (empleado) => {
-        setSelectedEmployeeForBalance(empleado)
-        setBalanceData(null)
-        setSchedule(null)
-        setTipo("DIA_COMPLETO")
-        setFechaSingle("")
-        setHoraLlegada("")
-        setHoraSalida("")
-        setRedemptionForm({ fecha_inicio: "", fecha_fin: "", minutos: "", motivo: "" })
-        setCalculatedDisplay("")
-        setShowBalanceModal(true)
-        await fetchBalance(empleado.id)
-    }
-
-    const getDaySchedule = (dateStr) => {
-        if (!dateStr || !schedule) return null
-        const dateObj = new Date(dateStr + 'T12:00:00')
-        const dayIndex = dateObj.getDay()
-        const daysMap = ['domingo', 'lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado']
-        return schedule[daysMap[dayIndex]]
-    }
-
-    const updateCalculatedValues = (minutes) => {
-        setRedemptionForm(prev => ({ ...prev, minutos: minutes.toString() }))
-        const hoursDecimal = (minutes / 60).toFixed(2)
-        const hoursInt = Math.floor(minutes / 60)
-        const minutesInt = minutes % 60
-        setCalculatedDisplay(`${hoursDecimal}h (${hoursInt}h ${minutesInt}m)`)
-    }
-
-    const handleFullDayLogic = (dateStr) => {
-        setFechaSingle(dateStr)
-        if (!dateStr) return
-        const daySchedule = getDaySchedule(dateStr)
-        if (!daySchedule || !daySchedule.enabled) {
-            alert("El empleado no tiene turno programado para este dia.")
-            updateCalculatedValues(0)
-            return
-        }
-        const intervals = getIntervals(daySchedule)
-        const totalMinutes = calculateTotalMinutes(intervals)
-        updateCalculatedValues(totalMinutes)
-        let startStr = "", endStr = ""
-        if (daySchedule.morning?.enabled) {
-            startStr = daySchedule.morning.start
-            endStr = daySchedule.morning.end
-        }
-        if (daySchedule.afternoon?.enabled) {
-            if (!startStr) startStr = daySchedule.afternoon.start
-            endStr = daySchedule.afternoon.end
-        }
-        if (startStr && endStr) {
-            setRedemptionForm(prev => ({ ...prev, fecha_inicio: `${dateStr}T${startStr}`, fecha_fin: `${dateStr}T${endStr}` }))
-        }
-    }
-
-    const handleLateArrivalLogic = (dateStr, timeStr) => {
-        setFechaSingle(dateStr); setHoraLlegada(timeStr)
-        if (!dateStr || !timeStr) return
-        const daySchedule = getDaySchedule(dateStr)
-        if (!daySchedule || !daySchedule.enabled) return
-        const startTime = daySchedule.morning?.start || daySchedule.afternoon?.start
-        if (!startTime) return
-        const intervals = getIntervals(daySchedule)
-        if (intervals.length === 0) return
-        const firstStart = intervals[0].start
-        const arrivalMin = timeToMinutes(timeStr)
-        let missedMinutes = 0
-        for (const interval of intervals) {
-            const overlapStart = Math.max(interval.start, firstStart)
-            const overlapEnd = Math.min(interval.end, arrivalMin)
-            if (overlapStart < overlapEnd) missedMinutes += (overlapEnd - overlapStart)
-        }
-        updateCalculatedValues(missedMinutes)
-        setRedemptionForm(prev => ({ ...prev, fecha_inicio: `${dateStr}T${startTime}`, fecha_fin: `${dateStr}T${timeStr}` }))
-    }
-
-    const handleEarlyDepartureLogic = (dateStr, timeStr) => {
-        setFechaSingle(dateStr); setHoraSalida(timeStr)
-        if (!dateStr || !timeStr) return
-        const daySchedule = getDaySchedule(dateStr)
-        if (!daySchedule || !daySchedule.enabled) return
-        const intervals = getIntervals(daySchedule)
-        if (intervals.length === 0) return
-        const lastEnd = intervals[intervals.length - 1].end
-        const exitMin = timeToMinutes(timeStr)
-        let missedMinutes = 0
-        for (const interval of intervals) {
-            const overlapStart = Math.max(interval.start, exitMin)
-            const overlapEnd = Math.min(interval.end, lastEnd)
-            if (overlapStart < overlapEnd) missedMinutes += (overlapEnd - overlapStart)
-        }
-        updateCalculatedValues(missedMinutes)
-        setRedemptionForm(prev => ({ ...prev, fecha_inicio: `${dateStr}T${timeStr}`, fecha_fin: `${dateStr}T${formatMinutesToHHMM(lastEnd)}` }))
-    }
-
-    async function handleManagerRedemption(e) {
-        e.preventDefault()
-        if (!redemptionForm.minutos || parseInt(redemptionForm.minutos) <= 0) return alert("Cantidad de tiempo invalida")
-        if (!redemptionForm.motivo) return alert("Ingresa un motivo")
-        try {
-            setRedeeming(true)
-            const res = await fetch("/api/compensatorios/solicitar", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    targetUserId: selectedEmployeeForBalance.id,
-                    tipo: tipo,
-                    fecha_inicio: redemptionForm.fecha_inicio,
-                    fecha_fin: redemptionForm.fecha_fin,
-                    minutos_solicitados: parseInt(redemptionForm.minutos),
-                    motivo: redemptionForm.motivo
-                })
-            })
-            const data = await res.json()
-            if (res.ok) {
-                alert("Canjeo realizado exitosamente")
-                await fetchBalance(selectedEmployeeForBalance.id)
-                setTipo("DIA_COMPLETO"); setFechaSingle(""); setHoraLlegada(""); setHoraSalida("")
-                setRedemptionForm({ fecha_inicio: "", fecha_fin: "", minutos: "", motivo: "" }); setCalculatedDisplay("")
-            } else alert("Error: " + data.message)
-        } catch (error) { console.error(error); alert("Error al procesar el canjeo") } finally { setRedeeming(false) }
-    }
 
     return (
         <div>
             <div className="flex items-center justify-between mb-6">
                 <h1 className="text-3xl font-bold text-foreground">Gestion de Personal</h1>
-                {['JEFE', 'TALENTO_HUMANO', 'ASISTENTE_GERENCIA'].includes(user?.rol) && (
+                {["JEFE", "TALENTO_HUMANO", "ASISTENTE_GERENCIA"].includes(user?.rol) && (
                     <Link
                         href="/empleados/nuevo"
                         className="bg-primary text-primary-foreground px-4 py-2 rounded-md hover:opacity-90 transition-opacity font-medium"
@@ -214,7 +46,6 @@ export function EmpleadosManager() {
                 )}
             </div>
 
-            {/* Filtros */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
                 <input
                     type="text"
@@ -229,7 +60,9 @@ export function EmpleadosManager() {
                     className="px-3 py-2 border border-input bg-background text-foreground rounded-md focus:outline-none focus:ring-2 focus:ring-ring"
                 >
                     <option value="">Todas las areas</option>
-                    {areas.map((area) => <option key={area} value={area}>{area}</option>)}
+                    {areas.map((area) => (
+                        <option key={area} value={area}>{area}</option>
+                    ))}
                 </select>
                 <select
                     value={rolFilter}
@@ -237,11 +70,12 @@ export function EmpleadosManager() {
                     className="px-3 py-2 border border-input bg-background text-foreground rounded-md focus:outline-none focus:ring-2 focus:ring-ring"
                 >
                     <option value="">Todos los roles</option>
-                    {roles.map((rol) => <option key={rol} value={rol}>{rol}</option>)}
+                    {roles.map((rol) => (
+                        <option key={rol} value={rol}>{rol}</option>
+                    ))}
                 </select>
             </div>
 
-            {/* Lista Unificada */}
             {loading ? (
                 <div className="flex flex-col items-center justify-center py-12">
                     <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mb-4"></div>
@@ -256,8 +90,8 @@ export function EmpleadosManager() {
                             const nameA = (a.nombre || a.username || "").trim().toLowerCase()
                             const nameB = (b.nombre || b.username || "").trim().toLowerCase()
                             return sortOrder === "asc"
-                                ? nameA.localeCompare(nameB, 'es', { sensitivity: 'base' })
-                                : nameB.localeCompare(nameA, 'es', { sensitivity: 'base' })
+                                ? nameA.localeCompare(nameB, "es", { sensitivity: "base" })
+                                : nameB.localeCompare(nameA, "es", { sensitivity: "base" })
                         })
                         .map((empleado) => (
                             <div key={empleado.id} className="bg-card border border-border rounded-lg shadow-sm hover:shadow-md transition-all p-6 relative group">
@@ -296,7 +130,6 @@ export function EmpleadosManager() {
                                 </div>
 
                                 <div className="grid grid-cols-2 gap-3 mt-auto">
-                                    {/* Botones de Gestion de Horas (Solo para roles con permiso) */}
                                     {canManageOvertime(user?.rol) && (
                                         <>
                                             <button
@@ -312,7 +145,7 @@ export function EmpleadosManager() {
                                                 Historial HE
                                             </button>
                                             <button
-                                                onClick={() => handleOpenBalanceModal(empleado)}
+                                                onClick={() => router.push(`/horas-extra/${empleado.id}/compensacion`)}
                                                 className="col-span-2 bg-muted hover:bg-muted/80 text-foreground py-2 rounded-md text-sm font-medium transition-colors border border-transparent flex items-center justify-center gap-2"
                                             >
                                                 Gestionar Compensacion
@@ -320,8 +153,7 @@ export function EmpleadosManager() {
                                         </>
                                     )}
 
-                                    {/* Botones Basicos (Visible para todos los managers/coordinadores o solo jefe) */}
-                                    {(!canManageOvertime(user?.rol) && canManageEmployees(user?.rol)) && (
+                                    {!canManageOvertime(user?.rol) && canManageEmployees(user?.rol) && (
                                         <button
                                             onClick={() => router.push(`/horas-extra/${empleado.id}/historial`)}
                                             className="col-span-2 bg-background text-foreground hover:bg-accent py-2 rounded-md text-sm font-medium transition-colors border border-input"
@@ -330,7 +162,6 @@ export function EmpleadosManager() {
                                         </button>
                                     )}
 
-                                    {/* Boton Editar (Solo Admin/TH - No Coordinadores) */}
                                     {canManageEmployees(user?.rol) && !isCoordinator(user?.rol) && (
                                         <button
                                             onClick={() => router.push(`/empleados/${empleado.id}`)}
@@ -347,38 +178,6 @@ export function EmpleadosManager() {
                         ))}
                 </div>
             )}
-
-            {/* Balance Modal */}
-            {showBalanceModal && selectedEmployeeForBalance && (
-                <div className="fixed inset-0 z-[70] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
-                    <div className="bg-card border border-border rounded-xl shadow-2xl max-w-4xl w-full max-h-[90vh] flex flex-col animate-in fade-in zoom-in duration-200">
-                        <div className="p-6 border-b border-border flex justify-between items-center bg-blue-50 dark:bg-blue-950/20">
-                            <div>
-                                <h3 className="text-xl font-bold text-foreground">Gestion de Compensacion en Tiempo</h3>
-                                <p className="text-sm text-muted-foreground">Empleado: <span className="font-medium text-foreground">{selectedEmployeeForBalance.nombre || selectedEmployeeForBalance.username}</span></p>
-                            </div>
-                            <button onClick={() => setShowBalanceModal(false)} className="text-muted-foreground hover:text-foreground"><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18" /><path d="m6 6 12 12" /></svg></button>
-                        </div>
-                        <div className="flex-1 overflow-hidden grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-border">
-                            <div className="md:col-span-2 flex flex-col overflow-hidden">
-                                <div className="p-4 bg-muted/20 border-b border-border"><h4 className="font-semibold text-sm uppercase tracking-wider text-muted-foreground">Historial</h4></div>
-                                <div className="flex-1 overflow-y-auto p-0"><table className="w-full text-sm"><thead className="bg-muted text-muted-foreground sticky top-0"><tr><th className="px-4 py-2 text-left">Fecha</th><th className="px-4 py-2 text-left">Concepto</th><th className="px-4 py-2 text-right">Cant.</th><th className="px-4 py-2 text-right">Saldo</th></tr></thead><tbody className="divide-y divide-border">{balanceData?.historial?.map((item) => (<tr key={item.id} className="hover:bg-accent/50"><td className="px-4 py-3 text-muted-foreground">{new Date(item.fecha).toLocaleDateString()}</td><td className="px-4 py-3"><p className="font-medium">{item.descripcion}</p><span className="text-xs text-muted-foreground capitalize">{(item.tipo_operacion || "").toLowerCase()}</span></td><td className={`px-4 py-3 text-right font-bold ${item.cantidad_minutos >= 0 ? 'text-green-600' : 'text-red-500'}`}>{item.cantidad_minutos > 0 ? '+' : ''}{formatMinutesToFloat(item.cantidad_minutos)}</td><td className="px-4 py-3 text-right font-medium">{formatMinutesToFloat(item.saldo_nuevo)}</td></tr>))}</tbody></table></div>
-                            </div>
-                            <div className="p-6 bg-muted/10 flex flex-col gap-6 overflow-y-auto">
-                                <div className="bg-background border border-border rounded-lg p-4 shadow-sm space-y-3"><h4 className="font-semibold text-sm uppercase tracking-wider text-muted-foreground">Resumen</h4>{balanceData ? (<><div className="flex justify-between items-end pb-2 border-b border-border"><span className="text-sm">Disponible:</span><span className="text-2xl font-bold text-primary">{formatMinutesToFloat(balanceData.saldo_disponible)}</span></div><div className="space-y-1 text-sm"><div className="flex justify-between text-muted-foreground"><span>Total:</span><span>{formatMinutesToFloat(balanceData.saldo_total)}</span></div>{balanceData.saldo_pendiente > 0 && (<div className="flex justify-between text-amber-600 font-medium"><span>Pendiente:</span><span>{formatMinutesToFloat(balanceData.saldo_pendiente)}</span></div>)}</div></>) : "Cargando..."}</div>
-                                <div className="bg-background border border-border rounded-lg p-4 shadow-sm space-y-4"><h4 className="font-semibold text-sm uppercase tracking-wider text-muted-foreground">Registrar Canjeo</h4><form onSubmit={handleManagerRedemption} className="space-y-3"><div><label className="text-xs font-medium block mb-1">Tipo</label><select value={tipo} onChange={(e) => { setTipo(e.target.value); setFechaSingle(""); setHoraLlegada(""); setHoraSalida(""); setRedemptionForm(p => ({ ...p, minutos: "" })); setCalculatedDisplay("") }} className="w-full px-3 py-2 border border-input rounded-md text-sm"><option value="DIA_COMPLETO">Dia Completo</option><option value="LLEGADA_TARDIA">Llegada Tardia</option><option value="SALIDA_TEMPRANA">Salida Temprana</option></select></div>{tipo === 'DIA_COMPLETO' && (<div><label className="text-xs font-medium block mb-1">Fecha</label><input type="date" value={fechaSingle} onChange={e => handleFullDayLogic(e.target.value)} required className="w-full px-3 py-2 border border-input rounded-md text-sm" /></div>)}{tipo === 'LLEGADA_TARDIA' && (<div className="grid grid-cols-2 gap-2"><div><label className="text-xs font-medium block mb-1">Fecha</label><input type="date" value={fechaSingle} onChange={e => handleLateArrivalLogic(e.target.value, horaLlegada)} required className="w-full px-3 py-2 border border-input rounded-md text-sm" /></div><div><label className="text-xs font-medium block mb-1">Hora Llegada</label><input type="time" value={horaLlegada} onChange={e => handleLateArrivalLogic(fechaSingle, e.target.value)} required className="w-full px-3 py-2 border border-input rounded-md text-sm" /></div></div>)}{tipo === 'SALIDA_TEMPRANA' && (<div className="grid grid-cols-2 gap-2"><div><label className="text-xs font-medium block mb-1">Fecha</label><input type="date" value={fechaSingle} onChange={e => handleEarlyDepartureLogic(e.target.value, horaSalida)} required className="w-full px-3 py-2 border border-input rounded-md text-sm" /></div><div><label className="text-xs font-medium block mb-1">Hora Salida</label><input type="time" value={horaSalida} onChange={e => handleEarlyDepartureLogic(fechaSingle, e.target.value)} required className="w-full px-3 py-2 border border-input rounded-md text-sm" /></div></div>)}<div><label className="text-xs font-medium block mb-1">Tiempo (Calculado)</label><input type="text" readOnly value={calculatedDisplay} className="w-full px-3 py-2 border border-input rounded-md text-sm bg-muted text-foreground" /></div><div><label className="text-xs font-medium block mb-1">Motivo</label><textarea rows={2} required value={redemptionForm.motivo} onChange={e => setRedemptionForm(p => ({ ...p, motivo: e.target.value }))} className="w-full px-3 py-2 border border-input rounded-md text-sm resize-none" /></div><button type="submit" disabled={redeeming || !redemptionForm.minutos} className="w-full py-2 bg-primary text-primary-foreground rounded-md text-sm font-medium hover:opacity-90 disabled:opacity-50">{redeeming ? "..." : "Registrar"}</button></form></div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            )}
         </div>
     )
 }
-
-function formatMinutesToFloat(minutes) {
-    if (!minutes) return "0h"
-    const hours = minutes / 60
-    return `${parseFloat(hours.toFixed(2))}h`
-}
-

@@ -58,7 +58,7 @@ function DashboardStats({ title }) {
         return (
             <div className="flex flex-col items-center justify-center py-12">
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mb-4"></div>
-                <p className="text-muted-foreground animate-pulse">Cargando estadísticas...</p>
+                <p className="text-muted-foreground animate-pulse">Cargando estadÃ­sticas...</p>
             </div>
         )
     }
@@ -69,7 +69,7 @@ function DashboardStats({ title }) {
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="md:col-span-1">
-                    <CompensatoryTimeWidget />
+                    <CompensatoryTimeWidget includePending={false} />
                 </div>
                 <div className="md:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-6">
 

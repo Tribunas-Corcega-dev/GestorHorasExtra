@@ -18,6 +18,10 @@ export async function POST(request) {
       return NextResponse.json({ message: "No autorizado" }, { status: 401 })
     }
 
+    if (user.rol === "OPERARIO") {
+      return NextResponse.json({ message: "Este perfil es solo de consulta para compensacion en tiempo" }, { status: 403 })
+    }
+
     const body = await request.json()
     const { fecha_inicio, fecha_fin, minutos_solicitados, tipo, motivo, targetUserId } = body
 
@@ -214,3 +218,4 @@ export async function POST(request) {
     return NextResponse.json({ message: "Error interno del servidor" }, { status: 500 })
   }
 }
+

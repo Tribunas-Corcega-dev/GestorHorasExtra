@@ -13,11 +13,11 @@ function formatMinutesToTime(minutes) {
 // Import helper
 import { calculateTotalMinutes, getIntervals, timeToMinutes, formatMinutesToHHMM } from "@/lib/calculations"
 
-export function CompensatoryTimeWidget() {
+export function CompensatoryTimeWidget({ showReadOnlyNotice = true }) {
     const { user } = useAuth()
     const [balance, setBalance] = useState(0) // Now represents AVAILABLE balance
     const [balanceTotal, setBalanceTotal] = useState(0)
-    const [balancePending, setBalancePending] = useState(0)
+
     const [history, setHistory] = useState([]) // Balance Log
     const [requestHistory, setRequestHistory] = useState([]) // Requests Log
     const [schedule, setSchedule] = useState(null)
@@ -37,6 +37,7 @@ export function CompensatoryTimeWidget() {
 
     // Derived state for display
     const [calculatedDisplay, setCalculatedDisplay] = useState("")
+    const canRequestCompensation = Boolean(user && user.rol !== "OPERARIO")
 
     // Calculate min date (Tomorrow) for UI restriction
     const getTomorrowDate = () => {
@@ -57,12 +58,12 @@ export function CompensatoryTimeWidget() {
 
     async function fetchBalance() {
         try {
-            const res = await fetch("/api/compensatorios/saldo")
+            const res = await fetch(`/api/compensatorios/saldo?includePending=false`)
             if (res.ok) {
                 const data = await res.json()
                 setBalance(data.saldo_disponible || 0)
                 setBalanceTotal(data.saldo_total || 0)
-                setBalancePending(data.saldo_pendiente || 0)
+
                 setHistory(data.historial || [])
                 setRequestHistory(data.solicitudes || [])
 
@@ -105,7 +106,7 @@ export function CompensatoryTimeWidget() {
         const selectedDate = new Date(dateStr + 'T00:00:00')
 
         if (selectedDate <= today) {
-            alert("La fecha debe ser posterior al día actual.")
+            alert("La fecha debe ser posterior al dia actual.")
             setMinutosSolicitados("")
             setCalculatedDisplay("")
             return
@@ -114,7 +115,7 @@ export function CompensatoryTimeWidget() {
         const daySchedule = getDaySchedule(dateStr)
 
         if (!daySchedule || !daySchedule.enabled) {
-            alert("No tienes turno programado para este día.")
+            alert("No tienes turno programado para este dia.")
             setMinutosSolicitados("")
             setCalculatedDisplay("")
             return
@@ -155,7 +156,7 @@ export function CompensatoryTimeWidget() {
         const selectedDate = new Date(dateStr + 'T00:00:00')
 
         if (selectedDate <= today) {
-            alert("La fecha debe ser posterior al día actual.")
+            alert("La fecha debe ser posterior al dia actual.")
             setMinutosSolicitados("")
             setCalculatedDisplay("")
             return
@@ -196,7 +197,7 @@ export function CompensatoryTimeWidget() {
 
         // Calculate minutes based on start time
         // Note: If I arrive in the afternoon, do I deduct morning + part of afternoon?
-        // Yes. "Llegada Tardía" implies I missed everything before.
+        // Yes. "Llegada Tardia" implies I missed everything before.
         // So Diff = Arrival - FirstStart - (Break if applicable?)
         // Wait, simply: Time missed = Total Working Minutes *scheduled BEFORE arrival*.
         // Correct logic:
@@ -239,7 +240,7 @@ export function CompensatoryTimeWidget() {
         const selectedDate = new Date(dateStr + 'T00:00:00')
 
         if (selectedDate <= today) {
-            alert("La fecha debe ser posterior al día actual.")
+            alert("La fecha debe ser posterior al dia actual.")
             setMinutosSolicitados("")
             setCalculatedDisplay("")
             return
@@ -301,12 +302,17 @@ export function CompensatoryTimeWidget() {
 
     async function handleSubmit(e) {
         e.preventDefault()
+        if (!canRequestCompensation) {
+            alert("Este perfil es solo de consulta para compensacion en tiempo")
+            return
+        }
+
         setSubmitting(true)
 
         try {
             // Basic validation
             if (!minutosSolicitados || parseInt(minutosSolicitados) <= 0) {
-                alert("Por favor ingrese una cantidad de tiempo válida")
+                alert("Por favor ingrese una cantidad de tiempo valida")
                 setSubmitting(false)
                 return
             }
@@ -363,25 +369,29 @@ export function CompensatoryTimeWidget() {
         <div className="bg-card border border-border rounded-lg shadow-sm p-6">
             <div className="flex justify-between items-start mb-4">
                 <div>
-                    <h3 className="text-lg font-bold text-foreground">Compensación en Tiempo</h3>
-                    <p className="text-sm text-muted-foreground">Compensación en tiempo disponible</p>
+                    <h3 className="text-lg font-bold text-foreground">Compensacion en Tiempo</h3>
+                    <p className="text-sm text-muted-foreground">Compensacion en tiempo disponible</p>
                 </div>
+                {canRequestCompensation && (
                 <button
                     onClick={() => setShowModal(true)}
                     className="text-xs bg-primary/10 text-primary hover:bg-primary/20 px-3 py-1.5 rounded-full font-medium transition-colors"
                 >
                     Usar Tiempo
                 </button>
+                )}
             </div>
 
-            <div className="mb-6 grid grid-cols-3 gap-2 text-center border-b border-border pb-4">
+            {!canRequestCompensation && showReadOnlyNotice && (
+                <div className="mb-4 rounded-md border border-amber-300/60 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                    Perfil en modo solo consulta: no puedes crear solicitudes de compensacion.
+                </div>
+            )}
+
+            <div className="mb-6 grid grid-cols-2 gap-2 text-center border-b border-border pb-4">
                 <div>
                     <span className="block text-2xl font-bold text-foreground">{formatMinutesToTime(balanceTotal)}</span>
                     <span className="text-[10px] uppercase text-muted-foreground font-semibold">Total</span>
-                </div>
-                <div>
-                    <span className="block text-2xl font-bold text-orange-500">{formatMinutesToTime(balancePending)}</span>
-                    <span className="text-[10px] uppercase text-muted-foreground font-semibold">En Solicitud</span>
                 </div>
                 <div>
                     <span className="block text-2xl font-bold text-green-600">{formatMinutesToTime(balance)}</span>
@@ -403,7 +413,7 @@ export function CompensatoryTimeWidget() {
                                         item.tipo_movimiento === 'USO' ? 'bg-orange-500' : 'bg-blue-500'
                                         }`}></span>
                                     <span className="font-medium text-foreground">
-                                        {item.tipo_movimiento === 'ACUMULACION' ? 'Acumulación' :
+                                        {item.tipo_movimiento === 'ACUMULACION' ? 'Acumulacion' :
                                             item.tipo_movimiento === 'USO' ? 'Uso' : 'Ajuste'}
                                     </span>
                                 </div>
@@ -420,48 +430,49 @@ export function CompensatoryTimeWidget() {
                     </div>
                 )}
             </div>
-
             {/* Request History */}
-            <div>
-                <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Historial de Solicitudes</h4>
-                {requestHistory.length === 0 ? (
-                    <p className="text-sm text-muted-foreground italic">No hay solicitudes registradas</p>
-                ) : (
-                    <div className="space-y-2 max-h-40 overflow-y-auto pr-1 custom-scrollbar">
-                        {requestHistory.map(req => (
-                            <div key={req.id} className="flex justify-between items-start text-xs border-b border-border/50 pb-2 last:border-0">
-                                <div>
-                                    <div className="flex items-center gap-2 mb-1">
-                                        <span className={`font-bold ${req.tipo === 'DIA_COMPLETO' ? 'text-foreground' : 'text-muted-foreground'}`}>
-                                            {req.tipo.replace('_', ' ')}
+            {canRequestCompensation && (
+                <div>
+                    <h4 className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Historial de Solicitudes</h4>
+                    {requestHistory.length === 0 ? (
+                        <p className="text-sm text-muted-foreground italic">No hay solicitudes registradas</p>
+                    ) : (
+                        <div className="space-y-2 max-h-40 overflow-y-auto pr-1 custom-scrollbar">
+                            {requestHistory.map(req => (
+                                <div key={req.id} className="flex justify-between items-start text-xs border-b border-border/50 pb-2 last:border-0">
+                                    <div>
+                                        <div className="flex items-center gap-2 mb-1">
+                                            <span className={`font-bold ${req.tipo === 'DIA_COMPLETO' ? 'text-foreground' : 'text-muted-foreground'}`}>
+                                                {req.tipo.replace('_', ' ')}
+                                            </span>
+                                            <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${req.estado === 'PENDIENTE' ? 'bg-orange-100 text-orange-700' :
+                                                    req.estado === 'APROBADO' ? 'bg-green-100 text-green-700' :
+                                                        'bg-red-100 text-red-700'
+                                                }`}>
+                                                {req.estado}
+                                            </span>
+                                        </div>
+                                        <p className="text-muted-foreground">
+                                            {new Date(req.fecha_inicio).toLocaleDateString()} {new Date(req.fecha_inicio).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                        </p>
+                                    </div>
+                                    <div className="text-right">
+                                        <span className="font-bold text-foreground block">
+                                            {Math.floor(req.minutos_solicitados / 60)}h {req.minutos_solicitados % 60}m
                                         </span>
-                                        <span className={`px-1.5 py-0.5 rounded text-[10px] font-bold ${req.estado === 'PENDIENTE' ? 'bg-orange-100 text-orange-700' :
-                                                req.estado === 'APROBADO' ? 'bg-green-100 text-green-700' :
-                                                    'bg-red-100 text-red-700'
-                                            }`}>
-                                            {req.estado}
+                                        <span className="text-[10px] text-muted-foreground block max-w-[100px] truncate">
+                                            {req.motivo || "-"}
                                         </span>
                                     </div>
-                                    <p className="text-muted-foreground">
-                                        {new Date(req.fecha_inicio).toLocaleDateString()} {new Date(req.fecha_inicio).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                                    </p>
                                 </div>
-                                <div className="text-right">
-                                    <span className="font-bold text-foreground block">
-                                        {Math.floor(req.minutos_solicitados / 60)}h {req.minutos_solicitados % 60}m
-                                    </span>
-                                    <span className="text-[10px] text-muted-foreground block max-w-[100px] truncate">
-                                        {req.motivo || "-"}
-                                    </span>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                )}
-            </div>
+                            ))}
+                        </div>
+                    )}
+                </div>
+            )}
 
             {/* Request Modal */}
-            {showModal && (
+            {canRequestCompensation && showModal && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
                     <div className="bg-card border border-border rounded-xl shadow-2xl max-w-md w-full p-6 animate-in fade-in zoom-in duration-200">
                         <h3 className="text-xl font-bold text-foreground mb-4">Solicitar Tiempo Libre</h3>
@@ -484,9 +495,9 @@ export function CompensatoryTimeWidget() {
                                     className="w-full px-3 py-2 border border-input bg-background text-foreground rounded-md focus:outline-none focus:ring-2 focus:ring-ring"
                                 >
                                     <option value="DIA_COMPLETO" disabled={!canFullDay}>
-                                        {canFullDay ? "Día Completo" : "Día Completo (Saldo insuficiente)"}
+                                        {canFullDay ? "Dia Completo" : "Dia Completo (Saldo insuficiente)"}
                                     </option>
-                                    <option value="LLEGADA_TARDIA">Llegada Tardía</option>
+                                    <option value="LLEGADA_TARDIA">Llegada Tardia</option>
                                     <option value="SALIDA_TEMPRANA">Salida Temprana</option>
                                 </select>
                             </div>
@@ -503,7 +514,7 @@ export function CompensatoryTimeWidget() {
                                         className="w-full px-3 py-2 border border-input bg-background text-foreground rounded-md focus:outline-none focus:ring-2 focus:ring-ring text-sm"
                                     />
                                     <p className="text-xs text-muted-foreground mt-1">
-                                        Se descontarán horas según tu horario fijo.
+                                        Se descontaran horas segun tu horario fijo.
                                     </p>
                                 </div>
                             )}
@@ -560,58 +571,21 @@ export function CompensatoryTimeWidget() {
                                 </div>
                             )}
 
-                            {tipo !== 'DIA_COMPLETO' && tipo !== 'LLEGADA_TARDIA' && tipo !== 'SALIDA_TEMPRANA' && (
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div>
-                                        <label className="block text-sm font-medium text-foreground mb-1">Desde</label>
-                                        <input
-                                            type="datetime-local"
-                                            value={fechaInicio}
-                                            onChange={(e) => setFechaInicio(e.target.value)}
-                                            required
-                                            className="w-full px-3 py-2 border border-input bg-background text-foreground rounded-md focus:outline-none focus:ring-2 focus:ring-ring text-sm"
-                                        />
-                                    </div>
-                                    <div>
-                                        <label className="block text-sm font-medium text-foreground mb-1">Hasta</label>
-                                        <input
-                                            type="datetime-local"
-                                            value={fechaFin}
-                                            onChange={(e) => setFechaFin(e.target.value)}
-                                            required
-                                            className="w-full px-3 py-2 border border-input bg-background text-foreground rounded-md focus:outline-none focus:ring-2 focus:ring-ring text-sm"
-                                        />
-                                    </div>
-                                </div>
-                            )}
 
                             <div>
                                 <label className="block text-sm font-medium text-foreground mb-1">Tiempo a descontar</label>
                                 <div className="relative">
                                     <input
                                         type="text"
-                                        value={(tipo === 'DIA_COMPLETO' || tipo === 'LLEGADA_TARDIA' || tipo === 'SALIDA_TEMPRANA') ? calculatedDisplay : minutesToDisplay(minutosSolicitados)}
-                                        readOnly={tipo === 'DIA_COMPLETO' || tipo === 'LLEGADA_TARDIA' || tipo === 'SALIDA_TEMPRANA'}
-                                        onChange={(e) => {
-                                            if (tipo !== 'DIA_COMPLETO' && tipo !== 'LLEGADA_TARDIA' && tipo !== 'SALIDA_TEMPRANA') setMinutosSolicitados(e.target.value)
-                                        }}
-                                        className={`w-full px-3 py-2 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-ring ${(tipo === 'DIA_COMPLETO' || tipo === 'LLEGADA_TARDIA' || tipo === 'SALIDA_TEMPRANA') ? 'bg-muted' : 'bg-background text-foreground'} ${(calculatedDisplay.includes('debe') || calculatedDisplay.includes('posterior')) ? 'text-destructive font-medium' : 'text-muted-foreground'}`}
-                                        placeholder={(tipo === 'DIA_COMPLETO' || tipo === 'LLEGADA_TARDIA' || tipo === 'SALIDA_TEMPRANA') ? "Selecciona fecha/hora" : "Minutos (ej. 120)"}
+                                        value={calculatedDisplay}
+                                        readOnly
+                                        className={`w-full px-3 py-2 border border-input rounded-md focus:outline-none focus:ring-2 focus:ring-ring bg-muted ${(calculatedDisplay.includes('debe') || calculatedDisplay.includes('posterior')) ? 'text-destructive font-medium' : 'text-muted-foreground'}`}
+                                        placeholder="Selecciona fecha/hora"
                                     />
-                                    {tipo !== 'DIA_COMPLETO' && tipo !== 'LLEGADA_TARDIA' && tipo !== 'SALIDA_TEMPRANA' && (
-                                        <input
-                                            type="number"
-                                            className="absolute inset-0 opacity-0 cursor-text"
-                                            value={minutosSolicitados}
-                                            onChange={(e) => setMinutosSolicitados(e.target.value)}
-                                        />
-                                    )}
                                 </div>
-                                {tipo !== 'DIA_COMPLETO' && (
-                                    <p className="text-xs text-muted-foreground mt-1 text-right">
-                                        Disponible: {balance} min
-                                    </p>
-                                )}
+                                <p className="text-xs text-muted-foreground mt-1 text-right">
+                                    Disponible: {balance} min
+                                </p>
                             </div>
 
                             <div>
@@ -635,7 +609,7 @@ export function CompensatoryTimeWidget() {
                                 </button>
                                 <button
                                     type="submit"
-                                    disabled={submitting || (tipo === 'DIA_COMPLETO' && !minutosSolicitados) || (tipo === 'LLEGADA_TARDIA' && !minutosSolicitados) || (tipo === 'SALIDA_TEMPRANA' && !minutosSolicitados)}
+                                    disabled={submitting || !minutosSolicitados}
                                     className="px-4 py-2 bg-primary text-primary-foreground rounded-md text-sm font-medium hover:opacity-90 transition-opacity disabled:opacity-50"
                                 >
                                     {submitting ? "Enviando..." : "Enviar Solicitud"}
@@ -649,8 +623,6 @@ export function CompensatoryTimeWidget() {
     )
 }
 
-// Helper for generic minutes input
-function minutesToDisplay(min) {
-    if (!min) return ""
-    return min
-}
+
+
+
