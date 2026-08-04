@@ -149,6 +149,7 @@ export function OvertimeHistoryView({ employeeId, showBackButton = true }) {
 
         if (employeeId) {
             fetchData()
+            fetchBalanceSummary()
         }
     }, [user, router, employeeId])
 
@@ -581,6 +582,19 @@ export function OvertimeHistoryView({ employeeId, showBackButton = true }) {
         Vista Previa Compensación
     </button>
 )}
+
+                {canManageOvertime(user?.rol) && (
+                    <button
+                        onClick={() => setShowBankingModal(true)}
+                        className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center justify-center gap-2 w-full sm:w-auto"
+                        title="Enviar horas extra reportadas a la bolsa de compensación en tiempo"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        Enviar a Compensación
+                    </button>
+                )}
 
                 {/* Close Period Button */}
                 {['TALENTO_HUMANO', 'ASISTENTE_GERENCIA'].includes(user?.rol) && selectedPeriod !== 'all' && !closingRecord && (
@@ -1183,7 +1197,6 @@ export function OvertimeHistoryView({ employeeId, showBackButton = true }) {
 </div >
     )
 }
-
 
 
 
