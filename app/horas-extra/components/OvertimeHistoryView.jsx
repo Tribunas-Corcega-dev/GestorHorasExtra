@@ -286,7 +286,32 @@ export function OvertimeHistoryView({ employeeId, showBackButton = true }) {
             setLoading(false)
         }
     }
+    
+    async function handleDeleteJornada(jornada) {
+    const confirmar = window.confirm(
+        `¿Seguro que deseas eliminar el registro del ${formatDateForDisplay(jornada.fecha)}? Esta acción no se puede deshacer.`
+    )
+    if (!confirmar) return
 
+    try {
+        const fechaStr = new Date(jornada.fecha).toISOString().split("T")[0]
+        const res = await fetch(
+            `/api/jornadas?empleado_id=${employeeId}&fecha=${fechaStr}`,
+            { method: "DELETE" }
+        )
+
+        if (res.ok) {
+            alert("Registro eliminado correctamente.")
+            fetchData() // recarga el historial para reflejar el cambio
+        } else {
+            const err = await res.json()
+            alert("Error al eliminar: " + err.message)
+        }
+    } catch (error) {
+        console.error("Error deleting jornada:", error)
+        alert("Error al eliminar el registro")
+    }
+}
 
     function getPeriodRange(periodId) {
         if (!periodId || periodId === "all") return null
@@ -975,15 +1000,26 @@ export function OvertimeHistoryView({ employeeId, showBackButton = true }) {
                                                     ) : (
                                                         <span className="text-muted-foreground font-normal">-</span>
                                                     )}
-                                                </td>
+                                            </td>
                                                 <td className="px-4 py-3 text-center">
-                                                    <button
+                                                <div className="flex items-center justify-center gap-3">
+                                                   <button
                                                         onClick={() => setSelectedJornada(jornada)}
                                                         className="text-primary hover:text-primary/80 text-sm font-medium underline"
-                                                    >
-                                                        Ver Detalles
-                                                    </button>
-                                                </td>
+                                                     >
+                                                       Ver Detalles
+                                                  </button>
+                                                     {canManageOvertime(user?.rol) && (
+                                                  <button
+                                                        onClick={() => handleDeleteJornada(jornada)}
+                                                        className="text-red-600 hover:text-red-700 text-sm font-medium underline"
+                                                        title="Eliminar este registro"
+                                                     >
+                                                     Eliminar
+                                                  </button>
+                                                     )}
+                                                </div>
+                                            </td>
                                             </tr>
                                         )
                                     })}

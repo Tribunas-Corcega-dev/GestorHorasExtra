@@ -247,6 +247,35 @@ export async function DELETE(request) {
             return NextResponse.json({ message: "Fecha inválida" }, { status: 400 })
         }
 
+        // Verificar si ya fue procesada en compensación antes de permitir el borrado
+        const jornadasExistentes = await prisma.jornadas.findMany({
+            where: {
+                empleado_id,
+                fecha: fechaDate,
+            },
+            select: {
+                id: true,
+                estado_compensacion: true,
+            }
+        })
+
+        if (jornadasExistentes.length === 0) {
+            return NextResponse.json({ message: "No se encontró el registro a eliminar" }, { status: 404 })
+        }
+
+        const yaProcesada = jornadasExistentes.some(
+            (j) => j.estado_compensacion === "APROBADO" || j.estado_compensacion === "SOLICITADO"
+        )
+
+        if (yaProcesada) {
+            return NextResponse.json(
+                {
+                    message: "No se puede eliminar: este registro ya fue procesado en compensación en tiempo. Si necesitas corregirlo, primero debe revertirse el movimiento en la bolsa de compensación."
+                },
+                { status: 409 }
+            )
+        }
+
         await prisma.jornadas.deleteMany({
             where: {
                 empleado_id,
