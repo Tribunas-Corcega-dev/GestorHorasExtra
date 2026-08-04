@@ -88,10 +88,14 @@ export function Layout({ children }) {
 
           <div className="flex items-center gap-2 md:gap-4 overflow-hidden">
             {/* User Info */}
-            <div className="flex flex-col items-end text-xs md:text-sm min-w-0">
+            <Link
+              href="/perfil"
+              className="flex flex-col items-end text-xs md:text-sm min-w-0 hover:opacity-80 transition-opacity"
+              title="Mi perfil / cambiar contraseña"
+            >
               <span className="font-semibold truncate max-w-[120px] md:max-w-none">{user.username}</span>
               <span className="text-[10px] md:text-xs opacity-90 truncate max-w-[120px] md:max-w-none">{user.rol}</span>
-            </div>
+            </Link>
 
             {/* Logout Button */}
             <button
@@ -248,3 +252,4 @@ export function Layout({ children }) {
     </div >
   )
 }
+
