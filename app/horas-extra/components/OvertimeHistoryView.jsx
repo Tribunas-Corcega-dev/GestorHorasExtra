@@ -13,6 +13,7 @@ import { resolveEffectiveSalaryFromHistory } from "@/lib/salaryHistory"
 import { supabase } from "@/lib/supabaseClient"
 import { CompensatoryRequestModal } from "./CompensatoryRequestModal"
 import { ApprovalFormatModal } from "@/app/dashboard/jefe/components/ApprovalFormatModal"
+import { CompensationFormatModal } from "@/app/dashboard/jefe/components/CompensationFormatModal"
 
 const LABELS = {
     extra_diurna: "Extra Diurna",
@@ -87,7 +88,8 @@ export function OvertimeHistoryView({ employeeId, showBackButton = true }) {
     const [showBankingModal, setShowBankingModal] = useState(false)
     const [showApprovalPreviewModal, setShowApprovalPreviewModal] = useState(false)
     const [approvalPeriod, setApprovalPeriod] = useState(null)
-
+    const [showCompensationPreviewModal, setShowCompensationPreviewModal] = useState(false)
+    
     useEffect(() => {
         // Generate mock periods for the last 3 months
         const mockPeriods = []
@@ -320,6 +322,16 @@ export function OvertimeHistoryView({ employeeId, showBackButton = true }) {
         setApprovalPeriod(range)
         setShowApprovalPreviewModal(true)
     }
+
+    function openCompensationPreview() {
+    const range = getPeriodRange(selectedPeriod)
+    if (!range) {
+        alert("Selecciona una quincena o mes para ver el formato.")
+        return
+    }
+    setApprovalPeriod(range) // reutilizamos el mismo period ya calculado
+    setShowCompensationPreviewModal(true)
+    }
     // Filter jornadas based on period
     const filteredJornadas = jornadas.filter(j => {
         if (selectedPeriod === "all") return true
@@ -506,6 +518,7 @@ export function OvertimeHistoryView({ employeeId, showBackButton = true }) {
                                                 Gestionar Compensación
                                                 <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6" /><polyline points="15 3 21 3 21 9" /><line x1="10" y1="14" x2="21" y2="3" /></svg>
                                             </button>
+    
                                         </div>
                                     )}
                                 </div>
@@ -556,17 +569,18 @@ export function OvertimeHistoryView({ employeeId, showBackButton = true }) {
 
                 {/* Banking Button (Managers only in this version) */}
                 {canManageOvertime(user?.rol) && (
-                    <button
-                        onClick={() => {
-                            fetchBalanceSummary()
-                            setShowBankingModal(true)
-                        }}
-                        className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center justify-center gap-2 w-full sm:w-auto"
-                    >
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 12h20" /><path d="M7 12v5a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2v-5" /><path d="M12 12V7" /></svg>
-                        Enviar a Compensación
-                    </button>
-                )}
+    <button
+        onClick={openCompensationPreview}
+        disabled={selectedPeriod === "all" || !empleado}
+        className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-md text-sm font-medium transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed w-full sm:w-auto"
+        title={selectedPeriod === "all" ? "Selecciona una quincena o mes" : "Ver formato de compensación en tiempo"}
+    >
+        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+        Vista Previa Compensación
+    </button>
+)}
 
                 {/* Close Period Button */}
                 {['TALENTO_HUMANO', 'ASISTENTE_GERENCIA'].includes(user?.rol) && selectedPeriod !== 'all' && !closingRecord && (
@@ -1132,7 +1146,15 @@ export function OvertimeHistoryView({ employeeId, showBackButton = true }) {
                     employee={empleado}
                     period={approvalPeriod}
                 />
+                
             )}
+
+                <CompensationFormatModal
+                     isOpen={showCompensationPreviewModal}
+                     onClose={() => setShowCompensationPreviewModal(false)}
+                     employee={empleado}
+                     period={approvalPeriod}
+                 />
             {canManageOvertime(user?.rol) && (
                 <CompensatoryRequestModal
                     isOpen={showBankingModal}

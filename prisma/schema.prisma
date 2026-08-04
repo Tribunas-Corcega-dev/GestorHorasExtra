@@ -74,6 +74,7 @@ model festivos {
   fecha       DateTime @id @db.Date
   descripcion String?
 }
+
 model historial_bolsa {
   id                                               String    @id @default(dbgenerated("uuid_generate_v4()")) @db.Uuid
   usuario_id                                       String    @db.Uuid
@@ -87,8 +88,6 @@ model historial_bolsa {
   usuarios_historial_bolsa_realizado_porTousuarios usuarios? @relation("historial_bolsa_realizado_porTousuarios", fields: [realizado_por], references: [id], onDelete: NoAction, onUpdate: NoAction)
   usuarios_historial_bolsa_usuario_idTousuarios    usuarios  @relation("historial_bolsa_usuario_idTousuarios", fields: [usuario_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 }
-
-/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 
 model historial_salarios {
   id              String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
@@ -225,7 +224,7 @@ model usuarios {
   cierres_quincenales                                             cierres_quincenales[]
   historial_bolsa_historial_bolsa_realizado_porTousuarios         historial_bolsa[]      @relation("historial_bolsa_realizado_porTousuarios")
   historial_bolsa_historial_bolsa_usuario_idTousuarios            historial_bolsa[]      @relation("historial_bolsa_usuario_idTousuarios")
-  historial_salarios                                               historial_salarios[]
+  historial_salarios                                              historial_salarios[]
   jornadas_jornadas_aprobado_porTousuarios                        jornadas[]             @relation("jornadas_aprobado_porTousuarios")
   jornadas_jornadas_empleado_idTousuarios                         jornadas[]             @relation("jornadas_empleado_idTousuarios")
   jornadas_jornadas_registrado_porTousuarios                      jornadas[]             @relation("jornadas_registrado_porTousuarios")
@@ -263,7 +262,3 @@ enum role_type {
   coordinator
   worker
 }
-
-
-
-
